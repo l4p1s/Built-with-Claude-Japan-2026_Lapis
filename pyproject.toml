@@ -1,0 +1,27 @@
+[project]
+name = "aid-spot-finder"
+version = "0.1.0"
+description = "災害時、GPS の「いつもと違う集まり」から非公式な支援拠点を見つける"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "psycopg[binary]",
+]
+
+[dependency-groups]
+dev = [
+    "httpx2",
+    "pytest",
+    "ruff",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+addopts = "-p no:cacheprovider"

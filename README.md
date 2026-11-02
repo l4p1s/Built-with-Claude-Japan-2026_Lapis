@@ -1,5 +1,19 @@
 # Built-with-Claude-Japan-2026_Lapis
 
+## 起動方法
+
+Docker（Compose）だけあれば動きます。
+
+```sh
+docker compose up -d --build --wait   # API と PostgreSQL + PostGIS を起動
+curl localhost:18080/healthz           # {"ok":true}
+docker compose run --rm api pytest    # テスト
+```
+
+- API 仕様書: http://localhost:18080/docs （OpenAPI: `/openapi.json`）
+- 構成と設計の理由: [docs/architecture.md](docs/architecture.md)
+- DB を初期化し直す: `docker compose down -v`
+
 ## 参考文献
 
 ※「本文確認済み」と書いていない文献は、要旨のみ確認。
