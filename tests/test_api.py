@@ -288,3 +288,11 @@ def test_official_spots_open_at():
     assert official_names(h) == ["test-B"]  # 省略時は現在
     r = client.get("/v1/spots", params={"at": "2026-07-29T12:00:00"}, headers=h)
     assert r.status_code == 422  # タイムゾーンなしは受け付けない
+
+
+def test_web_is_served():
+    r = client.get("/")
+    assert r.status_code == 200 and 'id="map"' in r.text
+    r = client.get("/manifest.webmanifest")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("application/manifest+json")

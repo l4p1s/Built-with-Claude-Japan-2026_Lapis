@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>支援拠点マップ</title>
+  <meta name="description" content="災害時、人の集まりから公式に載らない給水・炊き出しの場所を見つけて地図に載せます">
+  <meta name="theme-color" content="#1e3a5f">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="map" aria-label="地図"></div>
+
+  <header class="top">
+    <div class="chips" role="group" aria-label="絞り込み">
+      <button type="button" class="chip" data-filter="all" aria-pressed="true">すべて</button>
+      <button type="button" class="chip" data-filter="water" aria-pressed="false">水</button>
+      <button type="button" class="chip" data-filter="food" aria-pressed="false">食</button>
+      <button type="button" class="chip" data-filter="shelter" aria-pressed="false">避難</button>
+    </div>
+    <button type="button" id="menu-btn" class="round" aria-label="メニュー">≡</button>
+  </header>
+
+  <p id="banner" class="banner" role="status" hidden>接続できません。位置は端末にためて、つながったら送ります。</p>
+
+  <section id="question" class="card" aria-live="polite" hidden>
+    <button type="button" id="question-close" class="close" aria-label="閉じる">×</button>
+    <h2>近くで人が集まっています</h2>
+    <p>ここに何がありますか？</p>
+    <div id="question-kinds"></div>
+    <p id="question-error" class="error" role="alert"></p>
+  </section>
+
+  <nav class="dock" aria-label="知らせる">
+    <h2>ここにあるものを知らせる</h2>
+    <div id="dock-kinds"></div>
+    <p id="location-hint" class="hint" hidden></p>
+  </nav>
+
+  <dialog id="consent" class="center">
+    <div class="sheet-body">
+      <h1>支援拠点マップ</h1>
+      <p>災害のとき、人の集まりから、公式に載らない給水や炊き出しの場所を見つけて地図に載せます。</p>
+      <ul>
+        <li>送るのは位置だけです。名前や連絡先は送りません（匿名）。</li>
+        <li>少人数の集まりは地図に表示しません。</li>
+        <li>メニューからいつでも参加をやめ、送ったデータを消せます。</li>
+      </ul>
+      <button type="button" id="consent-ok" class="btn btn--primary">同意して始める</button>
+      <p id="consent-error" class="error" role="alert"></p>
+    </div>
+  </dialog>
+
+  <dialog id="detail" class="sheet">
+    <div class="sheet-body">
+      <h2 id="detail-title"></h2>
+      <div id="detail-body"></div>
+      <p id="detail-error" class="error" role="alert"></p>
+      <div class="actions"><button type="button" class="btn" data-close>閉じる</button></div>
+    </div>
+  </dialog>
+
+  <dialog id="report" class="sheet">
+    <form id="report-form" class="sheet-body">
+      <h2>今いる場所にあるものは？</h2>
+      <div id="report-kinds"></div>
+      <label for="report-note">備考（任意・100文字まで）</label>
+      <textarea id="report-note" maxlength="100" rows="2" placeholder="例: 12時まで。容器を持参"></textarea>
+      <p id="report-error" class="error" role="alert"></p>
+      <div class="actions">
+        <button type="button" class="btn" data-close>やめる</button>
+        <button type="submit" class="btn btn--primary">送信する</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="menu" class="sheet">
+    <div class="sheet-body">
+      <h2>メニュー</h2>
+      <details>
+        <summary>このアプリについて</summary>
+        <p>アプリ利用者の匿名の位置から「いつもと違う人の集まり」を見つけ、近くの人に「ここに何がある？」と聞いて、公式に載らない支援拠点を地図に載せます。自分から知らせることもできます。</p>
+      </details>
+      <details>
+        <summary>データの扱い</summary>
+        <ul>
+          <li>画面を開いている間、約1分ごとに位置を送ります。</li>
+          <li>位置は、人の集まりを見つけるためだけに使います。</li>
+          <li>最後に使ってから30日で参加は切れます。</li>
+          <li>ピンと備考は、最後の確認から6時間で地図から消えます。</li>
+        </ul>
+      </details>
+      <button type="button" id="leave" class="btn btn--danger">参加をやめてデータを消す</button>
+      <p id="menu-error" class="error" role="alert"></p>
+      <p class="credits">
+        地図: © OpenFreeMap © OpenMapTiles © OpenStreetMap contributors<br>
+        公式の避難所: BODIK 令和8年熊本地震オープンデータポータル<br>
+        <a href="https://github.com/l4p1s/Built-with-Claude-Japan-2026_Lapis" target="_blank" rel="noopener">GitHub</a>
+      </p>
+      <div class="actions"><button type="button" class="btn" data-close>閉じる</button></div>
+    </div>
+  </dialog>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

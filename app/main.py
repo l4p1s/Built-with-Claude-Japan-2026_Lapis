@@ -1,8 +1,11 @@
+import mimetypes
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Annotated, Literal
 
 import psycopg
 from fastapi import FastAPI, HTTPException, Query, status
+from fastapi.staticfiles import StaticFiles
 from pydantic import AfterValidator, AwareDatetime, BaseModel, Field
 
 from app import rules, spots
@@ -156,3 +159,8 @@ def get_spots(
         "type": "FeatureCollection",
         "features": spots.unofficial_features(conn, box) + spots.official_features(conn, box, at),
     }
+
+
+# 画面（web/）を / で配信する。API と同じオリジンなので CORS の設定は要らない
+mimetypes.add_type("application/manifest+json", ".webmanifest")
+app.mount("/", StaticFiles(directory=Path(__file__).parent.parent / "web", html=True), name="web")
