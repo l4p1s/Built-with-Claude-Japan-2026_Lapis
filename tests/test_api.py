@@ -272,6 +272,23 @@ def test_flags_hide_note():
     assert flag(h3, 0) == 404
 
 
+def test_leaving_removes_own_reports_and_recomputes():
+    h1, h2 = new_session(), new_session()
+    cid = report(h1, "water").json()["candidate_id"]
+    answer(h2, cid, "food")
+    assert spot(h2, cid)["status"] == "confirmed"
+
+    assert client.delete("/v1/sessions/me", headers=h1).status_code == 204
+    p = spot(h2, cid)
+    assert (p["status"], p["kinds"]) == ("pending", {"food": 1})  # 1人に戻る
+
+    lone = report(h2, "water", lat=LAT + 0.01).json()["candidate_id"]
+    assert client.delete("/v1/sessions/me", headers=h2).status_code == 204
+    h3 = new_session()
+    assert spot(h3, cid) is None  # 回答がなくなった報告のピンは消える
+    assert spot(h3, lone) is None
+
+
 def add_official(name, opened_at, closed_at):
     sql(
         "INSERT INTO official_spots (source, source_key, name, kind, geom, opened_at, closed_at)"

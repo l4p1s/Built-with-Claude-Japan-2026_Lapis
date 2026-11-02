@@ -89,7 +89,8 @@ def post_session(body: SessionCreate, conn: Conn) -> SessionOut:
 
 @app.delete("/v1/sessions/me", status_code=status.HTTP_204_NO_CONTENT)
 def delete_session(conn: Conn, sid: Session) -> None:
-    # 位置・回答・通報も ON DELETE CASCADE で消える
+    # 回答を消してピンの状態を決め直してから、セッションを消す（位置・通報は ON DELETE CASCADE で消える）
+    spots.forget_session(conn, sid)
     conn.execute("DELETE FROM sessions WHERE id = %s", (sid,))
 
 

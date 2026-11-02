@@ -35,10 +35,33 @@ def record_answer(
         """,
         {"cid": candidate_id, "sid": sid, "kind": kind, "note": note},
     )
+    _refresh_status(conn, candidate_id, touch=kind in rules.KINDS)
+
+
+def forget_session(conn: psycopg.Connection, sid: UUID) -> None:
+    """参加をやめた人の回答を消す。その人の報告だけでできたピンは消し、残りは状態を決め直す。"""
+    rows = conn.execute(
+        "DELETE FROM answers WHERE session_id = %s RETURNING candidate_id", (sid,)
+    ).fetchall()
+    cids = [r[0] for r in rows]
+    conn.execute(
+        """
+        DELETE FROM candidates c
+        WHERE c.id = ANY(%s) AND c.source = 'report'
+          AND NOT EXISTS (SELECT 1 FROM answers a WHERE a.candidate_id = c.id)
+        """,
+        (cids,),
+    )
+    for cid in cids:
+        _refresh_status(conn, cid, touch=False)  # 消えた候補は 0 行の更新になるだけ
+
+
+def _refresh_status(conn: psycopg.Connection, candidate_id: int, touch: bool) -> None:
+    """回答から候補の状態を決め直す。touch なら最後の確認時刻も今にする。"""
     conn.execute(
         """
         UPDATE candidates c SET
-            last_activity_at = CASE WHEN %(active)s THEN now() ELSE c.last_activity_at END,
+            last_activity_at = CASE WHEN %(touch)s THEN now() ELSE c.last_activity_at END,
             status = CASE
                 WHEN s.ended > 0 AND s.ended >= s.active THEN 'ended'
                 WHEN s.active >= CASE c.source WHEN 'detected' THEN %(need_detected)s
@@ -52,7 +75,7 @@ def record_answer(
         """,
         {
             "cid": candidate_id,
-            "active": kind in rules.KINDS,
+            "touch": touch,
             "kinds": list(rules.KINDS),
             "need_detected": rules.CONFIRM_ANSWERS["detected"],
             "need_report": rules.CONFIRM_ANSWERS["report"],
