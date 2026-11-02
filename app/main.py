@@ -148,6 +148,11 @@ def get_spots(
     conn: Conn,
     sid: Session,
     bbox: Annotated[str | None, Query(description="minLon,minLat,maxLon,maxLat")] = None,
+    at: Annotated[AwareDatetime | None, Query(description="公式拠点をこの時点で絞る")] = None,
 ) -> dict:
-    """非公式の拠点（確認済み・未確認）を GeoJSON の FeatureCollection で返す。"""
-    return {"type": "FeatureCollection", "features": spots.unofficial_features(conn, parse_bbox(bbox))}
+    """非公式の拠点（確認済み・未確認）と公式の拠点を、1つの GeoJSON で返す。"""
+    box = parse_bbox(bbox)
+    return {
+        "type": "FeatureCollection",
+        "features": spots.unofficial_features(conn, box) + spots.official_features(conn, box, at),
+    }

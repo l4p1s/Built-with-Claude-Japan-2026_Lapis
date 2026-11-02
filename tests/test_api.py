@@ -32,6 +32,7 @@ def cleanup():
         "DELETE FROM candidates WHERE ST_DWithin(center, ST_MakePoint(%s, %s)::geography, 20000)",
         (LON, LAT),
     )
+    sql("DELETE FROM official_spots WHERE source = 'test'")
 
 
 def new_session() -> dict:
@@ -260,3 +261,30 @@ def test_flags_hide_note():
     assert flag(h3, aid) == 204  # 2件目で非表示
     assert spot(h1, cid)["notes"] == []
     assert flag(h3, 0) == 404
+
+
+def add_official(name, opened_at, closed_at):
+    sql(
+        "INSERT INTO official_spots (source, source_key, name, kind, geom, opened_at, closed_at)"
+        " VALUES ('test', %s, %s, 'shelter', ST_MakePoint(%s, %s)::geography, %s, %s)",
+        (name, name, LON, LAT, opened_at, closed_at),
+    )
+
+
+def official_names(h, at=None):
+    params = {"bbox": BBOX} | ({"at": at} if at else {})
+    feats = client.get("/v1/spots", params=params, headers=h).json()["features"]
+    return sorted(f["properties"]["name"] for f in feats if f["properties"]["source"] == "official")
+
+
+def test_official_spots_open_at():
+    h = new_session()
+    add_official("test-A", "2026-07-28T16:00:00+09:00", "2026-08-05T18:00:00+09:00")
+    add_official("test-B", "2026-07-30T09:00:00+09:00", None)
+    add_official("test-C", None, None)  # 開設されなかった
+
+    assert official_names(h, "2026-07-29T12:00:00+09:00") == ["test-A"]
+    assert official_names(h, "2026-08-10T12:00:00+09:00") == ["test-B"]
+    assert official_names(h) == ["test-B"]  # 省略時は現在
+    r = client.get("/v1/spots", params={"at": "2026-07-29T12:00:00"}, headers=h)
+    assert r.status_code == 422  # タイムゾーンなしは受け付けない

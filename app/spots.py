@@ -1,5 +1,6 @@
 """非公式の拠点（候補）と公式拠点の読み書き。ルールの数値は app/rules.py。"""
 
+from datetime import datetime
 from uuid import UUID
 
 import psycopg
@@ -178,3 +179,37 @@ def _feature(lon: float, lat: float, properties: dict) -> dict:
         "geometry": {"type": "Point", "coordinates": [lon, lat]},
         "properties": properties,
     }
+
+
+def official_features(
+    conn: psycopg.Connection, bbox: Bbox | None, at: datetime | None
+) -> list[dict]:
+    """at の時点で開いていた公式拠点を GeoJSON の Feature にする。at が None なら現在。"""
+    where, params = _bbox_filter("o.geom", bbox)
+    rows = conn.execute(
+        f"""
+        SELECT o.id, o.kind, o.name, o.address, ST_X(o.geom::geometry), ST_Y(o.geom::geometry),
+               o.opened_at, o.closed_at
+        FROM official_spots o
+        CROSS JOIN (SELECT coalesce(%(at)s::timestamptz, now()) AS at) t
+        WHERE o.opened_at <= t.at AND (o.closed_at IS NULL OR o.closed_at > t.at) {where}
+        """,
+        {"at": at, **params},
+    ).fetchall()
+    return [
+        _feature(
+            lon,
+            lat,
+            {
+                "source": "official",
+                "status": "open",
+                "official_id": oid,
+                "kind": kind,
+                "name": name,
+                "address": address,
+                "opened_at": opened_at.isoformat(),
+                "closed_at": closed_at and closed_at.isoformat(),
+            },
+        )
+        for oid, kind, name, address, lon, lat, opened_at, closed_at in rows
+    ]
