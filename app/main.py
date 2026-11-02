@@ -131,6 +131,18 @@ def post_report(body: ReportIn, conn: Conn, sid: Session) -> ReportOut:
     return ReportOut(candidate_id=cid)
 
 
+@app.post("/v1/answers/{answer_id}/flags", status_code=status.HTTP_204_NO_CONTENT)
+def post_flag(answer_id: int, conn: Conn, sid: Session) -> None:
+    """備考を「不適切」と通報する。同じ人の2回目は何もしない。"""
+    try:
+        conn.execute(
+            "INSERT INTO flags (answer_id, session_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+            (answer_id, sid),
+        )
+    except psycopg.errors.ForeignKeyViolation:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "answer not found")
+
+
 @app.get("/v1/spots")
 def get_spots(
     conn: Conn,

@@ -243,3 +243,20 @@ def test_report_rejects_bad_input():
     assert report(h, "none").status_code == 422  # 報告に「わからない」は使えない
     assert report(h, "water", lat=200).status_code == 422
     assert report(h, "water", note="www.example.com").status_code == 422
+
+
+def flag(h, answer_id) -> int:
+    return client.post(f"/v1/answers/{answer_id}/flags", headers=h).status_code
+
+
+def test_flags_hide_note():
+    h1, h2, h3 = new_session(), new_session(), new_session()
+    cid = report(h1, "water", note="12時まで").json()["candidate_id"]
+    aid = spot(h1, cid)["notes"][0]["answer_id"]
+
+    assert flag(h2, aid) == 204
+    assert flag(h2, aid) == 204  # 同じ人の2回目は数えない
+    assert len(spot(h1, cid)["notes"]) == 1
+    assert flag(h3, aid) == 204  # 2件目で非表示
+    assert spot(h1, cid)["notes"] == []
+    assert flag(h3, 0) == 404
