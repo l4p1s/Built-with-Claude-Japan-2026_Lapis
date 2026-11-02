@@ -14,4 +14,6 @@ def get_conn():
         yield conn
 
 
-Conn = Annotated[psycopg.Connection, Depends(get_conn)]
+# scope="function": commit してから応答を返す（既定の "request" だと応答の後に commit され、
+# 直後のリクエストが書き込み前のデータを見る）
+Conn = Annotated[psycopg.Connection, Depends(get_conn, scope="function")]

@@ -4,12 +4,13 @@ docker compose run --rm api pytest
 """
 
 from datetime import UTC, datetime
+from typing import get_args
 
 import psycopg
 import pytest
 from fastapi.testclient import TestClient
 
-from app.db import DATABASE_URL
+from app.db import DATABASE_URL, Conn
 from app.main import app
 
 client = TestClient(app)
@@ -81,6 +82,11 @@ def test_session_requires_consent():
 def test_session_required():
     assert client.get("/v1/spots").status_code == 401
     assert client.get("/v1/spots", headers={"Authorization": "Bearer nope"}).status_code == 401
+
+
+def test_commit_happens_before_response():
+    # TestClient は応答の後始末まで待つので、順番の違いはテストで再現できない。設定そのものを確かめる
+    assert get_args(Conn)[1].scope == "function"
 
 
 def test_locations_and_delete_session():
