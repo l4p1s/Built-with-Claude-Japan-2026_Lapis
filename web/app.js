@@ -363,6 +363,8 @@ async function checkQuestions() {
   const card = $("#question");
   if (!card.hidden && Number(card.dataset.candidateId) === q.candidate_id) return; // 押している途中で作り直さない
   card.dataset.candidateId = q.candidate_id;
+  $("#question-title").textContent =
+    q.source === "report" ? "近くで知らせがありました" : "近くで人が集まっています";
   $("#question-error").textContent = "";
   $("#question-kinds").replaceChildren(
     kindButtons(QUESTION_KINDS, (kind) => answer(q.candidate_id, kind, "#question-error")),

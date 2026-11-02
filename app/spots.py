@@ -85,11 +85,11 @@ def _refresh_status(conn: psycopg.Connection, candidate_id: int, touch: bool) ->
 
 def questions(
     conn: psycopg.Connection, sid: UUID, lat: float, lon: float
-) -> list[tuple[int, float, float]]:
-    """近くの未確認の候補のうち、この人がまだ答えていないもの。(id, lat, lon) を近い順に。"""
+) -> list[tuple[int, float, float, str]]:
+    """近くの未確認の候補のうち、この人がまだ答えていないもの。(id, lat, lon, source) を近い順に。"""
     return conn.execute(
         f"""
-        SELECT c.id, ST_Y(c.center::geometry), ST_X(c.center::geometry)
+        SELECT c.id, ST_Y(c.center::geometry), ST_X(c.center::geometry), c.source
         FROM candidates c
         WHERE {ALIVE} AND c.status = 'pending'
           AND ST_DWithin(c.center, ST_MakePoint(%(lon)s, %(lat)s)::geography, %(r)s)

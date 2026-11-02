@@ -48,6 +48,7 @@ class Question(BaseModel):
     candidate_id: int
     lat: float
     lon: float
+    source: Literal["detected", "report"]
 
 
 class AnswerIn(BaseModel):
@@ -115,7 +116,7 @@ def get_questions(
     sid: Session,
 ) -> list[Question]:
     rows = spots.questions(conn, sid, lat, lon)
-    return [Question(candidate_id=cid, lat=la, lon=lo) for cid, la, lo in rows]
+    return [Question(candidate_id=cid, lat=la, lon=lo, source=src) for cid, la, lo, src in rows]
 
 
 @app.post("/v1/candidates/{candidate_id}/answers", status_code=status.HTTP_201_CREATED)

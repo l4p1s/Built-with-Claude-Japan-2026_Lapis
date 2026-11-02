@@ -113,6 +113,8 @@ def test_detected_candidate_confirmed_by_one_answer():
     h = new_session()
     cid = add_candidate()
     assert cid in question_ids(h)
+    q = client.get("/v1/questions", params={"lat": LAT, "lon": LON}, headers=h).json()
+    assert [x["source"] for x in q if x["candidate_id"] == cid] == ["detected"]
     assert cid not in question_ids(h, lat=LAT + 0.1)  # 約11km 先
     p = spot(h, cid)
     assert (p["source"], p["status"], p["top_kind"]) == ("detected", "pending", None)
@@ -217,6 +219,8 @@ def test_report_needs_second_person():
     assert [n["note"] for n in p["notes"]] == ["12時まで"]
     assert cid not in question_ids(h1)  # 報告した本人には聞かない
     assert cid in question_ids(h2)
+    q = client.get("/v1/questions", params={"lat": LAT, "lon": LON}, headers=h2).json()
+    assert [x["source"] for x in q if x["candidate_id"] == cid] == ["report"]
 
     # 約50m 先からの報告は、同じ候補にまとまる
     assert report(h2, "water", lat=LAT + 0.0005).json()["candidate_id"] == cid
