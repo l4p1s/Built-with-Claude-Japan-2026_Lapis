@@ -36,8 +36,8 @@ DB 接続は **psycopg 3 + 生 SQL**（PostGIS の関数は SQL で書く方が�
 ## 2. 実行基盤
 
 - **Docker Compose** で `db`（公式 `postgis/postgis` イメージ）と `api`（python-slim + uv）の2コンテナ。`docker compose up` 1発で起動し、審査員・OSS 利用者も同じ手順で再現できる
-- 開発は localhost:8000。`api` はソースをマウントして自動リロード
-- Web 画面は API と同じオリジンから配信 → CORS 設定不要、`ngrok http 8000` 1本で公開できる
+- 開発は localhost:18080。`api` はソースをマウントして自動リロード（ホスト側は 18080。8000 は同じマシンの別サーバーが使っているため。コンテナ内は 8000）
+- Web 画面は API と同じオリジンから配信 → CORS 設定不要、`ngrok http 18080` 1本で公開できる
 - 注意（先に伝える制約）: スマホで GPS を取るには HTTPS が必須。localhost では PC ブラウザでしか位置が取れないので、スマホ実機は ngrok 公開時に確認する。デモ本体はシミュレーター（後述）で動かす
 - Web アプリは画面を閉じると位置が取れない（CLAUDE.md §3 のとおり）。これはネイティブ化で解決する前提
 
@@ -106,9 +106,9 @@ tests/
 ORM・移行ツール・キュー/スケジューラー・プッシュ通知・レート制限・管理画面・フロントのビルド環境。
 
 ## 検証（構築後の確認手順）
-1. `docker compose up` → `curl localhost:8000/healthz`
-2. `curl -X POST localhost:8000/v1/sessions -d '{"consent":true}'` でトークン取得、トークンなしで `/v1/spots` が 401 になること
+1. `docker compose up` → `curl localhost:18080/healthz`
+2. `curl -X POST localhost:18080/v1/sessions -d '{"consent":true}'` でトークン取得、トークンなしで `/v1/spots` が 401 になること
 3. `uv run python scripts/simulate.py` → `python -m app.detect` → `/v1/questions` に候補が出る → 回答 → `/v1/spots` の GeoJSON に載る
-4. ブラウザで localhost:8000 を開き、地図に拠点が出ること
+4. ブラウザで localhost:18080 を開き、地図に拠点が出ること
 5. `DELETE /v1/sessions/me` で location_points が消えること
 6. `uv run pytest`（メッシュ番号・ポアソン判定・セッション認証）と GitHub Actions が通ること
