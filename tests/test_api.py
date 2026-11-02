@@ -136,6 +136,8 @@ def test_top_kind_tie_goes_to_first_answer():
     answer(h1, cid, "food")
     answer(h2, cid, "water")
     assert spot(h1, cid)["top_kind"] == "food"
+    answer(h1, cid, "food")  # 「まだやっている」で上書きしても、先に付いた順は変わらない
+    assert spot(h1, cid)["top_kind"] == "food"
 
 
 def test_ended_by_majority():
@@ -161,6 +163,16 @@ def test_fade_and_hide():
     old = add_candidate()
     sql("UPDATE candidates SET last_activity_at = now() - interval '7 hours' WHERE id = %s", (old,))
     assert old not in question_ids(h)
+
+
+def test_none_answer_keeps_activity_and_stops_asking():
+    h = new_session()
+    cid = add_candidate()
+    sql("UPDATE candidates SET last_activity_at = now() - interval '4 hours' WHERE id = %s", (cid,))
+    assert answer(h, cid, "none").status_code == 201
+    p = spot(h, cid)
+    assert (p["status"], p["faded"]) == ("pending", True)  # 「わからない」では時刻を更新しない
+    assert cid not in question_ids(h)  # 答えた人には聞かない
 
 
 def test_spots_bbox_and_geometry():

@@ -96,7 +96,7 @@ DB の変更は `db/init.sql` を直接書き換える（公開前のため移�
 | `source` を追加 | `detected`（検知）/ `report`（利用者の報告） |
 | 検知用の列を任意に | `cell_code`・`window_start`・`observed`・`expected`・`p_value` は `detected` のときだけ入る |
 | `status` を変更 | `pending`（未確認）/ `confirmed`（確認済み）/ `ended`（終了） |
-| `last_activity_at` を追加 | 最後に確認された時刻。回答・報告・検知のたびに更新する |
+| `last_activity_at` を追加 | 最後に確認された時刻。種類の回答・報告・検知のたびに更新する（「わからない」「もう終わっていた」では更新しない） |
 
 ### 2.2 answers（回答）
 

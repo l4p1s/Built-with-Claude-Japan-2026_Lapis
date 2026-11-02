@@ -19,6 +19,8 @@ def record_answer(
 
     候補がなければ psycopg.errors.ForeignKeyViolation。
     """
+    # 同じ候補への回答を1件ずつ処理する（同時に答えると状態の数え間違いが起きるため）
+    conn.execute("SELECT 1 FROM candidates WHERE id = %s FOR UPDATE", (candidate_id,))
     conn.execute(
         """
         INSERT INTO answers (candidate_id, session_id, kind, note)
@@ -94,8 +96,8 @@ def unofficial_features(conn: psycopg.Connection, bbox: Bbox | None) -> list[dic
         LEFT JOIN LATERAL (
             -- 種類ごとの人数と、一番多い種類（同数なら先に回答が付いた種類）
             SELECT jsonb_object_agg(kind, n) AS kinds,
-                   (array_agg(kind ORDER BY n DESC, first_at))[1] AS top_kind
-            FROM (SELECT kind, count(*) AS n, min(answered_at) AS first_at
+                   (array_agg(kind ORDER BY n DESC, first_id))[1] AS top_kind
+            FROM (SELECT kind, count(*) AS n, min(id) AS first_id
                   FROM answers WHERE candidate_id = c.id AND kind = ANY(%(kinds)s)
                   GROUP BY kind) t
         ) k ON true
