@@ -1,33 +1,40 @@
-/* 色はすべてここで決める。ダークモードは端末の設定に合わせて自動で切り替える */
+/* 色はすべてここで決める。ダークモードは端末の設定に合わせて自動で切り替える。
+   面と文字は少し青みのある無彩色、色が付くのは地図のピンと「知らせる」の札だけにする */
 :root {
   color-scheme: light dark;
-  --accent: #1e3a5f;
+  --accent: #1e3a5f; /* 紺: 確認済みの非公式拠点・主なボタン */
   --on-accent: #fff;
-  --pending: #ea8a00;
-  --on-pending: #0b1220;
+  --pending: #ea8a00; /* オレンジ: 未確認 */
+  --on-pending: #111827;
+  --official: #0f7b4f; /* 緑: 公式の避難所（避難場所の標識の色） */
   --surface: #fff;
-  --surface-2: #f1f5f9;
-  --fg: #0f172a;
-  --muted: #64748b;
-  --border: #cbd5e1;
+  --surface-2: #eceff4;
+  --fg: #111827;
+  --fg-2: #4b5565;
+  --muted: #6b7487;
+  --border: rgb(17 24 39 / 0.1);
   --danger: #b91c1c;
-  --shadow: 0 2px 10px rgb(0 0 0 / 0.15);
-  font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 4px 12px rgb(0 0 0 / 0.1);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --accent: #60a5fa;
-    --on-accent: #0b1220;
+    --on-accent: #0b0d14;
     --pending: #f59e0b;
-    --on-pending: #0b1220;
-    --surface: #111827;
-    --surface-2: #1f2937;
-    --fg: #e5e7eb;
-    --muted: #94a3b8;
-    --border: #374151;
+    --on-pending: #0b0d14;
+    --official: #4cc38a;
+    --surface: #11141c;
+    --surface-2: #1a1e28;
+    --fg: #eef0f5;
+    --fg-2: #a3a9b8;
+    --muted: #7a8296;
+    --border: rgb(238 240 245 / 0.1);
     --danger: #f87171;
-    --shadow: 0 2px 10px rgb(0 0 0 / 0.5);
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 12px rgb(0 0 0 / 0.3);
   }
   .maplibregl-ctrl.maplibregl-ctrl-attrib { background: var(--surface); color: var(--fg); }
   .maplibregl-ctrl-attrib a { color: var(--fg); }
@@ -40,69 +47,85 @@ html, body { margin: 0; height: 100%; background: var(--surface); color: var(--f
 button { font: inherit; color: inherit; cursor: pointer; }
 button:disabled { opacity: 0.45; cursor: not-allowed; }
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.icon { display: block; width: 18px; height: 18px; }
+
+/* 押したときの反応は色と、ほんの少しの縮みだけ */
+.chip, .round, .kind, .btn, .close {
+  transition: background-color 150ms var(--ease), color 150ms var(--ease),
+    border-color 150ms var(--ease), transform 150ms var(--ease);
+}
+.chip:active, .round:active, .kind:active:not(:disabled), .btn:active { transform: scale(0.98); }
 
 /* 地図の出典表示を下のドックに隠さない（--dock-h は app.js が入れる） */
 .maplibregl-ctrl-bottom-left, .maplibregl-ctrl-bottom-right { bottom: var(--dock-h, 0px); }
 
 /* 上部: 絞り込みとメニュー */
 .top {
-  position: fixed; z-index: 2; top: calc(10px + env(safe-area-inset-top)); left: 10px; right: 10px;
-  display: flex; gap: 6px; align-items: center;
+  position: fixed; z-index: 2; top: calc(12px + env(safe-area-inset-top)); left: 12px; right: 12px;
+  display: flex; gap: 8px; align-items: center;
 }
-.chips { display: flex; gap: 6px; overflow-x: auto; padding: 2px; }
+.chips { display: flex; gap: 8px; overflow-x: auto; padding: 4px; margin: -4px; }
 .chip {
-  min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--border);
+  min-height: 44px; padding: 0 16px; border-radius: 22px; border: 1px solid var(--border);
   background: var(--surface); box-shadow: var(--shadow); font-weight: 600; white-space: nowrap;
 }
 .chip[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 .round {
-  flex: none; margin-left: auto; width: 44px; height: 44px; border-radius: 50%; border: 0;
-  background: var(--surface); box-shadow: var(--shadow); font-size: 20px;
+  flex: none; margin-left: auto; width: 44px; height: 44px; border-radius: 22px;
+  border: 1px solid var(--border); background: var(--surface); box-shadow: var(--shadow);
+  color: var(--fg-2); display: flex; align-items: center; justify-content: center;
 }
 
 /* 通信できないときの帯と、「ここに何がある？」のカード */
 .banner, .card {
-  position: fixed; z-index: 3; top: calc(64px + env(safe-area-inset-top)); left: 10px; right: 10px;
-  max-width: 520px; margin: 0 auto; border-radius: 14px; box-shadow: var(--shadow);
+  position: fixed; z-index: 3; top: calc(64px + env(safe-area-inset-top)); left: 12px; right: 12px;
+  max-width: 520px; margin: 0 auto; box-shadow: var(--shadow);
 }
-.banner { padding: 8px 12px; background: var(--danger); color: var(--surface); font-size: 14px; }
-.card { padding: 12px 14px; background: var(--surface); border-left: 5px solid var(--pending); }
+.banner { padding: 8px 12px; border-radius: 12px; background: var(--danger); color: var(--surface); font-size: 14px; }
+.card { padding: 16px; border-radius: 16px; background: var(--surface); border: 1px solid var(--border); }
 .banner:not([hidden]) ~ .card { top: calc(112px + env(safe-area-inset-top)); }
-.card h2 { margin: 0 0 2px; font-size: 16px; }
-.card p { margin: 0 0 8px; }
+.card h2 { display: flex; align-items: center; gap: 8px; margin: 0 48px 4px 0; font-size: 16px; font-weight: 600; }
+.card p { margin: 0 0 12px 32px; color: var(--fg-2); }
 .close {
-  position: absolute; top: 2px; right: 2px; width: 44px; height: 44px;
-  border: 0; background: none; font-size: 20px; color: var(--muted);
+  position: absolute; top: 4px; right: 4px; width: 44px; height: 44px; border-radius: 10px;
+  border: 0; background: none; color: var(--muted); display: flex; align-items: center; justify-content: center;
 }
 
 /* 下部: 知らせるボタン */
 .dock {
   position: fixed; z-index: 2; left: 0; right: 0; bottom: 0; max-width: 640px; margin: 0 auto;
-  padding: 12px 12px calc(14px + env(safe-area-inset-bottom));
-  border-radius: 18px 18px 0 0; background: var(--surface); box-shadow: 0 -2px 12px rgb(0 0 0 / 0.15);
+  padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
+  border-radius: 16px 16px 0 0; background: var(--surface); box-shadow: 0 -4px 12px rgb(0 0 0 / 0.08);
 }
-.dock h2 { margin: 0 0 8px; font-size: 14px; }
+.dock h2 { margin: 0 0 8px; font-size: 14px; font-weight: 400; color: var(--fg-2); }
 .hint { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
 
-.kinds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+/* 種類のボタン。地図のピンと同じ「漢字1文字の札」を上に置く（横並びだと「宿泊・車中泊」が折り返す） */
+.kinds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .kind {
-  min-height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 2px; border: 1px solid transparent; border-radius: 12px; background: var(--surface-2);
-  font-size: 13px; font-weight: 600;
+  min-height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; padding: 8px 4px; border: 1px solid transparent; border-radius: 10px;
+  background: var(--surface-2); font-size: 14px; line-height: 20px;
 }
-.kind b { font-size: 18px; font-weight: normal; }
 .kind[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.tag {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--accent); font-size: 13px; font-weight: 600; line-height: 1;
+}
+.kind[aria-pressed="true"] .tag { background: transparent; border-color: currentColor; color: inherit; }
+.tag--pending { background: var(--pending); border-color: var(--pending); color: var(--on-pending); }
 
 /* ピン。MapLibre が外側の要素の transform を使うので、回転は内側でかける */
 .pin { width: 44px; height: 44px; padding: 0 0 6px; border: 0; background: none; display: flex; align-items: flex-end; justify-content: center; }
 .pin__shape {
   display: flex; align-items: center; justify-content: center; width: 30px; height: 30px;
-  border-radius: 50% 50% 50% 0; transform: rotate(-45deg); box-shadow: 0 2px 4px rgb(0 0 0 / 0.3);
+  border-radius: 50% 50% 50% 0; transform: rotate(-45deg); box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
 }
-.pin__text { transform: rotate(45deg); font-size: 13px; font-weight: 700; }
+.pin__text { transform: rotate(45deg); font-size: 13px; font-weight: 600; }
 .pin--confirmed .pin__shape { background: var(--accent); color: var(--on-accent); }
 .pin--pending .pin__shape { background: var(--pending); color: var(--on-pending); }
-.pin--official .pin__shape { background: var(--surface); color: var(--accent); border: 2px solid var(--accent); }
+.pin--official .pin__shape { background: var(--surface); color: var(--official); border: 2px solid var(--official); }
 .pin--faded { opacity: 0.45; }
 .me {
   width: 16px; height: 16px; border-radius: 50%; background: #2563eb; border: 3px solid #fff;
@@ -111,32 +134,42 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 
 /* シート（下から出る）と中央のダイアログ */
 dialog { border: 0; padding: 0; color: var(--fg); background: var(--surface); }
-dialog::backdrop { background: rgb(0 0 0 / 0.35); }
-dialog.sheet { width: 100%; max-width: 640px; max-height: 85dvh; margin: auto auto 0; border-radius: 18px 18px 0 0; }
-dialog.center { width: calc(100% - 32px); max-width: 480px; border-radius: 18px; }
-.sheet-body { padding: 18px 16px calc(18px + env(safe-area-inset-bottom)); }
-.sheet-body h1 { margin: 0 0 8px; font-size: 22px; }
-.sheet-body h2 { margin: 0 0 10px; font-size: 17px; }
+dialog::backdrop { background: rgb(0 0 0 / 0.36); }
+dialog.sheet { width: 100%; max-width: 640px; max-height: 85dvh; margin: auto auto 0; border-radius: 16px 16px 0 0; }
+dialog.center { width: calc(100% - 32px); max-width: 480px; border-radius: 16px; }
+dialog[open] { animation: rise 300ms var(--ease); }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } }
+@media (prefers-reduced-motion: reduce) {
+  dialog[open] { animation: none; }
+  .chip, .round, .kind, .btn, .close { transition: none; }
+}
+.sheet-body { padding: 20px 16px calc(20px + env(safe-area-inset-bottom)); }
+.sheet-body h1 { margin: 0 0 12px; font-size: 24px; font-weight: 600; line-height: 1.25; }
+.sheet-body h2 { margin: 0 0 12px; font-size: 18px; font-weight: 600; }
 .sheet-body p { margin: 0 0 8px; }
+.sheet-body ul { margin: 0 0 8px; padding-left: 20px; color: var(--fg-2); }
+.sheet-body li + li { margin-top: 8px; }
 
 .btn {
-  min-height: 44px; padding: 0 18px; border-radius: 12px; border: 1px solid var(--border);
+  min-height: 44px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--border);
   background: var(--surface-2); font-weight: 600;
 }
 .btn--primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
-.btn--danger { width: 100%; margin: 12px 0 4px; background: none; color: var(--danger); border-color: var(--danger); }
-#consent-ok { width: 100%; margin-top: 8px; }
-.actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin: 12px 0 0; }
-label { display: block; margin: 12px 0 4px; font-size: 13px; color: var(--muted); }
+.btn--danger { width: 100%; margin: 16px 0 4px; background: none; color: var(--danger); border-color: var(--danger); }
+#consent-ok { width: 100%; margin-top: 16px; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin: 16px 0 0; }
+label { display: block; margin: 16px 0 4px; font-size: 13px; color: var(--muted); }
 textarea {
-  width: 100%; padding: 8px; font: inherit; border-radius: 10px; border: 1px solid var(--border);
-  background: var(--surface); color: var(--fg);
+  width: 100%; padding: 8px 12px; font: inherit; border-radius: 10px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--fg); resize: vertical;
 }
-.error { min-height: 1em; margin: 6px 0; color: var(--danger); font-size: 13px; }
-.note { display: flex; gap: 8px; align-items: start; justify-content: space-between; padding: 8px 0; border-top: 1px solid var(--border); }
+.error { min-height: 16px; margin: 8px 0; color: var(--danger); font-size: 13px; }
+.error:empty { display: none; }
+.note { display: flex; gap: 8px; align-items: center; justify-content: space-between; padding: 8px 0; border-top: 1px solid var(--border); }
 .note p { margin: 0; }
 .link { flex: none; min-height: 44px; border: 0; background: none; color: var(--muted); text-decoration: underline; font-size: 12px; }
-.sheet-body details { padding: 10px 0; border-bottom: 1px solid var(--border); }
+.sheet-body details { padding: 8px 0; border-bottom: 1px solid var(--border); }
+.sheet-body details p, .sheet-body details ul { margin-bottom: 8px; color: var(--fg-2); }
 .sheet-body summary { display: flex; align-items: center; min-height: 44px; font-weight: 600; cursor: pointer; }
-.credits { margin-top: 12px; font-size: 12px; color: var(--muted); }
+.credits { margin-top: 16px; font-size: 12px; line-height: 20px; color: var(--muted); }
 .credits a { color: inherit; }

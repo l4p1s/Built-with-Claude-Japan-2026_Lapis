@@ -6,7 +6,7 @@
   <title>支援拠点マップ</title>
   <meta name="description" content="災害時、人の集まりから公式に載らない給水・炊き出しの場所を見つけて地図に載せます">
   <meta name="theme-color" content="#1e3a5f" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#111827" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#11141c" media="(prefers-color-scheme: dark)">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon-180.png">
@@ -23,14 +23,14 @@
       <button type="button" class="chip" data-filter="food" aria-pressed="false">食</button>
       <button type="button" class="chip" data-filter="shelter" aria-pressed="false">避難</button>
     </div>
-    <button type="button" id="menu-btn" class="round" aria-label="メニュー">≡</button>
+    <button type="button" id="menu-btn" class="round" aria-label="メニュー"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
   </header>
 
   <p id="banner" class="banner" role="status" hidden>接続できません。位置は端末にためて、つながったら送ります。</p>
 
   <section id="question" class="card" aria-live="polite" hidden>
-    <button type="button" id="question-close" class="close" aria-label="閉じる">×</button>
-    <h2 id="question-title">近くで人が集まっています</h2>
+    <button type="button" id="question-close" class="close" aria-label="閉じる"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    <h2><span class="tag tag--pending" aria-hidden="true">？</span><span id="question-title">近くで人が集まっています</span></h2>
     <p>ここに何がありますか？</p>
     <div id="question-kinds"></div>
     <p id="question-error" class="error" role="alert"></p>
@@ -68,7 +68,7 @@
   <dialog id="report" class="sheet">
     <form id="report-form" class="sheet-body">
       <h2>今いる場所にあるものは？</h2>
-      <p class="hint">今いる場所が地図に載ります。</p>
+      <p class="hint">今いる場所が地図に載ります</p>
       <div id="report-kinds"></div>
       <label for="report-note">備考（任意・100文字まで）</label>
       <textarea id="report-note" maxlength="100" rows="2" placeholder="例: 12時まで。容器を持参"></textarea>

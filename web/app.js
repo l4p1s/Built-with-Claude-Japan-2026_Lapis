@@ -12,7 +12,6 @@ const KIND_LABEL = {
   ended: "終わっていた",
 };
 const KIND_CHAR = { water: "水", food: "食", goods: "物", car_sleeping: "宿", shelter: "避", other: "他" };
-const KIND_ICON = { water: "💧", food: "🍙", goods: "📦", car_sleeping: "🚗", shelter: "🏫", other: "…", none: "？" };
 const REPORT_KINDS = ["water", "food", "goods", "car_sleeping", "shelter", "other"];
 const QUESTION_KINDS = ["water", "food", "goods", "car_sleeping", "shelter", "none"];
 
@@ -463,10 +462,12 @@ function kindButtons(kinds, onPick) {
   for (const kind of kinds) {
     const b = button("", () => onPick(kind), "kind");
     b.dataset.kind = kind;
-    const icon = document.createElement("b");
-    icon.setAttribute("aria-hidden", "true");
-    icon.textContent = KIND_ICON[kind];
-    b.append(icon, KIND_LABEL[kind]);
+    // 地図のピンと同じ「漢字1文字の札」。わからないは「？」
+    const tag = document.createElement("span");
+    tag.className = "tag";
+    tag.setAttribute("aria-hidden", "true");
+    tag.textContent = KIND_CHAR[kind] ?? "？";
+    b.append(tag, KIND_LABEL[kind]);
     grid.append(b);
   }
   return grid;
