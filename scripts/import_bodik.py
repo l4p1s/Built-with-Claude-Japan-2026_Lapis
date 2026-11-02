@@ -18,10 +18,16 @@ SOURCE = "bodik-kumamoto-r8"
 def rows(geojson: dict) -> list[tuple]:
     """取り込む行。キーは「市町村コード:名前」（BODIK のデータには ID がない）。
 
-    同じ施設が「台帳の行」と「開設の行」の2行で入っていることがあるので、開設日時のある行を
-    後ろに並べる。取り込みは後の行で上書きするので、開設の記録が残る。
+    同じ施設が2行で入っていることがあるので、開設の記録がある行、その中でも開設中（閉鎖日時なし）または閉鎖が遅い行を後ろに並べる。取り込みは後の行で上書きするので、その行が残る。
     """
-    features = sorted(geojson["features"], key=lambda f: f["properties"].get("opened_at") is not None)
+    features = sorted(
+        geojson["features"],
+        key=lambda f: (
+            f["properties"].get("opened_at") is not None,
+            f["properties"].get("closed_at") is None,
+            f["properties"].get("closed_at") or "",
+        ),
+    )
     out = []
     for f in features:
         p = f["properties"]
@@ -33,6 +39,7 @@ def rows(geojson: dict) -> list[tuple]:
     return out
 
 
+# ponytail: 取り込み元から消えた行は消さない。取り下げられた避難所が残るようなら、取り込みのたびに source の行を入れ替える
 def main() -> None:
     with urllib.request.urlopen(URL, timeout=60) as res:
         data = rows(json.load(res))
