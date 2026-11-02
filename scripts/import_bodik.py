@@ -34,7 +34,16 @@ def rows(geojson: dict) -> list[tuple]:
         lon, lat = f["geometry"]["coordinates"]
         key = f"{p['municipality_code']}:{p['name']}"
         out.append(
-            (SOURCE, key, p["name"], p.get("address"), lon, lat, p.get("opened_at"), p.get("closed_at"))
+            (
+                SOURCE,
+                key,
+                p["name"],
+                p.get("address"),
+                lon,
+                lat,
+                p.get("opened_at"),
+                p.get("closed_at"),
+            )
         )
     return out
 

@@ -213,7 +213,9 @@ def add_candidate(source="detected") -> int:
 
 
 def answer(h, cid, kind, note=None):
-    return client.post(f"/v1/candidates/{cid}/answers", json={"kind": kind, "note": note}, headers=h)
+    return client.post(
+        f"/v1/candidates/{cid}/answers", json={"kind": kind, "note": note}, headers=h
+    )
 
 
 def features(h, bbox=BBOX):
@@ -718,7 +720,10 @@ def get_spots(
     bbox: Annotated[str | None, Query(description="minLon,minLat,maxLon,maxLat")] = None,
 ) -> dict:
     """非公式の拠点（確認済み・未確認）を GeoJSON の FeatureCollection で返す。"""
-    return {"type": "FeatureCollection", "features": spots.unofficial_features(conn, parse_bbox(bbox))}
+    return {
+        "type": "FeatureCollection",
+        "features": spots.unofficial_features(conn, parse_bbox(bbox)),
+    }
 ```
 
 - [ ] **Step 6: DB を作り直す**
@@ -1001,7 +1006,12 @@ def feature(name, opened_at, lon=130.6):
 
 
 def test_opened_row_comes_last_for_same_key():
-    data = {"features": [feature("代陽", "2026-07-28T16:27:00+09:00", lon=130.59), feature("代陽", None)]}
+    data = {
+        "features": [
+            feature("代陽", "2026-07-28T16:27:00+09:00", lon=130.59),
+            feature("代陽", None),
+        ]
+    }
     out = rows(data)
     assert [r[1] for r in out] == ["432024:代陽", "432024:代陽"]
     assert out[-1][6] == "2026-07-28T16:27:00+09:00"  # 上書きで残るのは開設の行
@@ -1096,14 +1106,25 @@ def rows(geojson: dict) -> list[tuple]:
     同じ施設が「台帳の行」と「開設の行」の2行で入っていることがあるので、開設日時のある行を
     後ろに並べる。取り込みは後の行で上書きするので、開設の記録が残る。
     """
-    features = sorted(geojson["features"], key=lambda f: f["properties"].get("opened_at") is not None)
+    features = sorted(
+        geojson["features"], key=lambda f: f["properties"].get("opened_at") is not None
+    )
     out = []
     for f in features:
         p = f["properties"]
         lon, lat = f["geometry"]["coordinates"]
         key = f"{p['municipality_code']}:{p['name']}"
         out.append(
-            (SOURCE, key, p["name"], p.get("address"), lon, lat, p.get("opened_at"), p.get("closed_at"))
+            (
+                SOURCE,
+                key,
+                p["name"],
+                p.get("address"),
+                lon,
+                lat,
+                p.get("opened_at"),
+                p.get("closed_at"),
+            )
         )
     return out
 

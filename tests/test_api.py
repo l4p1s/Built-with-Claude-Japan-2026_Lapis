@@ -51,7 +51,9 @@ def add_candidate(source="detected") -> int:
 
 
 def answer(h, cid, kind, note=None):
-    return client.post(f"/v1/candidates/{cid}/answers", json={"kind": kind, "note": note}, headers=h)
+    return client.post(
+        f"/v1/candidates/{cid}/answers", json={"kind": kind, "note": note}, headers=h
+    )
 
 
 def features(h, bbox=BBOX):
@@ -244,6 +246,7 @@ def test_same_person_cannot_confirm_own_report():
     cid = report(h, "water").json()["candidate_id"]
     assert report(h, "water", lat=LAT + 0.0005).json()["candidate_id"] == cid
     assert spot(h, cid)["status"] == "pending"
+
 
 def test_report_rejects_bad_input():
     h = new_session()
