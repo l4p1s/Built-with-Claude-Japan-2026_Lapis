@@ -96,7 +96,7 @@ DB 接続は **psycopg 3 + 生 SQL**（PostGIS の関数は SQL で書く方が�
 
 ```
 compose.yaml / Dockerfile / pyproject.toml / uv.lock / README.md
-LICENSE                   # 未定（作者が決める）
+LICENSE                   # MIT
 db/init.sql
 app/main.py               # ルーティング・Web 画面の配信
 app/auth.py               # セッション発行・検証
@@ -112,7 +112,7 @@ tests/test_api.py, test_rules.py, test_import_bodik.py
 .github/workflows/ci.yml  # （未実装）
 ```
 
-ライセンス: 未定（作者が決める）。YJMob100K は CC BY 4.0 なのでデータ自体はリポジトリに入れず、取得手順だけ書く。。
+ライセンス: MIT。YJMob100K は CC BY 4.0 なのでデータ自体はリポジトリに入れず、取得手順だけ書く。
 
 ## 8. 入れないもの（必要になったら追加）
 ORM・移行ツール・キュー/スケジューラー・プッシュ通知・レート制限・管理画面・フロントのビルド環境。

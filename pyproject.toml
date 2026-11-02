@@ -2,6 +2,7 @@
 name = "aid-spot-finder"
 version = "0.1.0"
 description = "災害時、GPS の「いつもと違う集まり」から非公式な支援拠点を見つける"
+license = "MIT"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.162",
