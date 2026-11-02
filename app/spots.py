@@ -83,6 +83,28 @@ def questions(
     ).fetchall()
 
 
+def find_or_create_report(conn: psycopg.Connection, lat: float, lon: float) -> int:
+    """MERGE_RADIUS_M 以内に地図に出ている候補があればその ID、なければ報告の候補を作る。"""
+    params = {"lat": lat, "lon": lon, "r": rules.MERGE_RADIUS_M, "hide": rules.HIDE_AFTER}
+    row = conn.execute(
+        f"""
+        SELECT c.id FROM candidates c
+        WHERE {ALIVE}
+          AND ST_DWithin(c.center, ST_MakePoint(%(lon)s, %(lat)s)::geography, %(r)s)
+        ORDER BY ST_Distance(c.center, ST_MakePoint(%(lon)s, %(lat)s)::geography)
+        LIMIT 1
+        """,
+        params,
+    ).fetchone()
+    if row:
+        return row[0]
+    return conn.execute(
+        "INSERT INTO candidates (source, center)"
+        " VALUES ('report', ST_MakePoint(%(lon)s, %(lat)s)::geography) RETURNING id",
+        params,
+    ).fetchone()[0]
+
+
 def unofficial_features(conn: psycopg.Connection, bbox: Bbox | None) -> list[dict]:
     """地図に出す候補を GeoJSON の Feature にする。"""
     where, params = _bbox_filter("c.center", bbox)

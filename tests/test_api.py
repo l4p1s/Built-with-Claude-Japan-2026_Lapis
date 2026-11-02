@@ -191,3 +191,42 @@ def test_note_validation():
     assert r.status_code == 422 and "URL" in r.text
     assert answer(h, cid, "water", "あ" * 101).status_code == 422
     assert answer(h, cid, "water", "0965-33-4111 まで").status_code == 422
+
+
+def report(h, kind, lat=LAT, lon=LON, note=None):
+    body = {"lat": lat, "lon": lon, "kind": kind, "note": note}
+    return client.post("/v1/reports", json=body, headers=h)
+
+
+def test_report_needs_second_person():
+    h1, h2 = new_session(), new_session()
+    r = report(h1, "water", note="12時まで")
+    assert r.status_code == 201
+    cid = r.json()["candidate_id"]
+    p = spot(h1, cid)
+    assert (p["source"], p["status"], p["top_kind"]) == ("report", "pending", "water")
+    assert [n["note"] for n in p["notes"]] == ["12時まで"]
+    assert cid not in question_ids(h1)  # 報告した本人には聞かない
+    assert cid in question_ids(h2)
+
+    # 約50m 先からの報告は、同じ候補にまとまる
+    assert report(h2, "water", lat=LAT + 0.0005).json()["candidate_id"] == cid
+    p = spot(h1, cid)
+    assert (p["status"], p["kinds"]) == ("confirmed", {"water": 2})
+
+    # 約1km 先なら別の候補
+    assert report(h1, "food", lat=LAT + 0.01).json()["candidate_id"] != cid
+
+
+def test_report_merges_into_detected_candidate():
+    h = new_session()
+    cid = add_candidate()
+    assert report(h, "water").json()["candidate_id"] == cid
+    assert spot(h, cid)["status"] == "confirmed"  # 検知の候補は1人で確認済み
+
+
+def test_report_rejects_bad_input():
+    h = new_session()
+    assert report(h, "none").status_code == 422  # 報告に「わからない」は使えない
+    assert report(h, "water", lat=200).status_code == 422
+    assert report(h, "water", note="www.example.com").status_code == 422

@@ -52,6 +52,17 @@ class AnswerIn(BaseModel):
     note: Note = None
 
 
+class ReportIn(BaseModel):
+    lat: Lat
+    lon: Lon
+    kind: rules.Kind
+    note: Note = None
+
+
+class ReportOut(BaseModel):
+    candidate_id: int
+
+
 def parse_bbox(bbox: str | None) -> spots.Bbox | None:
     if bbox is None:
         return None
@@ -110,6 +121,14 @@ def post_answer(candidate_id: int, body: AnswerIn, conn: Conn, sid: Session) -> 
     except psycopg.errors.ForeignKeyViolation:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "candidate not found")
     return body
+
+
+@app.post("/v1/reports", status_code=status.HTTP_201_CREATED)
+def post_report(body: ReportIn, conn: Conn, sid: Session) -> ReportOut:
+    """今いる場所にあるものを知らせる。近くの候補にまとめるか、新しい候補を作る。"""
+    cid = spots.find_or_create_report(conn, body.lat, body.lon)
+    spots.record_answer(conn, cid, sid, body.kind, body.note)
+    return ReportOut(candidate_id=cid)
 
 
 @app.get("/v1/spots")
