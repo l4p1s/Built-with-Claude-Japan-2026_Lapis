@@ -85,6 +85,9 @@ def questions(
 
 def find_or_create_report(conn: psycopg.Connection, lat: float, lon: float) -> int:
     """MERGE_RADIUS_M 以内に地図に出ている候補があればその ID、なければ報告の候補を作る。"""
+    # ponytail: 同じ場所に同時に報告されてピンが2つできないよう、報告を1件ずつ処理する。
+    # 全体で1本のロック。報告が多くなったら場所のグリッドごとに分ける
+    conn.execute("SELECT pg_advisory_xact_lock(hashtext('reports'))")
     params = {"lat": lat, "lon": lon, "r": rules.MERGE_RADIUS_M, "hide": rules.HIDE_AFTER}
     row = conn.execute(
         f"""

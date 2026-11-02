@@ -225,6 +225,19 @@ def test_report_merges_into_detected_candidate():
     assert spot(h, cid)["status"] == "confirmed"  # 検知の候補は1人で確認済み
 
 
+def test_report_does_not_merge_into_hidden_candidate():
+    h = new_session()
+    old = add_candidate()
+    sql("UPDATE candidates SET last_activity_at = now() - interval '7 hours' WHERE id = %s", (old,))
+    assert report(h, "water").json()["candidate_id"] != old
+
+
+def test_same_person_cannot_confirm_own_report():
+    h = new_session()
+    cid = report(h, "water").json()["candidate_id"]
+    assert report(h, "water", lat=LAT + 0.0005).json()["candidate_id"] == cid
+    assert spot(h, cid)["status"] == "pending"
+
 def test_report_rejects_bad_input():
     h = new_session()
     assert report(h, "none").status_code == 422  # 報告に「わからない」は使えない
