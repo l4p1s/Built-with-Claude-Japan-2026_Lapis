@@ -100,7 +100,7 @@ DB の変更は `db/init.sql` を直接書き換える（公開前のため移�
 
 ### 2.2 answers（回答）
 
-- 1人1候補1件の「最新の意見」とする。同じ人が再び答えたら上書きし、`last_activity_at` も更新する（409 は返さない）
+- 1人1候補1件の「最新の意見」とする。同じ人が再び答えたら上書きする。種類の回答（`none`・`ended` 以外）のときだけ `last_activity_at` も更新する（§2.1 のとおり。409 は返さない）
 - `kind` に `ended`（もう終わっていた）を追加する
   - `water` / `food` / `goods` / `car_sleeping` / `shelter` / `other` / `none`（わからない）/ `ended`
 - `note`（備考）を追加する。100文字まで
@@ -142,7 +142,7 @@ DB の変更は `db/init.sql` を直接書き換える（公開前のため移�
 
 | メソッド | パス | 変更 |
 |---|---|---|
-| GET | `/v1/spots?bbox=&at=` | 非公式（確認済み・未確認）と公式の避難所を1つの GeoJSON で返す。`properties` に `source`（`detected` / `report` / `official`）・`status`・`kinds`（種類ごとの回答数）・`last_activity_at`・`faded`（薄く表示するか）・`notes`（備考の一覧）を入れる。`at` を付けると、その時点で開いていた避難所を返す（省略時は現在） |
+| GET | `/v1/spots?bbox=&at=` | 非公式（確認済み・未確認）と公式の避難所を1つの GeoJSON で返す。`properties` に `source`（`detected` / `report` / `official`）・`status`・`kinds`（種類ごとの回答数）・`last_activity_at`・`faded`（薄く表示するか）・`notes`（備考の一覧）を入れる。非公式には `candidate_id`・`top_kind`（一番多い種類）、公式には `official_id`・`kind`・`name`・`address`・`opened_at`・`closed_at` も入れる。`at` を付けると、その時点で開いていた避難所を返す（省略時は現在） |
 | POST | `/v1/reports` | 新規。`{lat, lon, kind, note}`。100m 以内に表示中の非公式の候補があれば、その候補への回答として扱う。なければ `source=report` の候補を作る。どちらも作成・更新した候補の ID を返す |
 | POST | `/v1/candidates/{id}/answers` | `note` を追加。上書き方式に変更（2回目も 201） |
 | POST | `/v1/answers/{id}/flags` | 新規。備考の通報。同じ人の2回目は何もせず成功を返す |
@@ -159,7 +159,7 @@ web/index.html
 web/app.js
 web/style.css
 web/manifest.webmanifest
-web/icon.svg, web/icon-180.png   # iPhone のホーム画面用に PNG も置く
+web/icon.svg, web/icon-180.png, web/icon-192.png, web/icon-512.png   # PNG は iPhone のホーム画面・PWA 用
 scripts/import_bodik.py
 ```
 
@@ -210,3 +210,4 @@ API（実 DB に対して。`tests/test_api.py` と同じ方式）:
 | 公式の給水拠点 | データの形式と利用条件が確認できたとき |
 | 検知と報告が重なったときの確定 | 検知アルゴリズムを作るとき |
 | 備考・失効したセッションの DB からの削除 | 検知の定期処理を作るとき |
+| 答える人の位置の確認（別のセッションで自分の報告を確かめる・遠くから「終わっていた」を押す、を防ぐ） | 実地実験の前に検討する |
