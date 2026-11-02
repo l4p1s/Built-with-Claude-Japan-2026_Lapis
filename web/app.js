@@ -36,6 +36,7 @@ let meMarker = null;
 let tracking = false;
 let spots = []; // 最後に受け取った GeoJSON の features
 let markers = [];
+let spotsSeq = 0; // 後から出した地図の更新を優先する
 let filter = "all";
 let reportKind = null;
 const dismissed = new Set(); // 閉じた質問の候補 ID。開き直すまで聞かない
@@ -68,8 +69,9 @@ class ApiError extends Error {
 }
 
 async function api(path, { method = "GET", body } = {}) {
+  const sent = token;
   const headers = {};
-  if (token) headers.Authorization = `Bearer ${token}`;
+  if (sent) headers.Authorization = `Bearer ${sent}`;
   if (body) headers["Content-Type"] = "application/json";
   let res;
   try {
@@ -78,10 +80,13 @@ async function api(path, { method = "GET", body } = {}) {
     $("#banner").hidden = false;
     throw new ApiError(0, "接続できません");
   }
-  $("#banner").hidden = true;
+  $("#banner").hidden = res.status < 500;
   if (res.status === 401) {
-    saveToken(null);
-    showConsent();
+    if (sent === token) {
+      saveToken(null);
+      buffer = []; // 参加していない間の位置は送らない
+      showConsent();
+    }
     throw new ApiError(401, "参加が切れました。もう一度同意してください");
   }
   if (!res.ok) throw new ApiError(res.status, await errorMessage(res));
@@ -160,11 +165,15 @@ async function refreshSpots() {
   if (!token) return;
   const b = map.getBounds();
   const bbox = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].join(",");
+  const seq = ++spotsSeq;
+  let features;
   try {
-    spots = (await api(`/spots?bbox=${bbox}`)).features;
+    features = (await api(`/spots?bbox=${bbox}`)).features;
   } catch {
     return; // 通信できないときは、前に受け取ったピンをそのまま出しておく
   }
+  if (seq !== spotsSeq) return; // もっと新しい更新が出ている
+  spots = features;
   drawSpots();
 }
 
@@ -289,6 +298,7 @@ async function answer(candidateId, kind, errorSelector) {
 // ---- 位置の送信と「ここに何がある？」 ----
 
 function startTracking() {
+  setInterval(flush, SEND_EVERY_MS);
   if (!("geolocation" in navigator)) return setLocationState("denied");
   navigator.geolocation.watchPosition(
     onPosition,
@@ -297,7 +307,6 @@ function startTracking() {
     },
     { enableHighAccuracy: true, maximumAge: 15_000 },
   );
-  setInterval(flush, SEND_EVERY_MS);
 }
 
 function onPosition(pos) {
@@ -310,10 +319,11 @@ function onPosition(pos) {
   } else {
     const dot = document.createElement("div");
     dot.className = "me";
+    dot.setAttribute("role", "img");
     dot.setAttribute("aria-label", "現在地");
     meMarker = new maplibregl.Marker({ element: dot }).setLngLat([lon, lat]).addTo(map);
   }
-  if (pos.timestamp - lastRecorded >= RECORD_EVERY_MS) {
+  if (token && pos.timestamp - lastRecorded >= RECORD_EVERY_MS) {
     lastRecorded = pos.timestamp;
     buffer.push({ lat, lon, accuracy_m: accuracy, recorded_at: new Date(pos.timestamp).toISOString() });
     buffer = buffer.slice(-MAX_BUFFER);
@@ -332,8 +342,8 @@ async function flush() {
     try {
       await api("/locations", { method: "POST", body: { points: sending } });
     } catch (e) {
-      // 通信できないときだけ戻して次に送る。不正な位置（422）などは捨てる
-      if (e.status === 0) buffer = [...sending, ...buffer].slice(-MAX_BUFFER);
+      // 通信できない・サーバーが落ちているときは戻して次に送る。不正な位置（422）などは捨てる
+      if (e.status === 0 || e.status >= 500) buffer = [...sending, ...buffer].slice(-MAX_BUFFER);
     }
   }
   await checkQuestions();
@@ -462,6 +472,7 @@ function kindButtons(kinds, onPick) {
 
 function ago(iso) {
   const min = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60_000));
+  if (min < 1) return "たった今";
   if (min < 60) return `${min}分前`;
   return `${Math.floor(min / 60)}時間${min % 60 ? `${min % 60}分` : ""}前`;
 }

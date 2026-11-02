@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "災害時、GPS の「いつもと違う集まり」から非公式な支援拠点を見つける"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi",
+    "fastapi>=0.162",
     "uvicorn",
     "psycopg[binary]",
 ]
