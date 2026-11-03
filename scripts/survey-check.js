@@ -204,7 +204,7 @@ async function fillStay(page, { from, dur, to, type, usual }) {
   const inView = await page.locator("#need-usual").evaluate((el) => {
     const f = el.closest(".field").getBoundingClientRect();
     const panel = document.querySelector(".panel").getBoundingClientRect();
-    return f.top >= panel.top && f.bottom <= panel.bottom && document.activeElement.closest(".field") === el.closest(".field");
+    return f.top >= panel.top && f.bottom <= panel.bottom && document.activeElement === el.closest(".field");
   });
   assert.equal(inView, true);
   await page.screenshot({ path: `${SHOTS}/03b-missing.png` });

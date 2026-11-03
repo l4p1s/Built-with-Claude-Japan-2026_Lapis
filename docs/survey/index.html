@@ -679,9 +679,11 @@
       need("dur", !first && !s.to && !pendingDur);
       need("to", !s.to);
       // 「時」がまだのときは、先に選んだ「分」を消さない（別の場所に移ったときだけ 00 に戻す）
+      // 選んでいる最中の選択欄に値を入れ直さない（スマホで選択の画面が閉じたり戻ったりしないように）
+      const set = (id, v) => { if ($(id).value !== v) $(id).value = v; };
       const show = (h, m, t) => {
-        if (t) [$(h).value, $(m).value] = t.split(":");
-        else { $(h).value = ""; if (fresh) $(m).value = "00"; }
+        if (t) { const [hh, mm] = t.split(":"); set(h, hh); set(m, mm); }
+        else { set(h, ""); if (fresh) set(m, "00"); }
       };
       show("#f-from-h", "#f-from-m", s.from);
       show("#f-to-h", "#f-to-m", s.to);
@@ -741,7 +743,9 @@
       if (!field) return;
       const smooth = !matchMedia("(prefers-reduced-motion: reduce)").matches;
       field.scrollIntoView({ block: "center", behavior: smooth ? "smooth" : "auto" });
-      field.querySelector("button, select, input")?.focus({ preventScroll: true });
+      // 選択欄そのものにはフォーカスしない（スマホで選択の画面が勝手に開いたり閉じたりしないように）
+      field.tabIndex = -1;
+      field.focus({ preventScroll: true });
     }
 
     // 入力欄を開いているとき: この場所を確定して、次の場所を置く地図に戻る（未入力があればそこへ）
