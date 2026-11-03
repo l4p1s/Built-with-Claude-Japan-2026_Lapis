@@ -41,8 +41,18 @@ async function fillStay(page, { from, to, type, usual }) {
   });
   require("fs").mkdirSync(SHOTS, { recursive: true });
 
-  // 1. はじめに
+  // 1. 開いてすぐの使い方の案内 → 説明と呼び名
   const { ctx, page } = await open(browser);
+  await page.locator("#guide").waitFor();
+  assert.equal(await page.locator("#intro").evaluate((d) => d.open), false);
+  const steps = await page.evaluate(() => document.querySelector("#guide-count").textContent.split(" / ")[1]);
+  for (let i = 1; i <= Number(steps); i++) {
+    assert.equal(await page.locator("#guide-count").textContent(), `${i} / ${steps}`);
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: `${SHOTS}/01-guide-${i}.png` });
+    await page.locator("#guide-next").click();
+  }
+  await page.locator("#guide").waitFor({ state: "hidden" });
   assert.equal(await page.locator("#intro").evaluate((d) => d.open), true);
   await page.keyboard.press("Escape");
   assert.equal(await page.locator("#intro").evaluate((d) => d.open), true);
@@ -50,32 +60,35 @@ async function fillStay(page, { from, to, type, usual }) {
   await page.locator("#name").fill("テスト");
   await page.locator("#intro-form button").click();
   assert.equal(await page.locator("#intro").evaluate((d) => d.open), false);
-  ok("1 初回の説明が出て、Esc で閉じず、呼び名を入れると閉じる");
-
-  // 1b. 使い方の案内
-  await page.locator("#guide").waitFor();
-  assert.equal(await page.locator("#guide-count").textContent(), "1 / 6");
-  await page.waitForTimeout(400);
-  await page.screenshot({ path: `${SHOTS}/01b-guide-1.png` });
-  for (let i = 2; i <= 6; i++) {
-    await page.locator("#guide-next").click();
-    assert.equal(await page.locator("#guide-count").textContent(), `${i} / 6`);
-    await page.waitForTimeout(400);
-    await page.screenshot({ path: `${SHOTS}/01b-guide-${i}.png` });
-  }
-  assert.equal(await page.locator("#guide-next").textContent(), "書きはじめる");
-  await page.locator("#guide-next").click();
-  await page.locator("#guide").waitFor({ state: "hidden" });
   await page.locator("#help").click();
   await page.locator("#guide").waitFor();
   await page.locator("#guide-skip").click();
   await page.locator("#guide").waitFor({ state: "hidden" });
-  ok("1b 使い方の案内が6段で進み、? から見直せて、とばせる");
+  ok(`1 開いてすぐ案内が${steps}段で進み、そのあと説明と呼び名。? から見直せて、とばせる`);
+
+  // 1b. 場所の検索（Photon と国土地理院は、決まった答えを返すように差し替える）
+  await page.route("https://photon.komoot.io/api/**", (r) => r.fulfill({ json: { features: [
+    { geometry: { coordinates: [130.585695, 32.5057637] }, properties: { name: "ゆめタウン八代", city: "八代市", state: "熊本県" } },
+  ] } }));
+  await page.route("https://msearch.gsi.go.jp/**", (r) => r.fulfill({ json: [
+    { geometry: { coordinates: [130.6016, 32.5072] }, properties: { title: "熊本県八代市松江城町" } },
+  ] }));
+  assert.match(await page.locator("#hint").textContent(), /家はどのへん/);
+  await page.locator("#q").fill("ゆめタウン");
+  await page.locator("#results button").first().waitFor();
+  assert.equal(await page.locator("#results button").count(), 2);
+  await page.screenshot({ path: `${SHOTS}/01b-search.png` });
+  await page.locator("#results button").first().click(); // 家を置くところなので、選んだ場所に家が置かれる
+  assert.equal(await page.locator(".pt").count(), 1);
+  await page.route("https://photon.komoot.io/api/**", (r) => r.fulfill({ json: { features: [] } }));
+  await page.route("https://msearch.gsi.go.jp/**", (r) => r.fulfill({ json: [] }));
+  await page.locator("#q").fill("ないところ");
+  await page.locator("#results", { hasText: "見つかりませんでした" }).waitFor();
+  await page.locator("#q").fill("");
+  ok("1b 名前で探すと候補が出て、選ぶと家が置かれる。見つからないと案内が出る");
 
   // 2. 家 → 2か所 → 家に帰った
-  await page.waitForTimeout(1500); // タイルの読み込み
-  assert.match(await page.locator("#hint").textContent(), /家はどのへん/);
-  await tapMap(page, 0, 0);
+  await page.waitForTimeout(1500); // 地図の移動とタイルの読み込み
   await fillStay(page, { to: "07:45" });
   await page.locator("#add-next").click();
   assert.match(await page.locator("#hint").textContent(), /次に行った場所/);
@@ -146,16 +159,15 @@ async function fillStay(page, { from, to, type, usual }) {
   await page.locator("#send").click();
   await page.locator("#clear").click();
   await page.waitForLoadState("load");
-  await page.locator("#intro").waitFor();
-  assert.equal(await page.locator("#intro").evaluate((d) => d.open), true);
+  await page.locator("#guide").waitFor(); // 最初に戻ると、案内からやり直し
   ok("6 開き直すと復元され、この端末から消す で最初に戻る");
   await ctx.close();
 
   // ダークモードの見た目（目で確かめる用）
   const dark = await open(browser, { colorScheme: "dark" });
+  await dark.page.locator("#guide-skip").click();
   await dark.page.locator("#name").fill("夜");
   await dark.page.locator("#intro-form button").click();
-  await dark.page.locator("#guide-skip").click();
   await dark.page.waitForTimeout(1500);
   await tapMap(dark.page, 0, 0);
   await dark.page.waitForTimeout(1000);

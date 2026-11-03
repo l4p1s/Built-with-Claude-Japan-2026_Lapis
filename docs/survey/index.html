@@ -73,10 +73,32 @@
     /* 中: 地図 */
     .map-wrap { position: relative; }
     #map { position: absolute; inset: 0; }
+    /* 場所の検索（地図の上に浮かべる） */
+    .search {
+      position: absolute; z-index: 3; top: 12px; left: 12px; right: 12px; max-width: 480px; margin: 0 auto;
+      display: flex; align-items: center; gap: 8px; padding: 0 16px; min-height: 44px;
+      border-radius: 22px; border: 1px solid var(--border); background: var(--surface); box-shadow: var(--shadow);
+      color: var(--muted);
+    }
+    .search input { flex: 1; min-height: 42px; margin: 0; padding: 0; border: 0; background: none; color: var(--fg); }
+    .search input:focus { outline: none; }
+    .search:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
+    .results {
+      position: absolute; z-index: 3; top: 60px; left: 12px; right: 12px; max-width: 480px; max-height: 50%;
+      margin: 0 auto; padding: 4px 0; overflow-y: auto; list-style: none;
+      border-radius: 12px; border: 1px solid var(--border); background: var(--surface); box-shadow: var(--shadow);
+    }
+    .results button {
+      display: block; width: 100%; min-height: 44px; padding: 8px 16px; border: 0; background: none; text-align: left;
+    }
+    .results button:hover, .results button:focus-visible { background: var(--surface-2); }
+    .results small { display: block; color: var(--muted); font-size: 12px; }
+    .results p { margin: 0; padding: 8px 16px; color: var(--fg-2); font-size: 14px; }
     .float {
-      position: absolute; z-index: 2; top: 12px; left: 12px; right: 12px; max-width: 360px; margin: 0 auto;
+      position: absolute; z-index: 2; top: 64px; left: 12px; right: 12px; max-width: 360px; margin: 0 auto;
       padding: 8px 12px; border-radius: 12px; background: var(--accent); color: var(--on-accent);
       box-shadow: var(--shadow); text-align: center; font-weight: 600;
+      pointer-events: none; /* 案内の上をタップしても、地図に場所を置ける */
     }
     .pt {
       width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--fg-2);
@@ -156,6 +178,7 @@
     .guide p { margin: 0; color: var(--fg-2); line-height: 1.6; }
     .guide .actions { align-items: center; margin-top: 12px; }
     .guide .count { font-size: 13px; color: var(--muted); }
+    .spot--none { box-shadow: 0 0 0 9999px rgb(0 0 0 / 0.5); }
     @media (prefers-reduced-motion: reduce) { .spot { transition: none; } }
     dialog h1 { margin: 0 0 12px; font-size: 20px; font-weight: 600; line-height: 1.4; }
     dialog p, dialog ul { margin: 0 0 8px; }
@@ -190,6 +213,11 @@
 
   <div class="map-wrap">
     <div id="map" aria-label="地図"></div>
+    <form id="search" class="search" role="search">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" type="search" placeholder="場所の名前や住所で探す" autocomplete="off" enterkeyhint="search" aria-label="場所を探す">
+    </form>
+    <div id="results" class="results" role="list" hidden></div>
     <p id="hint" class="float" role="status" hidden></p>
   </div>
 
@@ -234,7 +262,7 @@
       <h1>ある1日に、どこへ行ったかを教えてください</h1>
       <p>災害のときに、水や食べ物がもらえる場所を見つける仕組みを考えています。そのために、ふだんの日と地震の後の日の動きを集めています。</p>
       <ul>
-        <li>思い出せる範囲で大丈夫です。使い方はこのあと順に案内します</li>
+        <li>思い出せる範囲で大丈夫です。使い方は右上の ? でいつでも見られます</li>
         <li>書き終わったら、内容をコピーして LINE で送ってください。サーバーには何も保存しません</li>
         <li>公開はしません。家の位置は約100mの細かさに丸めます</li>
       </ul>
@@ -307,7 +335,10 @@
     const darkMode = matchMedia("(prefers-color-scheme: dark)");
     const mapStyle = () => MAP_STYLE[darkMode.matches ? "dark" : "light"];
     const map = new maplibregl.Map({
-      container: "map", style: mapStyle(), attributionControl: { compact: true },
+      container: "map", style: mapStyle(), attributionControl: {
+        compact: true,
+        customAttribution: '検索: <a href="https://photon.komoot.io/">Photon</a>・<a href="https://msearch.gsi.go.jp/">国土地理院</a>',
+      },
       ...(state.home ? { center: [state.home[1], state.home[0]], zoom: 14 } : START),
     });
     darkMode.addEventListener("change", () => map.setStyle(mapStyle()));
@@ -535,6 +566,68 @@
       renderCard();
     }
 
+    // ---- 場所の検索 ----
+    // 店や施設の名前は Photon（OpenStreetMap）、住所と町名は国土地理院。どちらも鍵なしで使える
+
+    const PHOTON = "https://photon.komoot.io/api/";
+    const GSI = "https://msearch.gsi.go.jp/address-search/AddressSearch";
+    let searchTimer = 0;
+    let searchAbort = null;
+
+    $("#q").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(search, 400); });
+    $("#search").addEventListener("submit", (e) => { e.preventDefault(); clearTimeout(searchTimer); search(); });
+    map.on("click", () => showResults(null));
+
+    async function search() {
+      const q = $("#q").value.trim();
+      searchAbort?.abort();
+      if (q.length < 2) return showResults(null);
+      searchAbort = new AbortController();
+      const { signal } = searchAbort;
+      const c = map.getCenter(); // 今見ている場所の近くを優先する
+      const get = (url) => fetch(url, { signal }).then((r) => (r.ok ? r.json() : Promise.reject(r.status)));
+      const [p, g] = await Promise.allSettled([
+        get(`${PHOTON}?${new URLSearchParams({ q, lat: c.lat, lon: c.lng, limit: 5 })}`),
+        get(`${GSI}?${new URLSearchParams({ q })}`),
+      ]);
+      if (signal.aborted) return;
+      const place = (name, sub, [lon, lat]) => ({ name, sub, lat, lon });
+      const found = [
+        ...(p.value?.features ?? []).map((f) => place(f.properties.name ?? q,
+          [f.properties.city, f.properties.state].filter(Boolean).join(" "), f.geometry.coordinates)),
+        ...(g.value ?? []).slice(0, 5).map((f) => place(f.properties.title, "住所・地名", f.geometry.coordinates)),
+      ];
+      showResults(p.status === "rejected" && g.status === "rejected" ? "error" : found);
+    }
+
+    function showResults(found) {
+      const box = $("#results");
+      box.hidden = found == null;
+      if (found == null) return;
+      const msg = (text) => Object.assign(document.createElement("p"), { textContent: text });
+      if (found === "error") return box.replaceChildren(msg("検索できませんでした。通信を確かめてください"));
+      if (!found.length) {
+        return box.replaceChildren(msg("見つかりませんでした。近くの町名や目印で探すか、地図をタップしてください"));
+      }
+      box.replaceChildren(...found.map((f) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.setAttribute("role", "listitem");
+        b.append(f.name, Object.assign(document.createElement("small"), { textContent: f.sub }));
+        b.addEventListener("click", () => pick(f));
+        return b;
+      }));
+    }
+
+    // 選んだ場所へ地図を動かす。家や次の場所を置くところなら、そのまま置く
+    function pick(f) {
+      showResults(null);
+      $("#q").value = "";
+      $("#q").blur();
+      map.flyTo({ center: [f.lon, f.lat], zoom: 16 });
+      if (placing) placeAt(f.lat, f.lon);
+    }
+
     // ---- 送る ----
 
     // 回答の形は docs/survey-design.md §3
@@ -587,18 +680,20 @@
       state.name = $("#name").value.trim();
       changed();
     });
-    // ダイアログが閉じてから案内を出す（閉じるときにフォーカスが戻るため）
-    $("#intro").addEventListener("close", () => { if (!state.guided) showGuide(0); });
 
     // ---- 使い方の案内（初回だけ。右上の ? からいつでも見直せる） ----
 
     const GUIDE = [
+      { target: null, title: "このページについて",
+        text: "災害のときに水や食べ物がもらえる場所を見つける仕組みを考えるために、ふだんの日と地震の後の日に、どこへ行ったかを地図で書いてもらうページです。画面の使い方を順に紹介します。" },
       { target: "#tabs", title: "書く日を選ぶ",
         text: "「ふだんの日」と「地震の後の日」を書きます。右の ＋ で日を足せます。給水や炊き出しに行った日があれば、その日を優先してください。" },
+      { target: "#search", title: "場所を探す",
+        text: "店や施設の名前、住所、町名を入れると、地図がその場所へ動きます。見つからないときは、近くの町名や目印で探してください。" },
       { target: ".map-wrap", title: "まず家をタップ",
-        text: "家のだいたいの場所を地図でタップします。家の位置は約100mの細かさに丸めるので、ぴったりでなくて大丈夫です。点はあとから指で動かせます。" },
+        text: "家のだいたいの場所を地図でタップします（検索で選んでも置けます）。家の位置は約100mの細かさに丸めるので、ぴったりでなくて大丈夫です。点はあとから指で動かせます。" },
       { target: "#add-next", title: "次に行った場所をつなぐ",
-        text: "「＋ 次の場所」を押してから地図をタップすると、前の場所から線が伸びます。行った順に、これを繰り返します。" },
+        text: "「＋ 次の場所」を押してから地図をタップするか、検索で選ぶと、前の場所から線が伸びます。行った順に、これを繰り返します。" },
       { target: ".panel", title: "時刻と、何をしに行ったか",
         text: "場所ごとに、着いた時刻と出た時刻、種類、ふだんも行く場所かを選びます。時刻は大まかで大丈夫です。" },
       { target: "#band", title: "1日の帯で見直す",
@@ -611,10 +706,12 @@
     function showGuide(i) {
       guideStep = i;
       const step = GUIDE[i];
-      const els = [...document.querySelectorAll(step.target)];
-      els[0].scrollIntoView({ block: "nearest" });
-      // 説明する場所（複数ならまとめた範囲）を明るく抜く
-      const rs = els.map((el) => el.getBoundingClientRect());
+      const els = step.target ? [...document.querySelectorAll(step.target)] : [];
+      els[0]?.scrollIntoView({ block: "nearest" });
+      // 説明する場所（複数ならまとめた範囲）を明るく抜く。場所がない段は画面の中央に出す
+      const rs = els.length ? els.map((el) => el.getBoundingClientRect())
+        : [{ top: innerHeight / 2, bottom: innerHeight / 2, left: innerWidth / 2, right: innerWidth / 2 }];
+      $("#spot").classList.toggle("spot--none", !els.length);
       const r = {
         top: Math.min(...rs.map((x) => x.top)) - 4, left: Math.min(...rs.map((x) => x.left)) - 4,
         bottom: Math.max(...rs.map((x) => x.bottom)) + 4, right: Math.max(...rs.map((x) => x.right)) + 4,
@@ -626,12 +723,13 @@
       $("#guide-title").textContent = step.title;
       $("#guide-text").textContent = step.text;
       $("#guide-count").textContent = `${i + 1} / ${GUIDE.length}`;
-      $("#guide-next").textContent = i === GUIDE.length - 1 ? "書きはじめる" : "次へ";
+      $("#guide-next").textContent = i === GUIDE.length - 1 ? "はじめる" : "次へ";
       $("#guide-layer").hidden = false;
       card.hidden = false;
       // カードは、抜いた場所の下に入れば下、上に入れば上、どちらも無理なら（地図など大きい場所）その中の下の方に出す
       const h = card.offsetHeight + 12;
-      const top = r.bottom + h < innerHeight ? r.bottom + 12
+      const top = !els.length ? (innerHeight - h) / 2
+        : r.bottom + h < innerHeight ? r.bottom + 12
         : r.top - h > 0 ? r.top - h
         : r.bottom - h - 4;
       card.style.top = `${top}px`;
@@ -643,6 +741,7 @@
       $("#guide").hidden = true;
       state.guided = true; // 送る内容（answer）には入らない
       changed();
+      if (!state.name) $("#intro").showModal(); // 案内のあとに、説明と呼び名
     }
 
     $("#guide-next").addEventListener("click", () => {
@@ -654,9 +753,10 @@
     addEventListener("resize", () => { if (!$("#guide").hidden) showGuide(guideStep); });
     document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#guide").hidden) endGuide(); });
 
-    if (!state.name) $("#intro").showModal();
     render();
-    if (state.name && !state.guided) showGuide(0);
+    // 開いてすぐ、画面の使い方を順に紹介する。見終わっていれば、呼び名がまだのときだけ説明を出す
+    if (!state.guided) showGuide(0);
+    else if (!state.name) $("#intro").showModal();
   </script>
 </body>
 </html>
