@@ -179,7 +179,6 @@
     }
     .field--need > .q { color: var(--danger); }
     .card-head { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
-    .card-done { width: 100%; margin-top: 20px; }
     .pt--need { border-color: var(--danger); box-shadow: 0 0 0 3px var(--need-bg), 0 1px 3px rgb(0 0 0 / 0.3); }
     .more { margin-top: 20px; border-top: 1px solid var(--border); }
     .more summary { display: flex; align-items: center; min-height: 52px; font-size: 16px; font-weight: 600; cursor: pointer; }
@@ -301,7 +300,6 @@
       </details>
       <p id="f-note" class="note"></p>
       <p id="f-warn" class="warn"></p>
-      <button type="button" id="card-done" class="btn btn--primary card-done">決定して地図に戻る</button>
       <button type="button" id="del-stay" class="link">この場所を消す</button>
     </form>
 
@@ -437,6 +435,7 @@
     $("#place-btn").addEventListener("click", () => {
       const { lat, lng } = map.getCenter();
       const stays = day().stays;
+      justConfirmed = false;
       if (!state.home) {
         setHome(lat, lng);
         stays.push(homeStay("00:00"));
@@ -515,6 +514,7 @@
     function switchDay(i) {
       dayIdx = i;
       sel = null;
+      justConfirmed = false;
       const stays = day().stays;
       changed();
       if (stays.length > 1) {
@@ -591,7 +591,6 @@
     }
     const closeCard = () => { sel = null; render(); };
     $("#card-close").addEventListener("click", closeCard);
-    $("#card-done").addEventListener("click", closeCard);
     function setField(key, v) {
       const s = day().stays[sel];
       s[key] = v;
@@ -745,9 +744,17 @@
       field.querySelector("button, select, input")?.focus({ preventScroll: true });
     }
 
-    // この日を確定: 未入力の場所があればそこを開き、日付がなければ日付を聞く。
+    // 入力欄を開いているとき: この場所を確定して、次の場所を置く地図に戻る（未入力があればそこへ）
+    // 閉じているとき: この日を確定。未入力の場所があればそこを開き、日付がなければ日付を聞く。
     // そろっていれば次の日へ。最後の日なら送る画面を出す
+    let justConfirmed = false; // 場所を確定した直後（次の場所を置くよう吹き出しで示す）
     $("#confirm").addEventListener("click", () => {
+      if (sel != null) {
+        if (incomplete(day().stays[sel])) return goToMissing(sel);
+        sel = null;
+        justConfirmed = true;
+        return render();
+      }
       const i = day().stays.findIndex(incomplete);
       if (i >= 0) return goToMissing(i);
       if (!day().date) return openDate();
@@ -763,9 +770,11 @@
       $("#center-pin").hidden = sel != null;
       $("#place-btn").hidden = sel != null;
       $("#place-btn").textContent = state.home ? "ここを次の場所にする" : "ここを家にする";
-      $("#next-tip").hidden = sel != null || stays.length !== 1; // 家だけ決まったとき
+      // 家だけ決まったときと、場所を確定した直後（家に帰ったあとは出さない）
+      $("#next-tip").hidden = sel != null || !(stays.length === 1 || (justConfirmed && stays.at(-1)?.type !== "home"));
       $("#go-home").disabled = !stays.length || stays.at(-1).type === "home";
-      $("#confirm").textContent = dayIdx < state.days.length - 1 ? "確定して次の日へ" : "確定";
+      $("#confirm").textContent = sel != null ? "確定して次の場所へ"
+        : dayIdx < state.days.length - 1 ? "確定して次の日へ" : "この日を確定";
       renderTabs();
       renderMap();
       renderBand();
@@ -905,11 +914,11 @@
       { target: "#place-btn", title: "ボタンで登録する",
         text: "「ここを家にする」を押すと登録されます。次からは「ここを次の場所にする」に変わるので、行った順にピンを合わせて押していくと、線でつながります。" },
       { target: ".panel", title: "時刻と、何をしに行ったか",
-        text: "場所を登録すると、ここに入力欄が出ます。種類、「何時ごろ着いた？」と「どのくらいいた？」、ふだんも行く場所かを選びます。まだ入れていない項目は赤で知らせます。時刻は大まかで大丈夫です。「決定して地図に戻る」で地図が広く戻ります。" },
+        text: "場所を登録すると、ここに入力欄が出ます。種類、「何時ごろ着いた？」と「どのくらいいた？」、ふだんも行く場所かを選びます。まだ入れていない項目は赤で知らせます。時刻は大まかで大丈夫です。" },
       { target: "#band", title: "1日の帯で見直す",
         text: "どこに何時いたかが、0時から24時の帯に並びます。しま模様のところは、まだ書いていない時間です。帯や地図の点をタップすると、その場所を直せます。赤い点は、まだ入れていない項目がある場所です。" },
       { target: "#go-home, #confirm", title: "家に帰って、確定",
-        text: "最後に「家に帰った」を押して1日を閉じ、「確定して次の日へ」を押します。まだ入れていない項目があれば、その場所が開きます。" },
+        text: "場所を入れ終わったら「確定して次の場所へ」で地図に戻り、次の場所を登録します。最後は「家に帰った」で1日を閉じ、「確定して次の日へ」を押します。まだ入れていない項目があれば、そこへ移ります。" },
       { target: "#send", title: "右上の「送る」で送る",
         text: "全部書けたら、右上の「送る」から内容をコピーして、LINE に貼り付けて送ってください。" },
     ];

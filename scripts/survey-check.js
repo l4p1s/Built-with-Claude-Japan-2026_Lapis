@@ -131,7 +131,8 @@ async function fillStay(page, { from, dur, to, type, usual }) {
   await fillStay(page, { to: "07:45" });
   assert.equal(await page.locator("#t-to").evaluate((e) => e.classList.contains("field--need")), false);
   const mapOpen = (await page.locator("#map").boundingBox()).height;
-  await page.locator("#card-done").click(); // 決定すると入力欄が閉じ、地図が広くなる
+  assert.equal(await page.locator("#confirm").textContent(), "確定して次の場所へ");
+  await page.locator("#confirm").click(); // 確定すると入力欄が閉じ、地図が広くなる
   assert.equal(await page.locator("#card").isHidden(), true);
   const mapClosed = (await page.locator("#map").boundingBox()).height;
   assert.ok(mapClosed > mapOpen + 150, `地図の高さ ${mapOpen} → ${mapClosed}`);
@@ -150,6 +151,9 @@ async function fillStay(page, { from, dur, to, type, usual }) {
   assert.equal(await page.locator("#fd-detail").isVisible(), true); // 種類を選ぶと、すぐ下に詳細の欄
   await page.locator("#f-detail").fill("○○スーパー");
   await pickMore(page, "#f-mode", "car");
+  await page.locator("#confirm").click(); // 確定して次の場所へ → 地図に戻り、次の場所を促す
+  assert.equal(await page.locator("#card").isHidden(), true);
+  assert.equal(await page.locator("#next-tip").isVisible(), true);
   await placeAt(page, -80, -50); // 入力中に地図をタップすると、入力欄が閉じてピンが動く
   // どの順番でも入る: 分 → 長さ → 時 の順に選ぶ
   await page.locator('#f-type [data-v="water"]').click();
@@ -182,20 +186,20 @@ async function fillStay(page, { from, dur, to, type, usual }) {
   ok("3 時刻を入れると帯に出て、帯から場所を選べ、重なりを注意する");
 
   // 3b. 確定して次の日へ（そろっていれば次の日、未入力があればその場所を開く）
-  await page.locator("#card-done").click();
+  await page.locator("#confirm").click();
   assert.equal(await page.locator("#confirm").textContent(), "確定して次の日へ");
   await page.locator("#confirm").click();
   assert.equal(await page.locator(".tab").nth(1).getAttribute("aria-pressed"), "true");
-  assert.equal(await page.locator("#confirm").textContent(), "確定");
+  assert.equal(await page.locator("#confirm").textContent(), "この日を確定");
   await page.locator("#confirm").click(); // 家を出た時刻がまだ → その場所が開く
   assert.equal(await page.locator("#card").isVisible(), true);
   assert.equal(await page.locator("#t-to").evaluate((e) => e.classList.contains("field--need")), true);
   await fillStay(page, { to: "08:00" });
-  await page.locator("#card-done").click();
+  await page.locator("#confirm").click();
   await placeAt(page, 60, -60);
   await fillStay(page, { type: "shop", from: "08:30", dur: "30分" }); // ふだんも行くか、を入れない
-  await page.locator("#card-done").click();
-  await page.locator("#confirm").click(); // 下の方の未入力の項目まで動く
+  await page.locator("#confirm").click(); // 確定して次の場所へ → ふだんも行くか、が未入力なので閉じずにそこへ動く
+  assert.equal(await page.locator("#card").isVisible(), true);
   await page.waitForTimeout(800);
   const inView = await page.locator("#need-usual").evaluate((el) => {
     const f = el.closest(".field").getBoundingClientRect();
