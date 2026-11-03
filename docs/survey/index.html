@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>1日の行動の記入</title>
+  <meta name="description" content="ふだんの日と地震の後の日に、どこへ行ったかを地図で記入するフォーム">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#11141c" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.css">
+  <style>
+    /* 色と文字は本体の web/style.css と同じ値。設計: docs/survey-design.md */
+    :root {
+      color-scheme: light dark;
+      --accent: #1e3a5f;
+      --on-accent: #fff;
+      --surface: #fff;
+      --surface-2: #eceff4;
+      --fg: #111827;
+      --fg-2: #4b5565;
+      --muted: #6b7487;
+      --border: rgb(17 24 39 / 0.1);
+      --danger: #b91c1c;
+      --shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 4px 12px rgb(0 0 0 / 0.1);
+      font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+      font-variant-numeric: tabular-nums;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --accent: #60a5fa;
+        --on-accent: #0b0d14;
+        --surface: #11141c;
+        --surface-2: #1a1e28;
+        --fg: #eef0f5;
+        --fg-2: #a3a9b8;
+        --muted: #7a8296;
+        --border: rgb(238 240 245 / 0.1);
+        --danger: #f87171;
+        --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 12px rgb(0 0 0 / 0.3);
+      }
+      .maplibregl-ctrl.maplibregl-ctrl-attrib { background: var(--surface); color: var(--fg); }
+      .maplibregl-ctrl-attrib a { color: var(--fg); }
+      .maplibregl-ctrl-attrib-button { filter: invert(1); }
+    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    html, body { margin: 0; height: 100%; background: var(--surface); color: var(--fg); }
+    body { display: grid; grid-template-rows: auto minmax(200px, 1fr) auto; height: 100dvh; }
+    button, input, select { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+    /* 上: 日のタブ */
+    .days {
+      display: flex; gap: 8px; align-items: center;
+      padding: calc(8px + env(safe-area-inset-top)) 12px 8px; border-bottom: 1px solid var(--border);
+    }
+    .tabs { display: flex; gap: 8px; overflow-x: auto; padding: 4px; margin: -4px; }
+    .tab {
+      min-height: 40px; padding: 0 16px; border-radius: 20px; border: 1px solid var(--border);
+      background: var(--surface); font-weight: 600; white-space: nowrap;
+    }
+    .tab[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+    .round {
+      flex: none; margin-left: auto; width: 40px; height: 40px; border-radius: 20px;
+      border: 1px solid var(--border); background: var(--surface); color: var(--fg-2);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .icon { display: block; width: 18px; height: 18px; }
+
+    /* 中: 地図 */
+    .map-wrap { position: relative; }
+    #map { position: absolute; inset: 0; }
+    .float {
+      position: absolute; z-index: 2; top: 12px; left: 12px; right: 12px; max-width: 360px; margin: 0 auto;
+      padding: 8px 12px; border-radius: 12px; background: var(--accent); color: var(--on-accent);
+      box-shadow: var(--shadow); text-align: center; font-weight: 600;
+    }
+    .pt {
+      width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--fg-2);
+      background: var(--surface); color: var(--fg); display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / 0.3); cursor: grab;
+    }
+    .pt--sel { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+
+    /* 下: 1日の帯とカード */
+    .panel {
+      max-height: 56dvh; overflow-y: auto; padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
+      border-top: 1px solid var(--border);
+    }
+    .ticks { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+    .band {
+      position: relative; height: 28px; margin: 4px 0 12px; border-radius: 6px; overflow: hidden;
+      border: 1px solid var(--border);
+      background: repeating-linear-gradient(135deg, var(--surface-2) 0 4px, var(--surface) 4px 8px);
+    }
+    .block {
+      position: absolute; top: 0; bottom: 0; padding: 0; border: 0; border-right: 1px solid var(--surface);
+      background: var(--fg-2); color: var(--surface); font-size: 12px; font-weight: 600; overflow: hidden;
+    }
+    .block--sel { background: var(--accent); color: var(--on-accent); }
+    .day-row { display: flex; gap: 8px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .day-row label { display: flex; gap: 8px; align-items: center; margin: 0; }
+    .empty { margin: 0 0 12px; color: var(--fg-2); }
+    .card h2 { margin: 0 0 8px; font-size: 16px; font-weight: 600; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+    .grid .wide { grid-column: 1 / -1; }
+    label { display: block; font-size: 13px; color: var(--muted); }
+    input, select {
+      display: block; width: 100%; min-height: 44px; margin-top: 4px; padding: 8px 12px;
+      border-radius: 10px; border: 1px solid var(--border); background: var(--surface);
+    }
+    .note { margin: 8px 0 0; font-size: 13px; color: var(--fg-2); }
+    .warn { margin: 8px 0 0; font-size: 13px; color: var(--danger); }
+    .note:empty, .warn:empty { display: none; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+    /* 「次に行った場所」「送る」はカードを下まで見なくても押せるように、下に貼りつける */
+    .panel > .actions {
+      position: sticky; bottom: calc(-16px - env(safe-area-inset-bottom));
+      margin: 16px -16px calc(-16px - env(safe-area-inset-bottom));
+      padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
+      background: var(--surface); border-top: 1px solid var(--border);
+    }
+    .btn {
+      min-height: 44px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--surface-2); font-weight: 600;
+    }
+    .btn--primary { margin-left: auto; background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+    .link {
+      min-height: 44px; padding: 0; border: 0; background: none; color: var(--muted);
+      text-decoration: underline; font-size: 13px;
+    }
+
+    /* ダイアログ */
+    dialog {
+      width: calc(100% - 32px); max-width: 480px; max-height: 90dvh; padding: 20px 16px;
+      border: 0; border-radius: 16px; background: var(--surface); color: var(--fg);
+    }
+    dialog::backdrop { background: rgb(0 0 0 / 0.36); }
+    dialog h1 { margin: 0 0 12px; font-size: 20px; font-weight: 600; line-height: 1.4; }
+    dialog p, dialog ul { margin: 0 0 8px; }
+    dialog ul { padding-left: 20px; color: var(--fg-2); }
+    dialog li + li { margin-top: 4px; }
+    dialog .btn--primary { width: 100%; margin: 16px 0 0; }
+    textarea {
+      width: 100%; height: 120px; margin-top: 8px; padding: 8px; border-radius: 10px;
+      border: 1px solid var(--border); background: var(--surface-2); color: var(--fg); font: 12px/1.4 ui-monospace, monospace;
+    }
+  </style>
+</head>
+<body>
+  <header class="days">
+    <div id="tabs" class="tabs" role="group" aria-label="記入する日"></div>
+    <button type="button" id="add-day" class="round" aria-label="日を足す"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+  </header>
+
+  <div class="map-wrap">
+    <div id="map" aria-label="地図"></div>
+    <p id="hint" class="float" role="status" hidden></p>
+  </div>
+
+  <section class="panel">
+    <div class="ticks" aria-hidden="true"><span>0</span><span>6</span><span>12</span><span>18</span><span>24時</span></div>
+    <div id="band" class="band" aria-label="1日の帯"></div>
+
+    <div id="day-row" class="day-row" hidden>
+      <label>日付 <input type="date" id="day-date" min="2026-07-01" max="2026-12-31"></label>
+      <button type="button" id="del-day" class="link">この日を消す</button>
+    </div>
+    <p id="day-tip" class="empty" hidden>給水や炊き出しに行った日があれば、その日を優先して書いてください。</p>
+
+    <p id="empty" class="empty"></p>
+    <form id="card" class="card" hidden>
+      <h2 id="card-title"></h2>
+      <div class="grid">
+        <label>着いた時刻<input type="time" id="f-from" step="900"></label>
+        <label>出た時刻<input type="time" id="f-to" step="900"></label>
+        <label>種類<select id="f-type"></select></label>
+        <label>ふだんも行く<select id="f-usual">
+          <option value="">選んでください</option><option value="true">はい</option><option value="false">いいえ</option>
+        </select></label>
+        <label class="wide">何しに（任意）<input id="f-purpose" maxlength="50" placeholder="例: 水をもらいに"></label>
+        <label>知ったきっかけ（任意）<select id="f-heard"></select></label>
+        <label id="f-mode-wrap">そこまでの移動手段（任意）<select id="f-mode"></select></label>
+      </div>
+      <p id="f-note" class="note"></p>
+      <p id="f-warn" class="warn"></p>
+      <button type="button" id="del-stay" class="link">この場所を消す</button>
+    </form>
+
+    <div class="actions">
+      <button type="button" id="add-next" class="btn">＋ 次の場所</button>
+      <button type="button" id="go-home" class="btn">家に帰った</button>
+      <button type="button" id="send" class="btn btn--primary">送る</button>
+    </div>
+  </section>
+
+  <dialog id="intro">
+    <form method="dialog" id="intro-form">
+      <h1>ある1日に、どこへ行ったかを教えてください</h1>
+      <p>災害のときに、水や食べ物がもらえる場所を見つける仕組みを考えています。そのために、ふだんの日と地震の後の日の動きを集めています。</p>
+      <ul>
+        <li>地図をタップして「家 → 次に行った場所 → …」とつないでいきます</li>
+        <li>時刻は大まかで大丈夫です</li>
+        <li>書き終わったら、内容をコピーして LINE で送ってください。サーバーには何も保存しません</li>
+        <li>公開はしません。家の位置は約100mの細かさに丸めます</li>
+      </ul>
+      <label>呼び名（ニックネームでよい）<input id="name" maxlength="20" required pattern=".*\S.*" autocomplete="off"></label>
+      <button class="btn btn--primary">はじめる</button>
+    </form>
+  </dialog>
+
+  <dialog id="send-dlg">
+    <h1>送る</h1>
+    <ul id="summary"></ul>
+    <button type="button" id="copy" class="btn btn--primary">コピーして LINE で送る</button>
+    <p id="copy-msg" class="note" role="status"></p>
+    <textarea id="json" readonly aria-label="送る内容"></textarea>
+    <div class="actions">
+      <button type="button" id="clear" class="link">この端末から消す</button>
+      <button type="button" id="send-close" class="btn btn--primary" style="width:auto">閉じる</button>
+    </div>
+  </dialog>
+
+  <script type="module">
+    import * as maplibregl from "https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.mjs";
+
+    const KEY = "aid-survey-v1";
+    const START = { center: [130.6016, 32.5072], zoom: 13 }; // 八代市役所
+    const MAP_STYLE = {
+      light: "https://tiles.openfreemap.org/styles/positron",
+      dark: "https://tiles.openfreemap.org/styles/dark",
+    };
+    // キーは本体の app/rules.py の Kind と重なるものは同じ名前
+    const TYPE = {
+      home: "自宅", work: "職場・学校", shop: "店", water: "給水", food: "炊き出し",
+      shelter: "避難所", car_sleeping: "車中泊", friend: "知人の家", other: "その他",
+    };
+    const HEARD = {
+      neighbor: "お隣さん", instagram: "インスタ", line: "LINE", poster: "張り紙",
+      passing: "通りがかり", usual: "いつも行く", other: "その他",
+    };
+    const MODE = { walk: "徒歩", car: "車", bicycle: "自転車", other: "その他" };
+
+    const $ = (s) => document.querySelector(s);
+    const round = (x, digits) => Number(x.toFixed(digits));
+    const minutes = (t) => (t ? Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5)) : null);
+    const incomplete = (s) => !s.from || !s.to || !s.type || s.usual == null;
+
+    let state = load() ?? {
+      v: 1, name: "", home: null,
+      days: [
+        { label: "ふだんの日", date: null, stays: [] },
+        { label: "地震の後の日", date: null, stays: [] },
+      ],
+    };
+    let dayIdx = 0;
+    let sel = null; // 選んでいる場所の番号
+    let placing = null; // "home" | "next" のとき、地図のタップで場所を置く
+    let markers = [];
+
+    const day = () => state.days[dayIdx];
+
+    function load() {
+      try { return JSON.parse(localStorage.getItem(KEY)); } catch { return null; }
+    }
+    function save() {
+      try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* 保存できなくても書ける */ }
+    }
+    function changed() { save(); render(); }
+
+    // ---- 地図 ----
+
+    const darkMode = matchMedia("(prefers-color-scheme: dark)");
+    const mapStyle = () => MAP_STYLE[darkMode.matches ? "dark" : "light"];
+    const map = new maplibregl.Map({
+      container: "map", style: mapStyle(), attributionControl: { compact: true },
+      ...(state.home ? { center: [state.home[1], state.home[0]], zoom: 14 } : START),
+    });
+    darkMode.addEventListener("change", () => map.setStyle(mapStyle()));
+    map.on("style.load", () => {
+      // OpenFreeMap の地名は「ローマ字＋日本語」の2段なので、日本語だけにする（本体と同じ）
+      for (const layer of map.getStyle().layers) {
+        const field = layer.layout?.["text-field"];
+        if (field && JSON.stringify(field).includes('"name')) {
+          map.setLayoutProperty(layer.id, "text-field", ["coalesce", ["get", "name:ja"], ["get", "name"]]);
+        }
+      }
+      map.addSource("route", { type: "geojson", data: routeData() });
+      map.addLayer({
+        id: "route", type: "line", source: "route",
+        paint: {
+          "line-color": getComputedStyle(document.documentElement).getPropertyValue("--fg-2").trim(),
+          "line-width": 3, "line-dasharray": [2, 1],
+        },
+      });
+    });
+    map.on("click", (e) => {
+      if (placing) placeAt(e.lngLat.lat, e.lngLat.lng);
+    });
+
+    const routeData = () => ({
+      type: "Feature", properties: {},
+      geometry: { type: "LineString", coordinates: day().stays.map((s) => [s.lon, s.lat]) },
+    });
+
+    function placeAt(lat, lon) {
+      const stays = day().stays;
+      if (placing === "home") {
+        setHome(lat, lon);
+        if (!stays.length) stays.push(homeStay("00:00"));
+      } else {
+        stays.push({ lat: round(lat, 5), lon: round(lon, 5), from: stays.at(-1)?.to ?? "", to: "", type: "", usual: null });
+      }
+      sel = stays.length - 1;
+      placing = null;
+      changed();
+    }
+
+    const homeStay = (from) => ({ lat: state.home[0], lon: state.home[1], from, to: "", type: "home", usual: true });
+
+    // 家は約100mに丸めて、すべての日の「自宅」を同じ位置にする
+    function setHome(lat, lon) {
+      state.home = [round(lat, 3), round(lon, 3)];
+      for (const d of state.days) {
+        for (const s of d.stays) if (s.type === "home") [s.lat, s.lon] = state.home;
+      }
+    }
+
+    function renderMap() {
+      markers.forEach((m) => m.remove());
+      markers = day().stays.map((s, i) => {
+        const el = document.createElement("button");
+        el.type = "button";
+        el.className = "pt" + (i === sel ? " pt--sel" : "");
+        el.textContent = s.type === "home" ? "家" : String(i + 1);
+        el.setAttribute("aria-label", `${i + 1}番目 ${TYPE[s.type] ?? "種類未入力"}`);
+        el.addEventListener("click", (e) => { e.stopPropagation(); sel = i; render(); });
+        const m = new maplibregl.Marker({ element: el, draggable: true }).setLngLat([s.lon, s.lat]).addTo(map);
+        m.on("dragend", () => {
+          const { lat, lng } = m.getLngLat();
+          if (s.type === "home") setHome(lat, lng);
+          else [s.lat, s.lon] = [round(lat, 5), round(lng, 5)];
+          sel = i;
+          changed();
+        });
+        return m;
+      });
+      map.getSource("route")?.setData(routeData());
+    }
+
+    // ---- 日のタブ ----
+
+    function renderTabs() {
+      $("#tabs").replaceChildren(...state.days.map((d, i) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "tab";
+        b.textContent = d.date ? `${Number(d.date.slice(5, 7))}/${Number(d.date.slice(8, 10))}` : d.label;
+        b.setAttribute("aria-pressed", String(i === dayIdx));
+        b.addEventListener("click", () => switchDay(i));
+        return b;
+      }));
+      $("#day-row").hidden = dayIdx === 0;
+      $("#day-tip").hidden = dayIdx === 0;
+      $("#day-date").value = day().date ?? "";
+      $("#del-day").hidden = dayIdx < 2; // 最初の2日は消さない
+    }
+
+    function switchDay(i) {
+      dayIdx = i;
+      sel = null;
+      placing = null;
+      const stays = day().stays;
+      changed();
+      if (stays.length > 1) {
+        const b = new maplibregl.LngLatBounds();
+        stays.forEach((s) => b.extend([s.lon, s.lat]));
+        map.fitBounds(b, { padding: 60, maxZoom: 15 });
+      } else if (stays.length) {
+        map.easeTo({ center: [stays[0].lon, stays[0].lat] });
+      }
+    }
+
+    $("#add-day").addEventListener("click", () => {
+      state.days.push({ label: "地震の後の日", date: null, stays: [] });
+      switchDay(state.days.length - 1);
+    });
+    $("#day-date").addEventListener("change", (e) => { day().date = e.target.value || null; changed(); });
+    $("#del-day").addEventListener("click", () => {
+      if (!confirm("この日の記入を消しますか？")) return;
+      state.days.splice(dayIdx, 1);
+      switchDay(0);
+    });
+
+    // ---- 1日の帯 ----
+
+    // 夜をまたぐ滞在（出た時刻 < 着いた時刻）は、帯では24時まで
+    function span(s) {
+      const a = minutes(s.from), b = minutes(s.to);
+      if (a == null || b == null) return null;
+      return [a, b < a ? 1440 : b];
+    }
+
+    function renderBand() {
+      $("#band").replaceChildren(...day().stays.flatMap((s, i) => {
+        const sp = span(s);
+        if (!sp) return [];
+        const el = document.createElement("button");
+        el.type = "button";
+        el.className = "block" + (i === sel ? " block--sel" : "");
+        el.style.left = `${(sp[0] / 1440) * 100}%`;
+        el.style.width = `${((sp[1] - sp[0]) / 1440) * 100}%`;
+        el.textContent = s.type === "home" ? "家" : String(i + 1);
+        el.setAttribute("aria-label", `${i + 1}番目 ${s.from}〜${s.to}`);
+        el.addEventListener("click", () => { sel = i; render(); });
+        return [el];
+      }));
+    }
+
+    // ---- 場所のカード ----
+
+    const fill = (select, labels, empty) => select.replaceChildren(
+      new Option(empty, ""), ...Object.entries(labels).map(([k, v]) => new Option(v, k)));
+    fill($("#f-type"), TYPE, "選んでください");
+    fill($("#f-heard"), HEARD, "—");
+    fill($("#f-mode"), MODE, "—");
+
+    function renderCard() {
+      const stays = day().stays;
+      const s = stays[sel];
+      $("#card").hidden = !s;
+      $("#empty").hidden = Boolean(s);
+      $("#empty").textContent = !stays.length
+        ? "まず、家のだいたいの場所を地図でタップしてください。"
+        : "地図の点か帯をタップすると、その場所を直せます。";
+      if (!s) return;
+      $("#card-title").textContent = `${sel + 1}. ${TYPE[s.type] ?? "種類を選んでください"}`;
+      $("#f-from").value = s.from;
+      $("#f-to").value = s.to;
+      $("#f-type").value = s.type;
+      $("#f-usual").value = s.usual == null ? "" : String(s.usual);
+      $("#f-purpose").value = s.purpose ?? "";
+      $("#f-heard").value = s.heard ?? "";
+      $("#f-mode").value = s.mode ?? "";
+      $("#f-mode-wrap").hidden = sel === 0;
+      $("#f-note").textContent = s.from && s.to && s.to < s.from ? `翌日の ${s.to} まで` : "";
+      const prev = stays[sel - 1];
+      const prevEnd = prev && span(prev)?.[1];
+      $("#f-warn").textContent = prevEnd != null && s.from && minutes(s.from) < prevEnd
+        ? "時刻が前の場所と重なっています" : "";
+    }
+
+    const bind = (id, key, parse = (v) => v || undefined) => $(id).addEventListener("change", (e) => {
+      const s = day().stays[sel];
+      s[key] = parse(e.target.value);
+      if (key === "type" && s.type === "home" && state.home) [s.lat, s.lon] = state.home;
+      changed();
+    });
+    bind("#f-from", "from", (v) => v);
+    bind("#f-to", "to", (v) => v);
+    bind("#f-type", "type", (v) => v);
+    bind("#f-usual", "usual", (v) => (v === "" ? null : v === "true"));
+    bind("#f-purpose", "purpose");
+    bind("#f-heard", "heard");
+    bind("#f-mode", "mode");
+
+    $("#del-stay").addEventListener("click", () => {
+      day().stays.splice(sel, 1);
+      sel = null;
+      changed();
+    });
+
+    // ---- 次の場所・家に帰る ----
+
+    $("#add-next").addEventListener("click", () => {
+      placing = placing === "next" ? null : "next";
+      render();
+    });
+    $("#go-home").addEventListener("click", () => {
+      const stays = day().stays;
+      stays.push(homeStay(stays.at(-1)?.to ?? ""));
+      sel = stays.length - 1;
+      placing = null;
+      changed();
+    });
+
+    function render() {
+      const stays = day().stays;
+      // 0件の日は家から始める。家がまだなければタップで置いてもらう
+      if (!stays.length) {
+        if (state.home) { stays.push(homeStay("00:00")); save(); } else placing = "home";
+      }
+      $("#hint").hidden = !placing;
+      $("#hint").textContent = placing === "home" ? "家はどのへん？地図をタップ" : "次に行った場所をタップ";
+      $("#add-next").textContent = placing === "next" ? "やめる" : "＋ 次の場所";
+      $("#add-next").disabled = !stays.length;
+      $("#go-home").disabled = !stays.length || stays.at(-1).type === "home";
+      renderTabs();
+      renderMap();
+      renderBand();
+      renderCard();
+    }
+
+    // ---- 送る ----
+
+    // 回答の形は docs/survey-design.md §3
+    function answer() {
+      const clean = (s) => {
+        const o = { lat: s.lat, lon: s.lon, from: s.from, to: s.to, type: s.type };
+        if (s.purpose) o.purpose = s.purpose;
+        if (s.heard) o.heard = s.heard;
+        if (s.usual != null) o.usual = s.usual;
+        if (s.mode) o.mode = s.mode;
+        return o;
+      };
+      return JSON.stringify({
+        v: 1, name: state.name, home: state.home,
+        days: state.days.map((d) => ({ label: d.label, date: d.date, stays: d.stays.map(clean) })),
+      });
+    }
+
+    $("#send").addEventListener("click", () => {
+      $("#summary").replaceChildren(...state.days.map((d) => {
+        const li = document.createElement("li");
+        const missing = d.stays.filter(incomplete).length;
+        li.textContent = `${d.date ?? d.label}: ${d.stays.length}か所` + (missing ? `（未入力がある場所 ${missing}）` : "");
+        return li;
+      }));
+      $("#json").value = answer();
+      $("#copy-msg").textContent = "";
+      $("#send-dlg").showModal();
+    });
+    $("#copy").addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText($("#json").value);
+        $("#copy-msg").textContent = "コピーしました。LINE に貼り付けて送ってください";
+      } catch {
+        $("#json").select();
+        $("#copy-msg").textContent = "コピーできませんでした。下の欄を長押ししてコピーしてください";
+      }
+    });
+    $("#send-close").addEventListener("click", () => $("#send-dlg").close());
+    $("#clear").addEventListener("click", () => {
+      if (!confirm("この端末に保存している記入を消しますか？送った内容は消えません")) return;
+      try { localStorage.removeItem(KEY); } catch { /* 保存していない */ }
+      location.reload();
+    });
+
+    // ---- はじめに ----
+
+    $("#intro").addEventListener("cancel", (e) => e.preventDefault()); // 呼び名を入れるまで閉じない
+    $("#intro-form").addEventListener("submit", () => {
+      state.name = $("#name").value.trim();
+      changed();
+    });
+    if (!state.name) $("#intro").showModal();
+    render();
+  </script>
+</body>
+</html>
