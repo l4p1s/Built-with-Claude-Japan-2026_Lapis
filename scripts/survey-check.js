@@ -43,10 +43,16 @@ async function setTime(page, which, t) {
   await page.locator(`#f-${which}-m`).selectOption(m);
 }
 
+// 「くわしく（任意）」の中の項目を選ぶ
+async function pickMore(page, id, v) {
+  if (!(await page.locator(".more").evaluate((d) => d.open))) await page.locator(".more summary").click();
+  await page.locator(`${id} [data-v="${v}"]`).click();
+}
+
 // from: 何時ごろ着いた / dur: どのくらいいた（ボタンの文字） / to: 出た時刻（「それ以上…」から）
 async function fillStay(page, { from, dur, to, type, usual }) {
-  if (type) await page.locator("#f-type").selectOption(type);
-  if (usual) await page.locator("#f-usual").selectOption(usual);
+  if (type) await page.locator(`#f-type [data-v="${type}"]`).click();
+  if (usual) await page.locator(`#f-usual [data-v="${usual}"]`).click();
   if (from) await setTime(page, "from", from);
   if (dur) await page.locator("#f-dur button", { hasText: dur }).click();
   if (to) {
@@ -123,13 +129,13 @@ async function fillStay(page, { from, dur, to, type, usual }) {
   assert.match(await page.locator("#hint").textContent(), /次に行った場所/);
   await tapMap(page, 80, -60);
   await fillStay(page, { type: "shop", usual: "true", from: "08:00", dur: "30分" });
-  await page.locator("#f-mode").selectOption("car");
-  await longPress(page, -70, -100); // 長押しでピン → 次の場所にする
+  await pickMore(page, "#f-mode", "car");
+  await longPress(page, -70, 30); // 長押しでピン → 次の場所にする
   await page.locator("#cand-card").waitFor();
   assert.equal(await page.locator("#cand-ok").textContent(), "ここを次の場所にする");
   await page.locator("#cand-ok").click();
   await fillStay(page, { type: "water", usual: "false", from: "09:30", dur: "30分" });
-  await page.locator("#f-heard").selectOption("neighbor");
+  await pickMore(page, "#f-heard", "neighbor");
   await page.locator("#f-purpose").fill("水をもらいに");
   await page.locator("#go-home").click();
   await fillStay(page, { from: "10:15", dur: "朝まで" });
@@ -140,7 +146,8 @@ async function fillStay(page, { from, dur, to, type, usual }) {
   // 3. 1日の帯
   assert.equal(await page.locator("#band .block").count(), 4);
   await page.locator("#band .block").nth(1).click();
-  assert.match(await page.locator("#card-title").textContent(), /^2\. 店/);
+  assert.match(await page.locator("#card-title").textContent(), /^2か所目: 店/);
+  assert.equal(await page.locator("#need-type").isHidden(), true); // 入れた項目には「未入力」が出ない
   assert.equal(await page.locator("#f-dur button", { hasText: "30分" }).getAttribute("aria-pressed"), "true");
   await fillStay(page, { to: "08:45" }); // それ以上… で出た時刻を直接選ぶ
   await page.locator("#band .block").nth(2).click();

@@ -10,7 +10,8 @@
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.css">
   <style>
-    /* 色と文字は本体の web/style.css と同じ値。設計: docs/survey-design.md */
+    /* 色は本体の web/style.css と同じ値。文字と押す場所は、50代の人でも読みやすく押しやすい大きさにする。
+       設計: docs/survey-design.md */
     :root {
       color-scheme: light dark;
       --accent: #1e3a5f;
@@ -19,8 +20,9 @@
       --surface-2: #eceff4;
       --fg: #111827;
       --fg-2: #4b5565;
-      --muted: #6b7487;
+      --muted: #5b6474;
       --border: rgb(17 24 39 / 0.1);
+      --line: rgb(17 24 39 / 0.28); /* 押せる部品の枠。50代の目でも見える濃さ */
       --danger: #b91c1c;
       --shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 4px 12px rgb(0 0 0 / 0.1);
       font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
@@ -36,6 +38,7 @@
         --fg-2: #a3a9b8;
         --muted: #7a8296;
         --border: rgb(238 240 245 / 0.1);
+        --line: rgb(238 240 245 / 0.3);
         --danger: #f87171;
         --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 12px rgb(0 0 0 / 0.3);
       }
@@ -46,6 +49,7 @@
     * { box-sizing: border-box; }
     [hidden] { display: none !important; }
     html, body { margin: 0; height: 100%; background: var(--surface); color: var(--fg); }
+    body { font-size: 18px; line-height: 1.5; }
     body { display: grid; grid-template-rows: auto minmax(200px, 1fr) auto; height: 100dvh; }
     button, input, select { font: inherit; color: inherit; }
     button { cursor: pointer; }
@@ -59,16 +63,16 @@
     }
     .tabs { display: flex; gap: 8px; overflow-x: auto; padding: 4px; margin: -4px; }
     .tab {
-      min-height: 40px; padding: 0 16px; border-radius: 20px; border: 1px solid var(--border);
-      background: var(--surface); font-weight: 600; white-space: nowrap;
+      min-height: 48px; padding: 0 16px; border-radius: 24px; border: 1.5px solid var(--line);
+      background: var(--surface); font-size: 16px; font-weight: 600; white-space: nowrap;
     }
     .tab[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
     .round {
-      flex: none; margin-left: auto; width: 40px; height: 40px; border-radius: 20px;
-      border: 1px solid var(--border); background: var(--surface); color: var(--fg-2);
+      flex: none; margin-left: auto; width: 48px; height: 48px; border-radius: 24px;
+      border: 1.5px solid var(--line); background: var(--surface); color: var(--fg);
       display: flex; align-items: center; justify-content: center;
     }
-    .icon { display: block; width: 18px; height: 18px; }
+    .icon { display: block; width: 22px; height: 22px; }
 
     /* 中: 地図 */
     .map-wrap { position: relative; }
@@ -76,26 +80,26 @@
     /* 場所の検索（地図の上に浮かべる） */
     .search {
       position: absolute; z-index: 3; top: 12px; left: 12px; right: 12px; max-width: 480px; margin: 0 auto;
-      display: flex; align-items: center; gap: 8px; padding: 0 16px; min-height: 44px;
-      border-radius: 22px; border: 1px solid var(--border); background: var(--surface); box-shadow: var(--shadow);
-      color: var(--muted);
+      display: flex; align-items: center; gap: 8px; padding: 0 16px; min-height: 52px;
+      border-radius: 26px; border: 1.5px solid var(--line); background: var(--surface); box-shadow: var(--shadow);
+      color: var(--fg-2);
     }
-    .search input { flex: 1; min-height: 42px; margin: 0; padding: 0; border: 0; background: none; color: var(--fg); }
+    .search input { flex: 1; min-height: 48px; margin: 0; padding: 0; border: 0; background: none; color: var(--fg); }
     .search input:focus { outline: none; }
     .search:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
     .results {
-      position: absolute; z-index: 3; top: 60px; left: 12px; right: 12px; max-width: 480px; max-height: 50%;
+      position: absolute; z-index: 3; top: 68px; left: 12px; right: 12px; max-width: 480px; max-height: 60%;
       margin: 0 auto; padding: 4px 0; overflow-y: auto; list-style: none;
       border-radius: 12px; border: 1px solid var(--border); background: var(--surface); box-shadow: var(--shadow);
     }
     .results button {
-      display: block; width: 100%; min-height: 44px; padding: 8px 16px; border: 0; background: none; text-align: left;
+      display: block; width: 100%; min-height: 52px; padding: 8px 16px; border: 0; background: none; text-align: left;
     }
     .results button:hover, .results button:focus-visible { background: var(--surface-2); }
-    .results small { display: block; color: var(--muted); font-size: 12px; }
-    .results p { margin: 0; padding: 8px 16px; color: var(--fg-2); font-size: 14px; }
+    .results small { display: block; color: var(--fg-2); font-size: 15px; }
+    .results p { margin: 0; padding: 8px 16px; color: var(--fg-2); }
     .float {
-      position: absolute; z-index: 2; top: 64px; left: 12px; right: 12px; max-width: 360px; margin: 0 auto;
+      position: absolute; z-index: 2; top: 76px; left: 12px; right: 12px; max-width: 360px; margin: 0 auto;
       padding: 8px 12px; border-radius: 12px; background: var(--accent); color: var(--on-accent);
       box-shadow: var(--shadow); text-align: center; font-weight: 600;
       pointer-events: none; /* 案内の上をタップしても、地図に場所を置ける */
@@ -113,9 +117,9 @@
     .cand-card p { margin: 0; font-weight: 600; }
     .cand-card .actions { margin-top: 8px; justify-content: flex-end; }
     .pt {
-      width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--fg-2);
+      width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--fg-2);
       background: var(--surface); color: var(--fg); display: flex; align-items: center; justify-content: center;
-      font-size: 13px; font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / 0.3); cursor: grab;
+      font-size: 16px; font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / 0.3); cursor: grab;
     }
     .pt--sel { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 
@@ -124,39 +128,43 @@
       max-height: 56dvh; overflow-y: auto; padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
       border-top: 1px solid var(--border);
     }
-    .ticks { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+    .ticks { display: flex; justify-content: space-between; font-size: 14px; color: var(--fg-2); }
     .band {
-      position: relative; height: 28px; margin: 4px 0 12px; border-radius: 6px; overflow: hidden;
-      border: 1px solid var(--border);
+      position: relative; height: 36px; margin: 4px 0 16px; border-radius: 8px; overflow: hidden;
+      border: 1.5px solid var(--line);
       background: repeating-linear-gradient(135deg, var(--surface-2) 0 4px, var(--surface) 4px 8px);
     }
     .block {
       position: absolute; top: 0; bottom: 0; padding: 0; border: 0; border-right: 1px solid var(--surface);
-      background: var(--fg-2); color: var(--surface); font-size: 12px; font-weight: 600; overflow: hidden;
+      background: var(--fg-2); color: var(--surface); font-size: 14px; font-weight: 600; overflow: hidden;
     }
     .block--sel { background: var(--accent); color: var(--on-accent); }
     .day-row { display: flex; gap: 8px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
     .day-row label { display: flex; gap: 8px; align-items: center; margin: 0; white-space: nowrap; }
     .day-row input { width: auto; margin: 0; }
     .empty { margin: 0 0 12px; color: var(--fg-2); }
-    .card h2 { margin: 0 0 8px; font-size: 16px; font-weight: 600; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
-    .grid .wide { grid-column: 1 / -1; }
-    label { display: block; font-size: 13px; color: var(--muted); }
+    .card h2 { margin: 0; font-size: 22px; font-weight: 600; }
+    .field { display: block; margin-top: 20px; }
+    label, .q { display: block; font-size: 17px; font-weight: 600; color: var(--fg); }
+    .need { margin-left: 8px; font-style: normal; font-size: 15px; color: var(--danger); }
     input, select {
-      display: block; width: 100%; min-height: 44px; margin-top: 4px; padding: 8px 12px;
-      border-radius: 10px; border: 1px solid var(--border); background: var(--surface);
+      display: block; width: 100%; min-height: 52px; margin-top: 8px; padding: 8px 12px;
+      border-radius: 10px; border: 1.5px solid var(--line); background: var(--surface); font-size: 18px;
     }
-    .q { display: block; font-size: 13px; color: var(--muted); }
     .hm { display: flex; gap: 8px; }
-    .durs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 4px; }
-    .durs button {
-      min-height: 44px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2);
+    /* 選ぶものはプルダウンでなく、大きなボタンを並べる。選んだものは紺で塗って ✓ を付ける */
+    .opts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+    .opts--2 { grid-template-columns: repeat(2, 1fr); }
+    .opts button {
+      min-height: 52px; padding: 4px; border-radius: 10px; border: 1.5px solid var(--line);
+      background: var(--surface); font-size: 17px; line-height: 1.3;
     }
-    .durs button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
-    .durs button:disabled { opacity: 0.45; }
-    .note { margin: 8px 0 0; font-size: 13px; color: var(--fg-2); }
-    .warn { margin: 8px 0 0; font-size: 13px; color: var(--danger); }
+    .opts button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 600; }
+    .opts button[aria-pressed="true"]::before { content: "✓ "; }
+    .more { margin-top: 20px; border-top: 1px solid var(--border); }
+    .more summary { display: flex; align-items: center; min-height: 52px; font-size: 17px; font-weight: 600; cursor: pointer; }
+    .note { margin: 12px 0 0; font-size: 16px; color: var(--fg-2); }
+    .warn { margin: 12px 0 0; font-size: 16px; font-weight: 600; color: var(--danger); }
     .note:empty, .warn:empty { display: none; }
     .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
     /* 「次に行った場所」「送る」はカードを下まで見なくても押せるように、下に貼りつける */
@@ -167,13 +175,13 @@
       background: var(--surface); border-top: 1px solid var(--border);
     }
     .btn {
-      min-height: 44px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--border);
-      background: var(--surface-2); font-weight: 600;
+      min-height: 52px; padding: 0 16px; border-radius: 10px; border: 1.5px solid var(--line);
+      background: var(--surface); font-size: 17px; font-weight: 600;
     }
     .btn--primary { margin-left: auto; background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
     .link {
-      min-height: 44px; padding: 0; border: 0; background: none; color: var(--muted);
-      text-decoration: underline; font-size: 13px;
+      min-height: 48px; padding: 0; border: 0; background: none; color: var(--fg-2);
+      text-decoration: underline; font-size: 16px;
     }
 
     /* ダイアログ */
@@ -195,8 +203,8 @@
       position: fixed; z-index: 11; left: 16px; right: 16px; max-width: 400px; margin: 0 auto;
       padding: 16px; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow);
     }
-    .guide h2 { margin: 0 0 8px; font-size: 16px; font-weight: 600; }
-    .guide p { margin: 0; color: var(--fg-2); line-height: 1.6; }
+    .guide h2 { margin: 0 0 8px; font-size: 20px; font-weight: 600; }
+    .guide p { margin: 0; color: var(--fg); line-height: 1.6; }
     .guide .actions { align-items: center; margin-top: 12px; }
     .guide .count { font-size: 13px; color: var(--muted); }
     .spot--none { box-shadow: 0 0 0 9999px rgb(0 0 0 / 0.5); }
@@ -262,20 +270,22 @@
     <p id="empty" class="empty"></p>
     <form id="card" class="card" hidden>
       <h2 id="card-title"></h2>
-      <div class="grid">
-        <div class="wide" id="t-from"><span class="q" id="t-from-q">何時ごろ着いた？</span>
-          <div class="hm"><select id="f-from-h" aria-label="着いた時"></select><select id="f-from-m" aria-label="着いた分"></select></div></div>
-        <div class="wide" id="t-dur"><span class="q">どのくらいいた？</span><div class="durs" id="f-dur"></div></div>
-        <div class="wide" id="t-to"><span class="q" id="t-to-q">何時ごろ出た？</span>
-          <div class="hm"><select id="f-to-h" aria-label="出た時"></select><select id="f-to-m" aria-label="出た分"></select></div></div>
-        <label>種類<select id="f-type"></select></label>
-        <label>ふだんも行く<select id="f-usual">
-          <option value="">選んでください</option><option value="true">はい</option><option value="false">いいえ</option>
-        </select></label>
-        <label class="wide">何しに（任意）<input id="f-purpose" maxlength="50" placeholder="例: 水をもらいに"></label>
-        <label>知ったきっかけ（任意）<select id="f-heard"></select></label>
-        <label id="f-mode-wrap">そこまでの移動手段（任意）<select id="f-mode"></select></label>
-      </div>
+      <div class="field"><span class="q">ここは何ですか？<em class="need" id="need-type">未入力</em></span>
+        <div class="opts" id="f-type" role="group" aria-label="種類"></div></div>
+      <div class="field" id="t-from"><span class="q"><span id="t-from-q">何時ごろ着いた？</span><em class="need" id="need-from">未入力</em></span>
+        <div class="hm"><select id="f-from-h" aria-label="着いた時"></select><select id="f-from-m" aria-label="着いた分"></select></div></div>
+      <div class="field" id="t-dur"><span class="q">どのくらいいた？<em class="need" id="need-dur">未入力</em></span>
+        <div class="opts" id="f-dur" role="group" aria-label="いた長さ"></div></div>
+      <div class="field" id="t-to"><span class="q"><span id="t-to-q">何時ごろ出た？</span><em class="need" id="need-to">未入力</em></span>
+        <div class="hm"><select id="f-to-h" aria-label="出た時"></select><select id="f-to-m" aria-label="出た分"></select></div></div>
+      <div class="field"><span class="q">ふだんも行く場所ですか？<em class="need" id="need-usual">未入力</em></span>
+        <div class="opts opts--2" id="f-usual" role="group" aria-label="ふだんも行く"></div></div>
+      <details class="more">
+        <summary>くわしく（任意）</summary>
+        <label class="field">何をしに行った？<input id="f-purpose" maxlength="50" placeholder="例: 水をもらいに"></label>
+        <div class="field"><span class="q">どうやって知った？</span><div class="opts" id="f-heard" role="group" aria-label="知ったきっかけ"></div></div>
+        <div class="field" id="f-mode-wrap"><span class="q">そこまでの移動手段</span><div class="opts opts--2" id="f-mode" role="group" aria-label="移動手段"></div></div>
+      </details>
       <p id="f-note" class="note"></p>
       <p id="f-warn" class="warn"></p>
       <button type="button" id="del-stay" class="link">この場所を消す</button>
@@ -557,11 +567,25 @@
 
     // ---- 場所のカード ----
 
-    const fill = (select, labels, empty) => select.replaceChildren(
-      new Option(empty, ""), ...Object.entries(labels).map(([k, v]) => new Option(v, k)));
-    fill($("#f-type"), TYPE, "選んでください");
-    fill($("#f-heard"), HEARD, "—");
-    fill($("#f-mode"), MODE, "—");
+    // 選ぶ項目は大きなボタンを並べる。optional なら、選んでいるものをもう一度押すと外せる
+    function opts(el, labels, value, onPick, optional = false) {
+      el.replaceChildren(...Object.entries(labels).map(([k, label]) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.dataset.v = k;
+        b.textContent = label;
+        b.setAttribute("aria-pressed", String(k === value));
+        b.addEventListener("click", () => onPick(optional && k === value ? undefined : k));
+        return b;
+      }));
+    }
+    const USUAL = { true: "はい", false: "いいえ" };
+    function setField(key, v) {
+      const s = day().stays[sel];
+      s[key] = v;
+      if (key === "type" && s.type === "home" && state.home) [s.lat, s.lon] = state.home;
+      changed();
+    }
 
     function renderCard() {
       const stays = day().stays;
@@ -572,13 +596,15 @@
         ? "まず、家のだいたいの場所を地図でタップしてください。"
         : "地図の点か帯をタップすると、その場所を直せます。";
       if (!s) return;
-      $("#card-title").textContent = `${sel + 1}. ${TYPE[s.type] ?? "種類を選んでください"}`;
+      $("#card-title").textContent = `${sel + 1}か所目` + (TYPE[s.type] ? `: ${TYPE[s.type]}` : "");
       renderTime(s);
-      $("#f-type").value = s.type;
-      $("#f-usual").value = s.usual == null ? "" : String(s.usual);
+      opts($("#f-type"), TYPE, s.type, (v) => setField("type", v));
+      opts($("#f-usual"), USUAL, s.usual == null ? null : String(s.usual), (v) => setField("usual", v === "true"));
+      opts($("#f-heard"), HEARD, s.heard, (v) => setField("heard", v), true);
+      opts($("#f-mode"), MODE, s.mode, (v) => setField("mode", v), true);
       $("#f-purpose").value = s.purpose ?? "";
-      $("#f-heard").value = s.heard ?? "";
-      $("#f-mode").value = s.mode ?? "";
+      $("#need-type").hidden = Boolean(s.type);
+      $("#need-usual").hidden = s.usual != null;
       $("#f-mode-wrap").hidden = sel === 0;
       $("#f-note").textContent = s.to === "00:00" && sel > 0 ? "その日の終わり（24時）まで"
         : s.from && s.to && s.to < s.from ? `翌日の ${s.to} まで` : "";
@@ -594,11 +620,7 @@
       if (key === "type" && s.type === "home" && state.home) [s.lat, s.lon] = state.home;
       changed();
     });
-    bind("#f-type", "type", (v) => v);
-    bind("#f-usual", "usual", (v) => (v === "" ? null : v === "true"));
     bind("#f-purpose", "purpose");
-    bind("#f-heard", "heard");
-    bind("#f-mode", "mode");
 
     // ---- 時刻: 「何時ごろ着いた？」＋「どのくらいいた？」。1件目（家）は「何時ごろ出た？」だけ ----
 
@@ -638,6 +660,9 @@
       $("#t-to").hidden = !first && !moreOpen && (chip || !s.to);
       $("#t-from-q").textContent = home ? "何時ごろ帰った？" : "何時ごろ着いた？";
       $("#t-to-q").textContent = first ? "何時ごろ家を出た？" : "何時ごろ出た？";
+      $("#need-from").hidden = Boolean(s.from);
+      $("#need-dur").hidden = Boolean(s.to) || !s.from;
+      $("#need-to").hidden = Boolean(s.to);
       [$("#f-from-h").value, $("#f-from-m").value] = s.from ? s.from.split(":") : ["", "00"];
       [$("#f-to-h").value, $("#f-to-m").value] = s.to ? s.to.split(":") : ["", "00"];
     }
