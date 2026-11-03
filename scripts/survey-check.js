@@ -174,6 +174,17 @@ async function fillStay(page, { from, dur, to, type, usual }) {
   await page.screenshot({ path: `${SHOTS}/02-day.png` });
   ok("3 時刻を入れると帯に出て、帯から場所を選べ、重なりを注意する");
 
+  // 3b. 確定して次の日へ（そろっていれば次の日、未入力があればその場所を開く）
+  await page.locator("#card-done").click();
+  assert.equal(await page.locator("#confirm").textContent(), "確定して次の日へ");
+  await page.locator("#confirm").click();
+  assert.equal(await page.locator(".tab").nth(1).getAttribute("aria-pressed"), "true");
+  assert.equal(await page.locator("#confirm").textContent(), "確定");
+  await page.locator("#confirm").click(); // 家を出た時刻がまだ → その場所が開く
+  assert.equal(await page.locator("#card").isVisible(), true);
+  assert.equal(await page.locator("#t-to").evaluate((e) => e.classList.contains("field--need")), true);
+  ok("3b 確定で次の日へ進み、未入力があればその場所を開く");
+
   // 4. 日を足す
   await page.locator("#add-day").click();
   assert.equal(await page.locator(".tab").count(), 3);

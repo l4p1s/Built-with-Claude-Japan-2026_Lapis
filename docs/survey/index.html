@@ -56,7 +56,7 @@
     [hidden] { display: none !important; }
     html, body { margin: 0; height: 100%; background: var(--surface); color: var(--fg); }
     body { font-size: 17px; line-height: 1.5; }
-    body { display: grid; grid-template-rows: auto minmax(200px, 1fr) auto; height: 100dvh; }
+    body { display: grid; grid-template-rows: auto minmax(200px, 1fr) auto; grid-template-columns: minmax(0, 1fr); height: 100dvh; }
     button, input, select { font: inherit; color: inherit; }
     button { cursor: pointer; }
     button:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -67,9 +67,9 @@
       display: flex; gap: 8px; align-items: center;
       padding: calc(8px + env(safe-area-inset-top)) 12px 8px; border-bottom: 1px solid var(--border);
     }
-    .tabs { display: flex; gap: 8px; overflow-x: auto; padding: 4px; margin: -4px; }
+    .tabs { display: flex; gap: 8px; min-width: 0; overflow-x: auto; padding: 4px; margin: -4px; } /* 右上のボタンが増えても、タブだけ横に動かして見る */
     .tab {
-      min-height: 48px; padding: 0 16px; border-radius: 24px; border: 1.5px solid var(--line);
+      min-height: 48px; padding: 0 12px; border-radius: 24px; border: 1.5px solid var(--line);
       background: var(--surface); font-size: 16px; font-weight: 600; white-space: nowrap;
     }
     .tab { display: inline-flex; align-items: center; gap: 6px; }
@@ -210,7 +210,8 @@
       border: 0; border-radius: 16px; background: var(--surface); color: var(--fg);
     }
     dialog::backdrop { background: rgb(0 0 0 / 0.36); }
-    .round + .round { margin-left: 0; }
+    .round + .round, .tabs .round { margin-left: 0; }
+    .send-top { flex: none; min-height: 48px; padding: 0 16px; border-radius: 24px; }
 
     /* 使い方の案内: 説明する場所だけ明るく抜き、その近くに説明のカードを出す */
     .guide-layer { position: fixed; inset: 0; z-index: 10; }
@@ -245,6 +246,7 @@
     <div id="tabs" class="tabs" role="group" aria-label="記入する日"></div>
     <button type="button" id="help" class="round" aria-label="使い方"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/></svg></button>
     <button type="button" id="add-day" class="round" aria-label="日を足す"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+    <button type="button" id="send" class="btn btn--primary send-top">送る</button>
   </header>
 
   <div id="guide-layer" class="guide-layer" hidden>
@@ -305,7 +307,7 @@
 
     <div class="actions">
       <button type="button" id="go-home" class="btn">家に帰った</button>
-      <button type="button" id="send" class="btn btn--primary">送る</button>
+      <button type="button" id="confirm" class="btn btn--primary"></button>
     </div>
   </section>
 
@@ -482,13 +484,15 @@
 
     // ---- 日のタブ ----
 
+    const addDay = $("#add-day"); // 日を足すボタンは、タブの並びの最後に置く
     function renderTabs() {
-      $("#tabs").replaceChildren(...state.days.map((d, i) => {
+      $("#tabs").replaceChildren(addDay);
+      $("#tabs").prepend(...state.days.map((d, i) => {
         const b = document.createElement("button");
         b.type = "button";
         b.className = "tab";
         const short = d.label === "ふだんの日" ? "ふだん" : "地震後";
-        b.textContent = d.date ? `${short} ${Number(d.date.slice(5, 7))}/${Number(d.date.slice(8, 10))}` : d.label;
+        b.textContent = d.date ? `${short} ${Number(d.date.slice(5, 7))}/${Number(d.date.slice(8, 10))}` : short;
         // 選んでいるタブには日付を選べる印。日付がまだの日は赤い枠
         if (i === dayIdx) b.insertAdjacentHTML("beforeend", CALENDAR);
         b.classList.toggle("tab--need", !d.date);
@@ -716,6 +720,16 @@
       changed();
     });
 
+    // この日を確定: 未入力の場所があればそこを開き、日付がなければ日付を聞く。
+    // そろっていれば次の日へ。最後の日なら送る画面を出す
+    $("#confirm").addEventListener("click", () => {
+      const i = day().stays.findIndex(incomplete);
+      if (i >= 0) { sel = i; return render(); }
+      if (!day().date) return openDate();
+      if (dayIdx < state.days.length - 1) switchDay(dayIdx + 1);
+      else $("#send").click();
+    });
+
     function render() {
       const stays = day().stays;
       // 0件の日は家から始める（家がまだなら、真ん中のピンで家を置いてもらう）
@@ -726,6 +740,7 @@
       $("#place-btn").textContent = state.home ? "ここを次の場所にする" : "ここを家にする";
       $("#next-tip").hidden = sel != null || stays.length !== 1; // 家だけ決まったとき
       $("#go-home").disabled = !stays.length || stays.at(-1).type === "home";
+      $("#confirm").textContent = dayIdx < state.days.length - 1 ? "確定して次の日へ" : "確定";
       renderTabs();
       renderMap();
       renderBand();
@@ -857,7 +872,7 @@
       { target: null, title: "このページについて",
         text: "災害のときに水や食べ物がもらえる場所を見つける仕組みを考えるために、ふだんの日と地震の後の日に、どこへ行ったかを地図で書いてもらうページです。画面の使い方を順に紹介します。" },
       { target: "#tabs", title: "書く日を選ぶ",
-        text: "「ふだんの日」と「地震の後の日」を書きます。選んでいるタブをもう一度押すと、日付を選べます（日付がまだの日は赤い枠）。右の ＋ で日を足せます。給水や炊き出しに行った日があれば、その日を優先してください。" },
+        text: "「ふだん」の日と「地震後」の日を書きます。選んでいるタブをもう一度押すと、日付を選べます（日付がまだの日は赤い枠）。タブの右の ＋ で日を足せます。給水や炊き出しに行った日があれば、その日を優先してください。" },
       { target: "#search", title: "場所を探す",
         text: "店や施設の名前、住所、町名を入れると、地図がその場所へ動きます。見つからないときは、近くの町名や目印で探してください。" },
       { target: "#center-pin", title: "真ん中のピンを、家に合わせる",
@@ -868,8 +883,10 @@
         text: "場所を登録すると、ここに入力欄が出ます。種類、「何時ごろ着いた？」と「どのくらいいた？」、ふだんも行く場所かを選びます。まだ入れていない項目は赤で知らせます。時刻は大まかで大丈夫です。「決定して地図に戻る」で地図が広く戻ります。" },
       { target: "#band", title: "1日の帯で見直す",
         text: "どこに何時いたかが、0時から24時の帯に並びます。しま模様のところは、まだ書いていない時間です。帯や地図の点をタップすると、その場所を直せます。赤い点は、まだ入れていない項目がある場所です。" },
-      { target: "#go-home, #send", title: "家に帰って、送る",
-        text: "最後に「家に帰った」を押して1日を閉じます。全部書けたら「送る」から内容をコピーして、LINE に貼り付けて送ってください。" },
+      { target: "#go-home, #confirm", title: "家に帰って、確定",
+        text: "最後に「家に帰った」を押して1日を閉じ、「確定して次の日へ」を押します。まだ入れていない項目があれば、その場所が開きます。" },
+      { target: "#send", title: "右上の「送る」で送る",
+        text: "全部書けたら、右上の「送る」から内容をコピーして、LINE に貼り付けて送ってください。" },
     ];
     let guideStep = 0;
 
