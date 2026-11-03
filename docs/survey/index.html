@@ -282,6 +282,7 @@
       <div class="card-head"><h2 id="card-title"></h2><button type="button" id="card-close" class="btn">閉じる</button></div>
       <div class="field"><span class="q">ここは何ですか？<em class="need" id="need-type">未入力</em></span>
         <div class="opts" id="f-type" role="group" aria-label="種類"></div></div>
+      <label class="field" id="fd-detail" hidden>場所の名前・くわしく（任意）<input id="f-detail" maxlength="50"></label>
       <div class="field" id="t-from"><span class="q"><span id="t-from-q">何時ごろ着いた？</span><em class="need" id="need-from">未入力</em></span>
         <div class="hm"><select id="f-from-h" aria-label="着いた時"></select><select id="f-from-m" aria-label="着いた分"></select></div></div>
       <div class="field" id="t-dur"><span class="q">どのくらいいた？<em class="need" id="need-dur">未入力</em></span>
@@ -438,7 +439,10 @@
         setHome(lat, lng);
         stays.push(homeStay("00:00"));
       } else {
-        stays.push({ lat: round(lat, 5), lon: round(lng, 5), from: stays.at(-1)?.to ?? "", to: "", type: "", usual: null });
+        // 検索で選んだ場所のまま登録したなら、その名前を「場所の名前」に入れておく
+        const near = lastPick && map.getCenter().distanceTo(lastPick.at) < 30;
+        stays.push({ lat: round(lat, 5), lon: round(lng, 5), from: stays.at(-1)?.to ?? "", to: "", type: "", usual: null,
+          ...(near ? { detail: lastPick.name.slice(0, 50) } : {}) });
       }
       sel = stays.length - 1;
       changed();
@@ -570,6 +574,11 @@
       }));
     }
     const USUAL = { true: "はい", false: "いいえ" };
+    const DETAIL_HINT = {
+      work: "例: 会社、○○小学校", shop: "例: ○○スーパー八代店", water: "例: 給水車、ペットボトルの配布",
+      food: "例: 店の前でおにぎり", shelter: "例: ○○小学校の体育館", car_sleeping: "例: ○○の駐車場",
+      friend: "例: 親戚の家", other: "例: 何があったか",
+    };
     // 未入力の必須項目: 項目名の横に「未入力」、項目全体を赤い地にする
     function need(key, on) {
       const badge = $(`#need-${key}`);
@@ -594,6 +603,10 @@
       $("#card-title").textContent = `${sel + 1}か所目` + (TYPE[s.type] ? `: ${TYPE[s.type]}` : "");
       renderTime(s);
       opts($("#f-type"), TYPE, s.type, (v) => setField("type", v));
+      // 種類を選ぶと、そのすぐ下に場所の名前やくわしい内容の欄を出す（家は出さない）
+      $("#fd-detail").hidden = !s.type || s.type === "home";
+      $("#f-detail").value = s.detail ?? "";
+      $("#f-detail").placeholder = DETAIL_HINT[s.type] ?? "";
       opts($("#f-usual"), USUAL, s.usual == null ? null : String(s.usual), (v) => setField("usual", v === "true"));
       opts($("#f-heard"), HEARD, s.heard, (v) => setField("heard", v), true);
       opts($("#f-mode"), MODE, s.mode, (v) => setField("mode", v), true);
@@ -616,6 +629,7 @@
       changed();
     });
     bind("#f-purpose", "purpose");
+    bind("#f-detail", "detail");
 
     // ---- 時刻: 「何時ごろ着いた？」＋「どのくらいいた？」。1件目（家）は「何時ごろ出た？」だけ ----
 
@@ -724,6 +738,7 @@
     const PHOTON = "https://photon.komoot.io/api/";
     const GSI = "https://msearch.gsi.go.jp/address-search/AddressSearch";
     let searchTimer = 0;
+    let lastPick = null; // 最後に検索で選んだ場所 { name, at }
     let searchAbort = null;
 
     $("#q").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(search, 400); });
@@ -779,6 +794,7 @@
       sel = null;
       render();
       map.flyTo({ center: [f.lon, f.lat], zoom: 16 }); // 真ん中のピンが選んだ場所に来る
+      lastPick = { name: f.name, at: new maplibregl.LngLat(f.lon, f.lat) };
     }
 
     // ---- 送る ----
@@ -787,6 +803,7 @@
     function answer() {
       const clean = (s) => {
         const o = { lat: s.lat, lon: s.lon, from: s.from, to: s.to, type: s.type };
+        if (s.detail) o.detail = s.detail;
         if (s.purpose) o.purpose = s.purpose;
         if (s.heard) o.heard = s.heard;
         if (s.usual != null) o.usual = s.usual;

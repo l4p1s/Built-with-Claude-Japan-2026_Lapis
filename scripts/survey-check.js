@@ -145,7 +145,10 @@ async function fillStay(page, { from, dur, to, type, usual }) {
   await placeAt(page, 80, -60);
   assert.equal(await page.locator(".pt--need").count(), 1); // 入れていない場所の点は赤
   assert.equal(await page.locator("#next-tip").isHidden(), true);
+  assert.equal(await page.locator("#fd-detail").isHidden(), true); // 種類を選ぶまでは出さない
   await fillStay(page, { type: "shop", usual: "true", from: "08:00", dur: "30分" });
+  assert.equal(await page.locator("#fd-detail").isVisible(), true); // 種類を選ぶと、すぐ下に詳細の欄
+  await page.locator("#f-detail").fill("○○スーパー");
   await pickMore(page, "#f-mode", "car");
   await placeAt(page, -80, -50); // 入力中に地図をタップすると、入力欄が閉じてピンが動く
   await fillStay(page, { type: "water", usual: "false", from: "09:30", dur: "30分" });
@@ -177,7 +180,15 @@ async function fillStay(page, { from, dur, to, type, usual }) {
   assert.equal(await page.locator(".pt").count(), 1); // 家から始まる
   await setDate(page, "2026-07-30");
   assert.equal(await page.locator(".tab").nth(2).textContent(), "地震後 7/30");
-  ok("4 日を足すと家から始まり、日付がタブに出る");
+  await page.route("https://photon.komoot.io/api/**", (r) => r.fulfill({ json: { features: [
+    { geometry: { coordinates: [130.6, 32.51] }, properties: { name: "○○公園", city: "八代市" } },
+  ] } }));
+  await page.locator("#q").fill("公園");
+  await page.locator("#results button").first().click();
+  await page.waitForTimeout(2500);
+  await page.locator("#place-btn").click(); // 検索で選んだ場所のまま登録すると、名前が入る
+  assert.equal(await page.locator("#f-detail").inputValue(), "○○公園");
+  ok("4 日を足すと家から始まり、日付がタブに出る。検索で選んだ場所は名前が入る");
 
   // 5. 送る
   await page.locator("#send").click();
@@ -192,6 +203,8 @@ async function fillStay(page, { from, dur, to, type, usual }) {
   assert.deepEqual([back.lat, back.lon], a.home);
   assert.deepEqual([h.type, shop.type, water.type, back.type], ["home", "shop", "water", "home"]);
   assert.equal(shop.mode, "car");
+  assert.equal(shop.detail, "○○スーパー");
+  assert.equal(h.detail, undefined); // 家には詳細を入れない
   assert.deepEqual([shop.from, shop.to, water.from, water.to, back.to], ["08:00", "08:45", "09:30", "10:00", "00:00"]);
   assert.equal(a.days[0].date, "2026-07-20");
   assert.deepEqual(a.home, [32.506, 130.586]); // 検索で動かした真ん中のピンの位置（約100mに丸め）
