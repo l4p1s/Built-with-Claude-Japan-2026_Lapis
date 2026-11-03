@@ -641,6 +641,7 @@
     const hm = (m) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
     const stayed = (s) => (s.from && s.to ? (minutes(s.to) - minutes(s.from) + 1440) % 1440 : null);
     let moreOpen = false; // 「それ以上…」で出た時刻を直接選んでいる
+    let pendingDur = null; // 着いた時刻より先に選んだ、いた長さ
     let cardKey = "";
 
     for (const id of ["#f-from-h", "#f-to-h"]) {
@@ -652,7 +653,8 @@
     }
 
     function renderTime(s) {
-      if (cardKey !== `${dayIdx}:${sel}`) { cardKey = `${dayIdx}:${sel}`; moreOpen = false; }
+      const fresh = cardKey !== `${dayIdx}:${sel}`;
+      if (fresh) { cardKey = `${dayIdx}:${sel}`; moreOpen = false; pendingDur = null; }
       const first = sel === 0;
       const home = s.type === "home";
       const lastHome = home && !first;
@@ -663,8 +665,9 @@
         const b = document.createElement("button");
         b.type = "button";
         b.textContent = label;
-        b.disabled = !s.from && k !== "more";
-        b.setAttribute("aria-pressed", String(k === "more" ? !chip && (moreOpen || Boolean(s.to)) : k === chip));
+        // 着いた時刻より先に押してもよい（時刻を選んだときに出た時刻を計算する）
+        const on = k === "more" ? !chip && !pendingDur && (moreOpen || Boolean(s.to)) : k === (chip ?? pendingDur);
+        b.setAttribute("aria-pressed", String(on));
         b.addEventListener("click", () => setDuration(k));
         return b;
       }));
@@ -674,19 +677,26 @@
       $("#t-from-q").textContent = home ? "何時ごろ帰った？" : "何時ごろ着いた？";
       $("#t-to-q").textContent = first ? "何時ごろ家を出た？" : "何時ごろ出た？";
       need("from", !first && !s.from);
-      need("dur", !first && Boolean(s.from) && !s.to);
+      need("dur", !first && !s.to && !pendingDur);
       need("to", !s.to);
-      [$("#f-from-h").value, $("#f-from-m").value] = s.from ? s.from.split(":") : ["", "00"];
-      [$("#f-to-h").value, $("#f-to-m").value] = s.to ? s.to.split(":") : ["", "00"];
+      // 「時」がまだのときは、先に選んだ「分」を消さない（別の場所に移ったときだけ 00 に戻す）
+      const show = (h, m, t) => {
+        if (t) [$(h).value, $(m).value] = t.split(":");
+        else { $(h).value = ""; if (fresh) $(m).value = "00"; }
+      };
+      show("#f-from-h", "#f-from-m", s.from);
+      show("#f-to-h", "#f-to-m", s.to);
     }
 
     function setDuration(k) {
       const s = day().stays[sel];
-      if (k === "more") { moreOpen = true; return render(); }
+      if (k === "more") { moreOpen = true; pendingDur = null; return render(); }
       moreOpen = false;
-      s.to = k === "end" ? "00:00" : hm(minutes(s.from) + Number(k));
+      if (!s.from && k !== "end") { pendingDur = k; return render(); } // 着いた時刻を選んだら計算する
+      s.to = endOf(s.from, k);
       changed();
     }
+    const endOf = (from, k) => (k === "end" ? "00:00" : hm(minutes(from) + Number(k)));
 
     const pickTime = (h, m) => ($(h).value ? `${$(h).value}:${$(m).value}` : "");
     for (const id of ["#f-from-h", "#f-from-m"]) {
@@ -694,7 +704,8 @@
         const s = day().stays[sel];
         const d = stayed(s); // 着いた時刻を直しても、いた長さは保つ
         s.from = pickTime("#f-from-h", "#f-from-m");
-        if (s.from && d != null && !moreOpen && s.to !== "00:00") s.to = hm(minutes(s.from) + d);
+        if (s.from && pendingDur) { s.to = endOf(s.from, pendingDur); pendingDur = null; }
+        else if (s.from && d != null && !moreOpen && s.to !== "00:00") s.to = hm(minutes(s.from) + d);
         changed();
       });
     }

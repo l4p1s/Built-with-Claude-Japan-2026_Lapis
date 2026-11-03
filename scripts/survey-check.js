@@ -151,7 +151,14 @@ async function fillStay(page, { from, dur, to, type, usual }) {
   await page.locator("#f-detail").fill("○○スーパー");
   await pickMore(page, "#f-mode", "car");
   await placeAt(page, -80, -50); // 入力中に地図をタップすると、入力欄が閉じてピンが動く
-  await fillStay(page, { type: "water", usual: "false", from: "09:30", dur: "30分" });
+  // どの順番でも入る: 分 → 長さ → 時 の順に選ぶ
+  await page.locator('#f-type [data-v="water"]').click();
+  await page.locator('#f-usual [data-v="false"]').click();
+  await page.locator("#f-from-m").selectOption("30");
+  assert.equal(await page.locator("#f-from-m").inputValue(), "30"); // 時より先に選んだ分が消えない
+  await page.locator("#f-dur button", { hasText: "30分" }).click(); // 着いた時刻より先に押せる
+  assert.equal(await page.locator("#f-dur button", { hasText: "30分" }).getAttribute("aria-pressed"), "true");
+  await page.locator("#f-from-h").selectOption("09");
   await pickMore(page, "#f-heard", "neighbor");
   await page.locator("#f-purpose").fill("水をもらいに");
   await page.locator("#go-home").click();
