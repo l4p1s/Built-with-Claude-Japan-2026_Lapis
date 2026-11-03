@@ -55,7 +55,7 @@
     * { box-sizing: border-box; }
     [hidden] { display: none !important; }
     html, body { margin: 0; height: 100%; background: var(--surface); color: var(--fg); }
-    body { font-size: 18px; line-height: 1.5; }
+    body { font-size: 17px; line-height: 1.5; }
     body { display: grid; grid-template-rows: auto minmax(200px, 1fr) auto; height: 100dvh; }
     button, input, select { font: inherit; color: inherit; }
     button { cursor: pointer; }
@@ -115,10 +115,21 @@
     .center-pin svg { display: block; width: 100%; height: 100%; }
     .center-pin path { fill: var(--accent); stroke: var(--surface); stroke-width: 2.5; }
     .center-pin circle { fill: var(--surface); }
+    /* 家を決めたあと、次にすることを登録ボタンの上の吹き出しで示す */
+    .tip {
+      position: absolute; z-index: 2; left: 50%; bottom: 116px; transform: translateX(-50%);
+      width: max-content; max-width: calc(100% - 32px); margin: 0; padding: 8px 14px; border-radius: 12px;
+      background: var(--surface); color: var(--fg); box-shadow: var(--shadow); font-size: 15px; font-weight: 600;
+      text-align: center; pointer-events: none;
+    }
+    .tip::after {
+      content: ""; position: absolute; left: 50%; bottom: -6px; width: 12px; height: 12px; margin-left: -6px;
+      background: var(--surface); transform: rotate(45deg);
+    }
     .place-btn {
       position: absolute; z-index: 2; left: 50%; bottom: 48px; transform: translateX(-50%);
       min-height: 56px; padding: 0 24px; border-radius: 28px; box-shadow: var(--shadow);
-      font-size: 18px; white-space: nowrap;
+      font-size: 17px; white-space: nowrap;
     }
     .pt {
       width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--fg-2);
@@ -143,13 +154,13 @@
       background: var(--fg-2); color: var(--surface); font-size: 14px; font-weight: 600; overflow: hidden;
     }
     .block--sel { background: var(--accent); color: var(--on-accent); }
-    .card h2 { margin: 0; font-size: 22px; font-weight: 600; }
+    .card h2 { margin: 0; font-size: 20px; font-weight: 600; }
     .field { display: block; margin-top: 20px; }
-    label, .q { display: block; font-size: 17px; font-weight: 600; color: var(--fg); }
+    label, .q { display: block; font-size: 16px; font-weight: 600; color: var(--fg); }
     .need { margin-left: 8px; font-style: normal; font-size: 15px; color: var(--danger); }
     input, select {
       display: block; width: 100%; min-height: 52px; margin-top: 8px; padding: 8px 12px;
-      border-radius: 10px; border: 1.5px solid var(--input-line); background: var(--input); font-size: 18px;
+      border-radius: 10px; border: 1.5px solid var(--input-line); background: var(--input); font-size: 17px;
     }
     .hm { display: flex; gap: 8px; }
     /* 選ぶものはプルダウンでなく、大きなボタンを並べる。選んだものは紺で塗って ✓ を付ける */
@@ -157,7 +168,7 @@
     .opts--2 { grid-template-columns: repeat(2, 1fr); }
     .opts button {
       min-height: 52px; padding: 4px; border-radius: 10px; border: 1.5px solid var(--input-line);
-      background: var(--input); font-size: 17px; line-height: 1.3;
+      background: var(--input); font-size: 16px; line-height: 1.3;
     }
     .opts button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 600; }
     .opts button[aria-pressed="true"]::before { content: "✓ "; }
@@ -171,9 +182,9 @@
     .card-done { width: 100%; margin-top: 20px; }
     .pt--need { border-color: var(--danger); box-shadow: 0 0 0 3px var(--need-bg), 0 1px 3px rgb(0 0 0 / 0.3); }
     .more { margin-top: 20px; border-top: 1px solid var(--border); }
-    .more summary { display: flex; align-items: center; min-height: 52px; font-size: 17px; font-weight: 600; cursor: pointer; }
-    .note { margin: 12px 0 0; font-size: 16px; color: var(--fg-2); }
-    .warn { margin: 12px 0 0; font-size: 16px; font-weight: 600; color: var(--danger); }
+    .more summary { display: flex; align-items: center; min-height: 52px; font-size: 16px; font-weight: 600; cursor: pointer; }
+    .note { margin: 12px 0 0; font-size: 15px; color: var(--fg-2); }
+    .warn { margin: 12px 0 0; font-size: 15px; font-weight: 600; color: var(--danger); }
     .note:empty, .warn:empty { display: none; }
     .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
     /* 「次に行った場所」「送る」はカードを下まで見なくても押せるように、下に貼りつける */
@@ -185,12 +196,12 @@
     }
     .btn {
       min-height: 52px; padding: 0 16px; border-radius: 10px; border: 1.5px solid var(--line);
-      background: var(--surface); font-size: 17px; font-weight: 600;
+      background: var(--surface); font-size: 16px; font-weight: 600;
     }
     .btn--primary { margin-left: auto; background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
     .link {
       min-height: 48px; padding: 0; border: 0; background: none; color: var(--fg-2);
-      text-decoration: underline; font-size: 16px;
+      text-decoration: underline; font-size: 15px;
     }
 
     /* ダイアログ */
@@ -212,13 +223,13 @@
       position: fixed; z-index: 11; left: 16px; right: 16px; max-width: 400px; margin: 0 auto;
       padding: 16px; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow);
     }
-    .guide h2 { margin: 0 0 8px; font-size: 20px; font-weight: 600; }
+    .guide h2 { margin: 0 0 8px; font-size: 18px; font-weight: 600; }
     .guide p { margin: 0; color: var(--fg); line-height: 1.6; }
     .guide .actions { align-items: center; margin-top: 12px; }
     .guide .count { font-size: 13px; color: var(--muted); }
     .spot--none { box-shadow: 0 0 0 9999px rgb(0 0 0 / 0.5); }
     @media (prefers-reduced-motion: reduce) { .spot { transition: none; } }
-    dialog h1 { margin: 0 0 12px; font-size: 20px; font-weight: 600; line-height: 1.4; }
+    dialog h1 { margin: 0 0 12px; font-size: 19px; font-weight: 600; line-height: 1.4; }
     dialog p, dialog ul { margin: 0 0 8px; }
     dialog ul { padding-left: 20px; color: var(--fg-2); }
     dialog li + li { margin-top: 4px; }
@@ -259,6 +270,7 @@
     <div id="center-pin" class="center-pin" aria-hidden="true">
       <svg viewBox="0 0 36 48"><path d="M18 46S3 28 3 17a15 15 0 0 1 30 0c0 11-15 29-15 29z"/><circle cx="18" cy="17" r="5.5"/></svg>
     </div>
+    <p id="next-tip" class="tip" role="status" hidden>次は、行った場所にピンを合わせましょう</p>
     <button type="button" id="place-btn" class="btn btn--primary place-btn"></button>
   </div>
 
@@ -698,6 +710,7 @@
       $("#center-pin").hidden = sel != null;
       $("#place-btn").hidden = sel != null;
       $("#place-btn").textContent = state.home ? "ここを次の場所にする" : "ここを家にする";
+      $("#next-tip").hidden = sel != null || stays.length !== 1; // 家だけ決まったとき
       $("#go-home").disabled = !stays.length || stays.at(-1).type === "home";
       renderTabs();
       renderMap();

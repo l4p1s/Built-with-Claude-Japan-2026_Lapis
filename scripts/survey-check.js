@@ -135,6 +135,7 @@ async function fillStay(page, { from, dur, to, type, usual }) {
   assert.equal(await page.locator("#card").isHidden(), true);
   const mapClosed = (await page.locator("#map").boundingBox()).height;
   assert.ok(mapClosed > mapOpen + 150, `地図の高さ ${mapOpen} → ${mapClosed}`);
+  assert.equal(await page.locator("#next-tip").isVisible(), true); // 家を決めたら、次にすることを示す
   await page.screenshot({ path: `${SHOTS}/02-closed.png` });
   assert.equal(await page.locator(".tab").first().evaluate((e) => e.classList.contains("tab--need")), true);
   await setDate(page, "2026-07-20"); // ふだんの日にも日付
@@ -143,6 +144,7 @@ async function fillStay(page, { from, dur, to, type, usual }) {
   assert.equal(await page.locator("#place-btn").textContent(), "ここを次の場所にする");
   await placeAt(page, 80, -60);
   assert.equal(await page.locator(".pt--need").count(), 1); // 入れていない場所の点は赤
+  assert.equal(await page.locator("#next-tip").isHidden(), true);
   await fillStay(page, { type: "shop", usual: "true", from: "08:00", dur: "30分" });
   await pickMore(page, "#f-mode", "car");
   await placeAt(page, -80, -50); // 入力中に地図をタップすると、入力欄が閉じてピンが動く
