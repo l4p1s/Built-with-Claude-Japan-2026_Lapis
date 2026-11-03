@@ -720,11 +720,25 @@
       changed();
     });
 
+    // 未入力の場所を開き、地図をその場所へ動かし、最初の未入力の項目までスクロールする
+    function goToMissing(i) {
+      sel = i;
+      render();
+      const s = day().stays[i];
+      map.resize(); // 入力欄が開いて地図が小さくなった大きさで、真ん中に合わせる
+      map.easeTo({ center: [s.lon, s.lat] });
+      const field = [...document.querySelectorAll("#card .field--need")].find((el) => el.offsetParent);
+      if (!field) return;
+      const smooth = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+      field.scrollIntoView({ block: "center", behavior: smooth ? "smooth" : "auto" });
+      field.querySelector("button, select, input")?.focus({ preventScroll: true });
+    }
+
     // この日を確定: 未入力の場所があればそこを開き、日付がなければ日付を聞く。
     // そろっていれば次の日へ。最後の日なら送る画面を出す
     $("#confirm").addEventListener("click", () => {
       const i = day().stays.findIndex(incomplete);
-      if (i >= 0) { sel = i; return render(); }
+      if (i >= 0) return goToMissing(i);
       if (!day().date) return openDate();
       if (dayIdx < state.days.length - 1) switchDay(dayIdx + 1);
       else $("#send").click();

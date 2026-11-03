@@ -183,7 +183,21 @@ async function fillStay(page, { from, dur, to, type, usual }) {
   await page.locator("#confirm").click(); // 家を出た時刻がまだ → その場所が開く
   assert.equal(await page.locator("#card").isVisible(), true);
   assert.equal(await page.locator("#t-to").evaluate((e) => e.classList.contains("field--need")), true);
-  ok("3b 確定で次の日へ進み、未入力があればその場所を開く");
+  await fillStay(page, { to: "08:00" });
+  await page.locator("#card-done").click();
+  await placeAt(page, 60, -60);
+  await fillStay(page, { type: "shop", from: "08:30", dur: "30分" }); // ふだんも行くか、を入れない
+  await page.locator("#card-done").click();
+  await page.locator("#confirm").click(); // 下の方の未入力の項目まで動く
+  await page.waitForTimeout(800);
+  const inView = await page.locator("#need-usual").evaluate((el) => {
+    const f = el.closest(".field").getBoundingClientRect();
+    const panel = document.querySelector(".panel").getBoundingClientRect();
+    return f.top >= panel.top && f.bottom <= panel.bottom && document.activeElement.closest(".field") === el.closest(".field");
+  });
+  assert.equal(inView, true);
+  await page.screenshot({ path: `${SHOTS}/03b-missing.png` });
+  ok("3b 確定で次の日へ進み、未入力があればその項目まで動く");
 
   // 4. 日を足す
   await page.locator("#add-day").click();
