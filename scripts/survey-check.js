@@ -28,13 +28,20 @@ async function tapMap(page, dx, dy) {
   await page.mouse.click(box.x + box.width / 2 + dx, box.y + box.height / 2 + dy);
 }
 
-// 地図の中心から (dx, dy) ずらした位置を長押しする
-async function longPress(page, dx, dy) {
-  const box = await page.locator("#map").boundingBox();
-  await page.mouse.move(box.x + box.width / 2 + dx, box.y + box.height / 2 + dy);
-  await page.mouse.down();
-  await page.waitForTimeout(700);
-  await page.mouse.up();
+// 地図をタップして真ん中のピンをそこへ動かし、登録ボタンを押す
+async function placeAt(page, dx, dy) {
+  await tapMap(page, dx, dy);
+  await page.waitForTimeout(800); // 地図が動き終わるのを待つ
+  await page.locator("#place-btn").click();
+}
+
+// 選んでいるタブを押して日付を入れる
+async function setDate(page, date) {
+  await page.locator('.tab[aria-pressed="true"]').click();
+  await page.locator("#date-dlg").waitFor();
+  await page.locator("#day-date").fill(date);
+  await page.locator("#date-dlg button.btn--primary").click();
+  await page.locator("#date-dlg").waitFor({ state: "hidden" });
 }
 
 async function setTime(page, which, t) {
@@ -99,27 +106,26 @@ async function fillStay(page, { from, dur, to, type, usual }) {
   await page.route("https://msearch.gsi.go.jp/**", (r) => r.fulfill({ json: [
     { geometry: { coordinates: [130.6016, 32.5072] }, properties: { title: "熊本県八代市松江城町" } },
   ] }));
-  assert.match(await page.locator("#hint").textContent(), /家はどのへん/);
+  assert.equal(await page.locator("#place-btn").textContent(), "ここを家にする");
+  assert.equal(await page.locator("#center-pin").isVisible(), true);
   await page.locator("#q").fill("ゆめタウン");
   await page.locator("#results button").first().waitFor();
   assert.equal(await page.locator("#results button").count(), 2);
   await page.screenshot({ path: `${SHOTS}/01b-search.png` });
-  await page.locator("#results button").first().click(); // 選んだ場所にピンが立つ
-  await page.locator("#cand-card").waitFor();
-  assert.equal(await page.locator("#cand-name").textContent(), "ゆめタウン八代");
-  assert.equal(await page.locator("#cand-ok").textContent(), "ここを家にする");
-  await page.screenshot({ path: `${SHOTS}/01b-cand.png` });
-  await page.locator("#cand-ok").click();
+  await page.locator("#results button").first().click(); // 地図がそこへ動き、真ん中のピンが合う
+  await page.waitForTimeout(2500);
+  await page.screenshot({ path: `${SHOTS}/01b-pin.png` });
+  await page.locator("#place-btn").click();
   assert.equal(await page.locator(".pt").count(), 1);
+  assert.equal(await page.locator("#center-pin").isHidden(), true); // 入力中はピンとボタンを隠す
   await page.route("https://photon.komoot.io/api/**", (r) => r.fulfill({ json: { features: [] } }));
   await page.route("https://msearch.gsi.go.jp/**", (r) => r.fulfill({ json: [] }));
   await page.locator("#q").fill("ないところ");
   await page.locator("#results", { hasText: "見つかりませんでした" }).waitFor();
   await page.locator("#q").fill("");
-  ok("1b 名前で探すと候補が出て、選ぶとピンが立ち、ここを家にする で登録。見つからないと案内が出る");
+  ok("1b 名前で探すと地図がそこへ動き、ここを家にする で真ん中のピンの位置が家になる");
 
   // 2. 家 → 2か所 → 家に帰った
-  await page.waitForTimeout(1500); // 地図の移動とタイルの読み込み
   assert.equal(await page.locator("#t-from").isHidden(), true); // 1件目の家は「出た時刻」だけ
   assert.equal(await page.locator("#t-to").evaluate((e) => e.classList.contains("field--need")), true); // 未入力は赤
   await fillStay(page, { to: "07:45" });
@@ -130,19 +136,16 @@ async function fillStay(page, { from, dur, to, type, usual }) {
   const mapClosed = (await page.locator("#map").boundingBox()).height;
   assert.ok(mapClosed > mapOpen + 150, `地図の高さ ${mapOpen} → ${mapClosed}`);
   await page.screenshot({ path: `${SHOTS}/02-closed.png` });
-  assert.equal(await page.locator("#day-date").isVisible(), true); // ふだんの日にも日付
-  await page.locator("#day-date").fill("2026-07-20");
+  assert.equal(await page.locator(".tab").first().evaluate((e) => e.classList.contains("tab--need")), true);
+  await setDate(page, "2026-07-20"); // ふだんの日にも日付
   assert.equal(await page.locator(".tab").first().textContent(), "ふだん 7/20");
-  await page.locator("#add-next").click();
-  assert.match(await page.locator("#hint").textContent(), /次に行った場所/);
-  await tapMap(page, 80, -60);
+  assert.equal(await page.locator(".tab").first().evaluate((e) => e.classList.contains("tab--need")), false);
+  assert.equal(await page.locator("#place-btn").textContent(), "ここを次の場所にする");
+  await placeAt(page, 80, -60);
   assert.equal(await page.locator(".pt--need").count(), 1); // 入れていない場所の点は赤
   await fillStay(page, { type: "shop", usual: "true", from: "08:00", dur: "30分" });
   await pickMore(page, "#f-mode", "car");
-  await longPress(page, -70, 30); // 長押しでピン → 次の場所にする
-  await page.locator("#cand-card").waitFor();
-  assert.equal(await page.locator("#cand-ok").textContent(), "ここを次の場所にする");
-  await page.locator("#cand-ok").click();
+  await placeAt(page, -80, -50); // 入力中に地図をタップすると、入力欄が閉じてピンが動く
   await fillStay(page, { type: "water", usual: "false", from: "09:30", dur: "30分" });
   await pickMore(page, "#f-heard", "neighbor");
   await page.locator("#f-purpose").fill("水をもらいに");
@@ -150,7 +153,7 @@ async function fillStay(page, { from, dur, to, type, usual }) {
   await fillStay(page, { from: "10:15", dur: "朝まで" });
   assert.match(await page.locator("#f-note").textContent(), /その日の終わり/);
   assert.equal(await page.locator(".pt").count(), 4);
-  ok("2 日付を入れ、家 → タップ → 長押し → 家に帰った（朝まで）でつなぐ");
+  ok("2 タブで日付、真ん中のピンで 家 → 2か所 → 家に帰った（朝まで）");
 
   // 3. 1日の帯
   assert.equal(await page.locator("#band .block").count(), 4);
@@ -170,7 +173,7 @@ async function fillStay(page, { from, dur, to, type, usual }) {
   await page.locator("#add-day").click();
   assert.equal(await page.locator(".tab").count(), 3);
   assert.equal(await page.locator(".pt").count(), 1); // 家から始まる
-  await page.locator("#day-date").fill("2026-07-30");
+  await setDate(page, "2026-07-30");
   assert.equal(await page.locator(".tab").nth(2).textContent(), "地震後 7/30");
   ok("4 日を足すと家から始まり、日付がタブに出る");
 
@@ -189,6 +192,7 @@ async function fillStay(page, { from, dur, to, type, usual }) {
   assert.equal(shop.mode, "car");
   assert.deepEqual([shop.from, shop.to, water.from, water.to, back.to], ["08:00", "08:45", "09:30", "10:00", "00:00"]);
   assert.equal(a.days[0].date, "2026-07-20");
+  assert.deepEqual(a.home, [32.506, 130.586]); // 検索で動かした真ん中のピンの位置（約100mに丸め）
   assert.equal(water.usual, false);
   assert.equal(water.heard, "neighbor");
   assert.equal(water.purpose, "水をもらいに");
