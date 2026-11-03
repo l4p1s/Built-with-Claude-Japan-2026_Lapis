@@ -52,6 +52,26 @@ async function fillStay(page, { from, to, type, usual }) {
   assert.equal(await page.locator("#intro").evaluate((d) => d.open), false);
   ok("1 初回の説明が出て、Esc で閉じず、呼び名を入れると閉じる");
 
+  // 1b. 使い方の案内
+  await page.locator("#guide").waitFor();
+  assert.equal(await page.locator("#guide-count").textContent(), "1 / 6");
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${SHOTS}/01b-guide-1.png` });
+  for (let i = 2; i <= 6; i++) {
+    await page.locator("#guide-next").click();
+    assert.equal(await page.locator("#guide-count").textContent(), `${i} / 6`);
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: `${SHOTS}/01b-guide-${i}.png` });
+  }
+  assert.equal(await page.locator("#guide-next").textContent(), "書きはじめる");
+  await page.locator("#guide-next").click();
+  await page.locator("#guide").waitFor({ state: "hidden" });
+  await page.locator("#help").click();
+  await page.locator("#guide").waitFor();
+  await page.locator("#guide-skip").click();
+  await page.locator("#guide").waitFor({ state: "hidden" });
+  ok("1b 使い方の案内が6段で進み、? から見直せて、とばせる");
+
   // 2. 家 → 2か所 → 家に帰った
   await page.waitForTimeout(1500); // タイルの読み込み
   assert.match(await page.locator("#hint").textContent(), /家はどのへん/);
@@ -120,6 +140,7 @@ async function fillStay(page, { from, to, type, usual }) {
   await page.reload();
   await page.locator("#map canvas").waitFor();
   assert.equal(await page.locator("#intro").evaluate((d) => d.open), false);
+  assert.equal(await page.locator("#guide").isHidden(), true); // 案内は2回目から出ない
   assert.equal(await page.locator(".tab").count(), 3);
   assert.equal(await page.locator(".pt").count(), 4);
   await page.locator("#send").click();
@@ -134,6 +155,7 @@ async function fillStay(page, { from, to, type, usual }) {
   const dark = await open(browser, { colorScheme: "dark" });
   await dark.page.locator("#name").fill("夜");
   await dark.page.locator("#intro-form button").click();
+  await dark.page.locator("#guide-skip").click();
   await dark.page.waitForTimeout(1500);
   await tapMap(dark.page, 0, 0);
   await dark.page.waitForTimeout(1000);
