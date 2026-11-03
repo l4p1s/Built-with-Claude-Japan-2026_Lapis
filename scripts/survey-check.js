@@ -120,14 +120,23 @@ async function fillStay(page, { from, dur, to, type, usual }) {
 
   // 2. 家 → 2か所 → 家に帰った
   await page.waitForTimeout(1500); // 地図の移動とタイルの読み込み
+  assert.equal(await page.locator("#t-from").isHidden(), true); // 1件目の家は「出た時刻」だけ
+  assert.equal(await page.locator("#t-to").evaluate((e) => e.classList.contains("field--need")), true); // 未入力は赤
+  await fillStay(page, { to: "07:45" });
+  assert.equal(await page.locator("#t-to").evaluate((e) => e.classList.contains("field--need")), false);
+  const mapOpen = (await page.locator("#map").boundingBox()).height;
+  await page.locator("#card-done").click(); // 決定すると入力欄が閉じ、地図が広くなる
+  assert.equal(await page.locator("#card").isHidden(), true);
+  const mapClosed = (await page.locator("#map").boundingBox()).height;
+  assert.ok(mapClosed > mapOpen + 150, `地図の高さ ${mapOpen} → ${mapClosed}`);
+  await page.screenshot({ path: `${SHOTS}/02-closed.png` });
   assert.equal(await page.locator("#day-date").isVisible(), true); // ふだんの日にも日付
   await page.locator("#day-date").fill("2026-07-20");
   assert.equal(await page.locator(".tab").first().textContent(), "ふだん 7/20");
-  assert.equal(await page.locator("#t-from").isHidden(), true); // 1件目の家は「出た時刻」だけ
-  await fillStay(page, { to: "07:45" });
   await page.locator("#add-next").click();
   assert.match(await page.locator("#hint").textContent(), /次に行った場所/);
   await tapMap(page, 80, -60);
+  assert.equal(await page.locator(".pt--need").count(), 1); // 入れていない場所の点は赤
   await fillStay(page, { type: "shop", usual: "true", from: "08:00", dur: "30分" });
   await pickMore(page, "#f-mode", "car");
   await longPress(page, -70, 30); // 長押しでピン → 次の場所にする

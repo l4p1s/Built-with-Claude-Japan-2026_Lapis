@@ -23,6 +23,9 @@
       --muted: #5b6474;
       --border: rgb(17 24 39 / 0.1);
       --line: rgb(17 24 39 / 0.28); /* 押せる部品の枠。50代の目でも見える濃さ */
+      --input: #eef3fa; /* 入力するところは、うすい紺の地にする */
+      --input-line: rgb(30 58 95 / 0.4);
+      --need-bg: #fdecec; /* 未入力の項目 */
       --danger: #b91c1c;
       --shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 4px 12px rgb(0 0 0 / 0.1);
       font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
@@ -39,6 +42,9 @@
         --muted: #7a8296;
         --border: rgb(238 240 245 / 0.1);
         --line: rgb(238 240 245 / 0.3);
+        --input: #1a2436;
+        --input-line: rgb(96 165 250 / 0.45);
+        --need-bg: rgb(248 113 113 / 0.12);
         --danger: #f87171;
         --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 12px rgb(0 0 0 / 0.3);
       }
@@ -149,18 +155,27 @@
     .need { margin-left: 8px; font-style: normal; font-size: 15px; color: var(--danger); }
     input, select {
       display: block; width: 100%; min-height: 52px; margin-top: 8px; padding: 8px 12px;
-      border-radius: 10px; border: 1.5px solid var(--line); background: var(--surface); font-size: 18px;
+      border-radius: 10px; border: 1.5px solid var(--input-line); background: var(--input); font-size: 18px;
     }
     .hm { display: flex; gap: 8px; }
     /* 選ぶものはプルダウンでなく、大きなボタンを並べる。選んだものは紺で塗って ✓ を付ける */
     .opts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
     .opts--2 { grid-template-columns: repeat(2, 1fr); }
     .opts button {
-      min-height: 52px; padding: 4px; border-radius: 10px; border: 1.5px solid var(--line);
-      background: var(--surface); font-size: 17px; line-height: 1.3;
+      min-height: 52px; padding: 4px; border-radius: 10px; border: 1.5px solid var(--input-line);
+      background: var(--input); font-size: 17px; line-height: 1.3;
     }
     .opts button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 600; }
     .opts button[aria-pressed="true"]::before { content: "✓ "; }
+    /* 未入力の必須項目は、赤い地と左の赤い線で知らせる */
+    .field--need {
+      margin-left: -12px; margin-right: -12px; padding: 8px 12px 12px; border-radius: 12px;
+      background: var(--need-bg); box-shadow: inset 4px 0 0 var(--danger);
+    }
+    .field--need > .q { color: var(--danger); }
+    .card-head { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+    .card-done { width: 100%; margin-top: 20px; }
+    .pt--need { border-color: var(--danger); box-shadow: 0 0 0 3px var(--need-bg), 0 1px 3px rgb(0 0 0 / 0.3); }
     .more { margin-top: 20px; border-top: 1px solid var(--border); }
     .more summary { display: flex; align-items: center; min-height: 52px; font-size: 17px; font-weight: 600; cursor: pointer; }
     .note { margin: 12px 0 0; font-size: 16px; color: var(--fg-2); }
@@ -269,7 +284,7 @@
 
     <p id="empty" class="empty"></p>
     <form id="card" class="card" hidden>
-      <h2 id="card-title"></h2>
+      <div class="card-head"><h2 id="card-title"></h2><button type="button" id="card-close" class="btn">閉じる</button></div>
       <div class="field"><span class="q">ここは何ですか？<em class="need" id="need-type">未入力</em></span>
         <div class="opts" id="f-type" role="group" aria-label="種類"></div></div>
       <div class="field" id="t-from"><span class="q"><span id="t-from-q">何時ごろ着いた？</span><em class="need" id="need-from">未入力</em></span>
@@ -288,6 +303,7 @@
       </details>
       <p id="f-note" class="note"></p>
       <p id="f-warn" class="warn"></p>
+      <button type="button" id="card-done" class="btn btn--primary card-done">決定して地図に戻る</button>
       <button type="button" id="del-stay" class="link">この場所を消す</button>
     </form>
 
@@ -479,7 +495,7 @@
       markers = day().stays.map((s, i) => {
         const el = document.createElement("button");
         el.type = "button";
-        el.className = "pt" + (i === sel ? " pt--sel" : "");
+        el.className = "pt" + (i === sel ? " pt--sel" : "") + (incomplete(s) ? " pt--need" : "");
         el.textContent = s.type === "home" ? "家" : String(i + 1);
         el.setAttribute("aria-label", `${i + 1}番目 ${TYPE[s.type] ?? "種類未入力"}`);
         el.addEventListener("click", (e) => { e.stopPropagation(); sel = i; render(); });
@@ -509,7 +525,6 @@
         b.addEventListener("click", () => switchDay(i));
         return b;
       }));
-      $("#day-tip").hidden = dayIdx === 0;
       $("#day-date").value = day().date ?? "";
       $("#del-day").hidden = dayIdx < 2; // 最初の2日は消さない
     }
@@ -580,6 +595,15 @@
       }));
     }
     const USUAL = { true: "はい", false: "いいえ" };
+    // 未入力の必須項目: 項目名の横に「未入力」、項目全体を赤い地にする
+    function need(key, on) {
+      const badge = $(`#need-${key}`);
+      badge.hidden = !on;
+      badge.closest(".field").classList.toggle("field--need", on);
+    }
+    const closeCard = () => { sel = null; render(); };
+    $("#card-close").addEventListener("click", closeCard);
+    $("#card-done").addEventListener("click", closeCard);
     function setField(key, v) {
       const s = day().stays[sel];
       s[key] = v;
@@ -591,10 +615,11 @@
       const stays = day().stays;
       const s = stays[sel];
       $("#card").hidden = !s;
-      $("#empty").hidden = Boolean(s);
-      $("#empty").textContent = !stays.length
-        ? "まず、家のだいたいの場所を地図でタップしてください。"
-        : "地図の点か帯をタップすると、その場所を直せます。";
+      $("#empty").hidden = stays.length > 0; // 場所があるときは、地図を広く見せるため説明を出さない（案内で伝える）
+      $("#empty").textContent = "まず、家のだいたいの場所を地図でタップしてください。";
+      // 入力欄は場所を決めたときだけ出し、それ以外は地図を広く見せる
+      $("#day-row").hidden = Boolean(s);
+      $("#day-tip").hidden = dayIdx === 0 || Boolean(s);
       if (!s) return;
       $("#card-title").textContent = `${sel + 1}か所目` + (TYPE[s.type] ? `: ${TYPE[s.type]}` : "");
       renderTime(s);
@@ -603,8 +628,8 @@
       opts($("#f-heard"), HEARD, s.heard, (v) => setField("heard", v), true);
       opts($("#f-mode"), MODE, s.mode, (v) => setField("mode", v), true);
       $("#f-purpose").value = s.purpose ?? "";
-      $("#need-type").hidden = Boolean(s.type);
-      $("#need-usual").hidden = s.usual != null;
+      need("type", !s.type);
+      need("usual", s.usual == null);
       $("#f-mode-wrap").hidden = sel === 0;
       $("#f-note").textContent = s.to === "00:00" && sel > 0 ? "その日の終わり（24時）まで"
         : s.from && s.to && s.to < s.from ? `翌日の ${s.to} まで` : "";
@@ -660,9 +685,9 @@
       $("#t-to").hidden = !first && !moreOpen && (chip || !s.to);
       $("#t-from-q").textContent = home ? "何時ごろ帰った？" : "何時ごろ着いた？";
       $("#t-to-q").textContent = first ? "何時ごろ家を出た？" : "何時ごろ出た？";
-      $("#need-from").hidden = Boolean(s.from);
-      $("#need-dur").hidden = Boolean(s.to) || !s.from;
-      $("#need-to").hidden = Boolean(s.to);
+      need("from", !first && !s.from);
+      need("dur", !first && Boolean(s.from) && !s.to);
+      need("to", !s.to);
       [$("#f-from-h").value, $("#f-from-m").value] = s.from ? s.from.split(":") : ["", "00"];
       [$("#f-to-h").value, $("#f-to-m").value] = s.to ? s.to.split(":") : ["", "00"];
     }
@@ -863,9 +888,9 @@
       { target: "#add-next", title: "次に行った場所をつなぐ",
         text: "「＋ 次の場所」を押してから地図をタップすると、前の場所から線が伸びます。地図の長押しや検索で立てたピンを「ここを次の場所にする」で登録しても同じです。行った順に、これを繰り返します。" },
       { target: ".panel", title: "時刻と、何をしに行ったか",
-        text: "場所ごとに「何時ごろ着いた？」と「どのくらいいた？」、種類、ふだんも行く場所かを選びます。時刻は大まかで大丈夫です。" },
+        text: "場所を決めると、ここに入力欄が出ます。種類、「何時ごろ着いた？」と「どのくらいいた？」、ふだんも行く場所かを選びます。まだ入れていない項目は赤で知らせます。時刻は大まかで大丈夫です。「決定して地図に戻る」で地図が広く戻ります。" },
       { target: "#band", title: "1日の帯で見直す",
-        text: "どこに何時いたかが、0時から24時の帯に並びます。しま模様のところは、まだ書いていない時間です。帯をタップすると、その場所を直せます。" },
+        text: "どこに何時いたかが、0時から24時の帯に並びます。しま模様のところは、まだ書いていない時間です。帯や地図の点をタップすると、その場所を直せます。赤い点は、まだ入れていない項目がある場所です。" },
       { target: "#go-home, #send", title: "家に帰って、送る",
         text: "最後に「家に帰った」を押して1日を閉じます。全部書けたら「送る」から内容をコピーして、LINE に貼り付けて送ってください。" },
     ];
