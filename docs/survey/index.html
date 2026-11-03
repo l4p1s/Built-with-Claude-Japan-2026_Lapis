@@ -100,6 +100,18 @@
       box-shadow: var(--shadow); text-align: center; font-weight: 600;
       pointer-events: none; /* 案内の上をタップしても、地図に場所を置ける */
     }
+    /* 検索や長押しで立てる、まだ登録していないピン */
+    .cand { width: 44px; height: 44px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 4px; pointer-events: none; }
+    .cand::before {
+      content: ""; width: 26px; height: 26px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg);
+      background: var(--accent); border: 3px solid var(--surface); box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
+    }
+    .cand-card {
+      position: absolute; z-index: 3; bottom: 12px; left: 12px; right: 12px; max-width: 480px; margin: 0 auto;
+      padding: 12px 16px; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow);
+    }
+    .cand-card p { margin: 0; font-weight: 600; }
+    .cand-card .actions { margin-top: 8px; justify-content: flex-end; }
     .pt {
       width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--fg-2);
       background: var(--surface); color: var(--fg); display: flex; align-items: center; justify-content: center;
@@ -124,7 +136,8 @@
     }
     .block--sel { background: var(--accent); color: var(--on-accent); }
     .day-row { display: flex; gap: 8px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-    .day-row label { display: flex; gap: 8px; align-items: center; margin: 0; }
+    .day-row label { display: flex; gap: 8px; align-items: center; margin: 0; white-space: nowrap; }
+    .day-row input { width: auto; margin: 0; }
     .empty { margin: 0 0 12px; color: var(--fg-2); }
     .card h2 { margin: 0 0 8px; font-size: 16px; font-weight: 600; }
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
@@ -134,6 +147,14 @@
       display: block; width: 100%; min-height: 44px; margin-top: 4px; padding: 8px 12px;
       border-radius: 10px; border: 1px solid var(--border); background: var(--surface);
     }
+    .q { display: block; font-size: 13px; color: var(--muted); }
+    .hm { display: flex; gap: 8px; }
+    .durs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 4px; }
+    .durs button {
+      min-height: 44px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2);
+    }
+    .durs button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+    .durs button:disabled { opacity: 0.45; }
     .note { margin: 8px 0 0; font-size: 13px; color: var(--fg-2); }
     .warn { margin: 8px 0 0; font-size: 13px; color: var(--danger); }
     .note:empty, .warn:empty { display: none; }
@@ -219,14 +240,21 @@
     </form>
     <div id="results" class="results" role="list" hidden></div>
     <p id="hint" class="float" role="status" hidden></p>
+    <div id="cand-card" class="cand-card" role="dialog" aria-labelledby="cand-name" hidden>
+      <p id="cand-name"></p>
+      <div class="actions">
+        <button type="button" id="cand-cancel" class="btn">やめる</button>
+        <button type="button" id="cand-ok" class="btn btn--primary"></button>
+      </div>
+    </div>
   </div>
 
   <section class="panel">
     <div class="ticks" aria-hidden="true"><span>0</span><span>6</span><span>12</span><span>18</span><span>24時</span></div>
     <div id="band" class="band" aria-label="1日の帯"></div>
 
-    <div id="day-row" class="day-row" hidden>
-      <label>日付 <input type="date" id="day-date" min="2026-07-01" max="2026-12-31"></label>
+    <div id="day-row" class="day-row">
+      <label>日付 <input type="date" id="day-date"></label>
       <button type="button" id="del-day" class="link">この日を消す</button>
     </div>
     <p id="day-tip" class="empty" hidden>給水や炊き出しに行った日があれば、その日を優先して書いてください。</p>
@@ -235,8 +263,11 @@
     <form id="card" class="card" hidden>
       <h2 id="card-title"></h2>
       <div class="grid">
-        <label>着いた時刻<input type="time" id="f-from" step="900"></label>
-        <label>出た時刻<input type="time" id="f-to" step="900"></label>
+        <div class="wide" id="t-from"><span class="q" id="t-from-q">何時ごろ着いた？</span>
+          <div class="hm"><select id="f-from-h" aria-label="着いた時"></select><select id="f-from-m" aria-label="着いた分"></select></div></div>
+        <div class="wide" id="t-dur"><span class="q">どのくらいいた？</span><div class="durs" id="f-dur"></div></div>
+        <div class="wide" id="t-to"><span class="q" id="t-to-q">何時ごろ出た？</span>
+          <div class="hm"><select id="f-to-h" aria-label="出た時"></select><select id="f-to-m" aria-label="出た分"></select></div></div>
         <label>種類<select id="f-type"></select></label>
         <label>ふだんも行く<select id="f-usual">
           <option value="">選んでください</option><option value="true">はい</option><option value="false">いいえ</option>
@@ -360,7 +391,49 @@
       });
     });
     map.on("click", (e) => {
+      if (longPressed) { longPressed = false; return; } // 長押しの指を離したときのクリックは無視
       if (placing) placeAt(e.lngLat.lat, e.lngLat.lng);
+      else if (cand) { clearCand(); render(); }
+    });
+
+    // 地図の長押し（右クリック）で、その場所にピンを立てる
+    let pressTimer = 0;
+    let pressAt = null;
+    let longPressed = false;
+    function startPress(e) {
+      if (e.originalEvent.button > 0 || e.originalEvent.touches?.length > 1) return;
+      clearTimeout(pressTimer);
+      pressAt = e.point;
+      pressTimer = setTimeout(() => { longPressed = true; setCand(e.lngLat.lat, e.lngLat.lng); }, 500);
+    }
+    const cancelPress = () => { clearTimeout(pressTimer); pressAt = null; };
+    const movePress = (e) => {
+      if (pressAt && Math.hypot(e.point.x - pressAt.x, e.point.y - pressAt.y) > 8) cancelPress();
+    };
+    for (const t of ["mousedown", "touchstart"]) map.on(t, startPress);
+    for (const t of ["mousemove", "touchmove"]) map.on(t, movePress);
+    for (const t of ["mouseup", "touchend", "touchcancel", "dragstart", "zoomstart"]) map.on(t, cancelPress);
+    map.on("contextmenu", (e) => { cancelPress(); setCand(e.lngLat.lat, e.lngLat.lng); });
+
+    // まだ登録していないピン。「ここを家にする／次の場所にする」で登録する
+    let cand = null; // { lat, lon, name, marker }
+    function setCand(lat, lon, name = "") {
+      clearCand();
+      const el = Object.assign(document.createElement("div"), { className: "cand" });
+      cand = { lat, lon, name, marker: new maplibregl.Marker({ element: el, anchor: "bottom" }).setLngLat([lon, lat]).addTo(map) };
+      placing = null;
+      render();
+    }
+    function clearCand() {
+      cand?.marker.remove();
+      cand = null;
+    }
+    $("#cand-cancel").addEventListener("click", () => { clearCand(); render(); });
+    $("#cand-ok").addEventListener("click", () => {
+      const { lat, lon } = cand;
+      clearCand();
+      placing = state.home ? "next" : "home";
+      placeAt(lat, lon);
     });
 
     const routeData = () => ({
@@ -420,12 +493,12 @@
         const b = document.createElement("button");
         b.type = "button";
         b.className = "tab";
-        b.textContent = d.date ? `${Number(d.date.slice(5, 7))}/${Number(d.date.slice(8, 10))}` : d.label;
+        const short = d.label === "ふだんの日" ? "ふだん" : "地震後";
+        b.textContent = d.date ? `${short} ${Number(d.date.slice(5, 7))}/${Number(d.date.slice(8, 10))}` : d.label;
         b.setAttribute("aria-pressed", String(i === dayIdx));
         b.addEventListener("click", () => switchDay(i));
         return b;
       }));
-      $("#day-row").hidden = dayIdx === 0;
       $("#day-tip").hidden = dayIdx === 0;
       $("#day-date").value = day().date ?? "";
       $("#del-day").hidden = dayIdx < 2; // 最初の2日は消さない
@@ -500,15 +573,15 @@
         : "地図の点か帯をタップすると、その場所を直せます。";
       if (!s) return;
       $("#card-title").textContent = `${sel + 1}. ${TYPE[s.type] ?? "種類を選んでください"}`;
-      $("#f-from").value = s.from;
-      $("#f-to").value = s.to;
+      renderTime(s);
       $("#f-type").value = s.type;
       $("#f-usual").value = s.usual == null ? "" : String(s.usual);
       $("#f-purpose").value = s.purpose ?? "";
       $("#f-heard").value = s.heard ?? "";
       $("#f-mode").value = s.mode ?? "";
       $("#f-mode-wrap").hidden = sel === 0;
-      $("#f-note").textContent = s.from && s.to && s.to < s.from ? `翌日の ${s.to} まで` : "";
+      $("#f-note").textContent = s.to === "00:00" && sel > 0 ? "その日の終わり（24時）まで"
+        : s.from && s.to && s.to < s.from ? `翌日の ${s.to} まで` : "";
       const prev = stays[sel - 1];
       const prevEnd = prev && span(prev)?.[1];
       $("#f-warn").textContent = prevEnd != null && s.from && minutes(s.from) < prevEnd
@@ -521,13 +594,78 @@
       if (key === "type" && s.type === "home" && state.home) [s.lat, s.lon] = state.home;
       changed();
     });
-    bind("#f-from", "from", (v) => v);
-    bind("#f-to", "to", (v) => v);
     bind("#f-type", "type", (v) => v);
     bind("#f-usual", "usual", (v) => (v === "" ? null : v === "true"));
     bind("#f-purpose", "purpose");
     bind("#f-heard", "heard");
     bind("#f-mode", "mode");
+
+    // ---- 時刻: 「何時ごろ着いた？」＋「どのくらいいた？」。1件目（家）は「何時ごろ出た？」だけ ----
+
+    const DURATIONS = [[15, "15分"], [30, "30分"], [60, "1時間"], [120, "2時間"], [180, "3時間"]];
+    const hm = (m) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+    const stayed = (s) => (s.from && s.to ? (minutes(s.to) - minutes(s.from) + 1440) % 1440 : null);
+    let moreOpen = false; // 「それ以上…」で出た時刻を直接選んでいる
+    let cardKey = "";
+
+    for (const id of ["#f-from-h", "#f-to-h"]) {
+      $(id).replaceChildren(new Option("—", ""),
+        ...Array.from({ length: 24 }, (_, h) => new Option(`${h}時`, String(h).padStart(2, "0"))));
+    }
+    for (const id of ["#f-from-m", "#f-to-m"]) {
+      $(id).replaceChildren(...["00", "15", "30", "45"].map((m) => new Option(`${m}分`, m)));
+    }
+
+    function renderTime(s) {
+      if (cardKey !== `${dayIdx}:${sel}`) { cardKey = `${dayIdx}:${sel}`; moreOpen = false; }
+      const first = sel === 0;
+      const home = s.type === "home";
+      const lastHome = home && !first;
+      const d = stayed(s);
+      const chip = lastHome && s.to === "00:00" ? "end" : DURATIONS.some(([m]) => m === d) ? String(d) : null;
+      const durs = [...DURATIONS.map(([m, label]) => [String(m), label]), ...(lastHome ? [["end", "朝まで"]] : []), ["more", "それ以上…"]];
+      $("#f-dur").replaceChildren(...durs.map(([k, label]) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = label;
+        b.disabled = !s.from && k !== "more";
+        b.setAttribute("aria-pressed", String(k === "more" ? !chip && (moreOpen || Boolean(s.to)) : k === chip));
+        b.addEventListener("click", () => setDuration(k));
+        return b;
+      }));
+      $("#t-from").hidden = first;
+      $("#t-dur").hidden = first;
+      $("#t-to").hidden = !first && !moreOpen && (chip || !s.to);
+      $("#t-from-q").textContent = home ? "何時ごろ帰った？" : "何時ごろ着いた？";
+      $("#t-to-q").textContent = first ? "何時ごろ家を出た？" : "何時ごろ出た？";
+      [$("#f-from-h").value, $("#f-from-m").value] = s.from ? s.from.split(":") : ["", "00"];
+      [$("#f-to-h").value, $("#f-to-m").value] = s.to ? s.to.split(":") : ["", "00"];
+    }
+
+    function setDuration(k) {
+      const s = day().stays[sel];
+      if (k === "more") { moreOpen = true; return render(); }
+      moreOpen = false;
+      s.to = k === "end" ? "00:00" : hm(minutes(s.from) + Number(k));
+      changed();
+    }
+
+    const pickTime = (h, m) => ($(h).value ? `${$(h).value}:${$(m).value}` : "");
+    for (const id of ["#f-from-h", "#f-from-m"]) {
+      $(id).addEventListener("change", () => {
+        const s = day().stays[sel];
+        const d = stayed(s); // 着いた時刻を直しても、いた長さは保つ
+        s.from = pickTime("#f-from-h", "#f-from-m");
+        if (s.from && d != null && !moreOpen && s.to !== "00:00") s.to = hm(minutes(s.from) + d);
+        changed();
+      });
+    }
+    for (const id of ["#f-to-h", "#f-to-m"]) {
+      $(id).addEventListener("change", () => {
+        day().stays[sel].to = pickTime("#f-to-h", "#f-to-m");
+        changed();
+      });
+    }
 
     $("#del-stay").addEventListener("click", () => {
       day().stays.splice(sel, 1);
@@ -555,9 +693,14 @@
       if (!stays.length) {
         if (state.home) { stays.push(homeStay("00:00")); save(); } else placing = "home";
       }
-      $("#hint").hidden = !placing;
+      $("#hint").hidden = !placing || Boolean(cand);
       $("#hint").textContent = placing === "home" ? "家はどのへん？地図をタップ" : "次に行った場所をタップ";
       $("#add-next").textContent = placing === "next" ? "やめる" : "＋ 次の場所";
+      $("#cand-card").hidden = !cand;
+      if (cand) {
+        $("#cand-name").textContent = cand.name || "この場所";
+        $("#cand-ok").textContent = state.home ? "ここを次の場所にする" : "ここを家にする";
+      }
       $("#add-next").disabled = !stays.length;
       $("#go-home").disabled = !stays.length || stays.at(-1).type === "home";
       renderTabs();
@@ -625,7 +768,7 @@
       $("#q").value = "";
       $("#q").blur();
       map.flyTo({ center: [f.lon, f.lat], zoom: 16 });
-      if (placing) placeAt(f.lat, f.lon);
+      setCand(f.lat, f.lon, f.name);
     }
 
     // ---- 送る ----
@@ -650,7 +793,7 @@
       $("#summary").replaceChildren(...state.days.map((d) => {
         const li = document.createElement("li");
         const missing = d.stays.filter(incomplete).length;
-        li.textContent = `${d.date ?? d.label}: ${d.stays.length}か所` + (missing ? `（未入力がある場所 ${missing}）` : "");
+        li.textContent = `${d.label}${d.date ? ` ${d.date}` : "（日付なし）"}: ${d.stays.length}か所` + (missing ? `（未入力がある場所 ${missing}）` : "");
         return li;
       }));
       $("#json").value = answer();
@@ -687,15 +830,15 @@
       { target: null, title: "このページについて",
         text: "災害のときに水や食べ物がもらえる場所を見つける仕組みを考えるために、ふだんの日と地震の後の日に、どこへ行ったかを地図で書いてもらうページです。画面の使い方を順に紹介します。" },
       { target: "#tabs", title: "書く日を選ぶ",
-        text: "「ふだんの日」と「地震の後の日」を書きます。右の ＋ で日を足せます。給水や炊き出しに行った日があれば、その日を優先してください。" },
+        text: "「ふだんの日」と「地震の後の日」を、それぞれ日付を入れて書きます。右の ＋ で日を足せます。給水や炊き出しに行った日があれば、その日を優先してください。" },
       { target: "#search", title: "場所を探す",
         text: "店や施設の名前、住所、町名を入れると、地図がその場所へ動きます。見つからないときは、近くの町名や目印で探してください。" },
       { target: ".map-wrap", title: "まず家をタップ",
-        text: "家のだいたいの場所を地図でタップします（検索で選んでも置けます）。家の位置は約100mの細かさに丸めるので、ぴったりでなくて大丈夫です。点はあとから指で動かせます。" },
+        text: "家のだいたいの場所を地図でタップします。地図の長押しや検索で選んだ場所にはピンが立つので、「ここを家にする」で登録できます。家の位置は約100mの細かさに丸めるので、ぴったりでなくて大丈夫です。点はあとから指で動かせます。" },
       { target: "#add-next", title: "次に行った場所をつなぐ",
-        text: "「＋ 次の場所」を押してから地図をタップするか、検索で選ぶと、前の場所から線が伸びます。行った順に、これを繰り返します。" },
+        text: "「＋ 次の場所」を押してから地図をタップすると、前の場所から線が伸びます。地図の長押しや検索で立てたピンを「ここを次の場所にする」で登録しても同じです。行った順に、これを繰り返します。" },
       { target: ".panel", title: "時刻と、何をしに行ったか",
-        text: "場所ごとに、着いた時刻と出た時刻、種類、ふだんも行く場所かを選びます。時刻は大まかで大丈夫です。" },
+        text: "場所ごとに「何時ごろ着いた？」と「どのくらいいた？」、種類、ふだんも行く場所かを選びます。時刻は大まかで大丈夫です。" },
       { target: "#band", title: "1日の帯で見直す",
         text: "どこに何時いたかが、0時から24時の帯に並びます。しま模様のところは、まだ書いていない時間です。帯をタップすると、その場所を直せます。" },
       { target: "#go-home, #send", title: "家に帰って、送る",
