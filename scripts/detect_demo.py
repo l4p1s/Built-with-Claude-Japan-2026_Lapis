@@ -16,6 +16,7 @@ from datetime import date
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from app.detect import (  # noqa: E402
+    Person,
     baseline_share,
     detect,
     dist_m,
@@ -44,7 +45,17 @@ def read_day(path):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="data/out")
+    ap.add_argument(
+        "--no-baseline",
+        action="store_true",
+        help="平常期を使わない「当日だけ」版: その日の 3:00 の位置を自宅として除き、期待値はメッシュ人口で配分する",
+    )
+    ap.add_argument("--data", default="data")
+    ap.add_argument(
+        "--quake-at", default="16:27", help="地震の時刻。誤報は地震より後のものだけ数える"
+    )
     a = ap.parse_args()
+    tag = "当日だけ" if a.no_baseline else "平常期で学習"
     events = list(csv.DictReader(open(f"{a.out}/events.csv", encoding="utf-8")))
     places = list(csv.DictReader(open(f"{a.out}/places.csv", encoding="utf-8")))
     official = [(float(p["lat"]), float(p["lon"])) for p in places if p["official_shelter"] == "1"]
@@ -57,7 +68,7 @@ def main():
     stays_by = defaultdict(list)
     nights = defaultdict(list)
     cell_counts = Counter()
-    for f in normal:
+    for f in [] if a.no_baseline else normal:
         for uid, (la, lo) in read_day(f).items():
             st = stays_from_track(la, lo)
             stays_by[uid].append(st)
@@ -65,10 +76,23 @@ def main():
             cell_counts.update(mesh_code(s.lat, s.lon) for s in st)
         print("learned", f[-17:-7])
     people = {u: learn_person(stays_by[u], nights[u]) for u in stays_by}
+    if a.no_baseline:
+        # 期待値の配分は国勢調査のメッシュ人口（250m → 500m にまとめる）
+        from make_demo_data import load_home_weights
+
+        cells, _ = load_home_weights(a.data)
+        for lat, lon, pop, _, _ in cells:
+            cell_counts[mesh_code(lat, lon)] += pop
     share = baseline_share(cell_counts)
     explorers = sum(p.explorer for p in people.values())
 
     # 2. 地震後: いつもと違う滞在 → 検知
+    if a.no_baseline:
+        # 自宅は地震当日の 3:00 の位置（地震前の最後の夜。1 晩ぶんのデータだけ使う）
+        people = {
+            uid: Person((la[NIGHT], lo[NIGHT]), [], False)
+            for uid, (la, lo) in read_day(after[0]).items()
+        }
     cands = []
     for f in after:
         d = f[-17:-7]
@@ -117,10 +141,21 @@ def main():
             ):
                 matched.add(id(c))
                 c.official = True
-    false_alarms = [c for c in cands if id(c) not in matched and not c.official]
+    quake_min = hm(a.quake_at)
+    d0_date = date.fromordinal(d0).isoformat()
+    false_alarms = [
+        c
+        for c in cands
+        if id(c) not in matched
+        and not c.official
+        and (
+            c.date != d0_date or c.window_start >= quake_min
+        )  # 地震より前に始まった候補（出勤など）は数えない
+    ]
     official_cands = [c for c in cands if c.official and id(c) not in matched]
 
-    with open(f"{a.out}/detect_candidates.csv", "w", newline="", encoding="utf-8") as f:
+    suffix = "_nobase" if a.no_baseline else ""
+    with open(f"{a.out}/detect_candidates{suffix}.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(
             [
@@ -153,10 +188,10 @@ def main():
                     int(id(c) in matched),
                 ]
             )
-    with open(f"{a.out}/detect_result.md", "w", encoding="utf-8") as f:
-        f.write("# 検知の答え合わせ（合成データ）\n\n")
+    with open(f"{a.out}/detect_result{suffix}.md", "w", encoding="utf-8") as f:
+        f.write(f"# 検知の答え合わせ（合成データ、{tag}）\n\n")
         f.write(
-            f"人数 {len(people)} / 平常 {len(normal)} 日で学習 / 探索型と判定 {explorers} 人 / 地震後 {len(after)} 日に検知\n\n"
+            f"人数 {len(people) or len(after and read_day(after[0]))} / 平常 {len(normal) if not a.no_baseline else 0} 日で学習 / 探索型と判定 {explorers} 人 / 地震後 {len(after)} 日に検知\n\n"
         )
         f.write(
             f"**検知率 {hit}/{len(targets)}**（公式の {len(official_ev)} 件は除外）、誤報 {len(false_alarms)} 件、公式の拠点に当たった候補 {len(official_cands)} 件\n\n"
@@ -176,7 +211,9 @@ def main():
             f.write(
                 f"- {c.date} {c.window_start // 60:02d}:{c.window_start % 60:02d} マス {c.cell} 人数 {c.observed:.0f}\n"
             )
-    print(f"検知 {hit}/{len(targets)} 誤報 {len(false_alarms)} → {a.out}/detect_result.md")
+    print(
+        f"[{tag}] 検知 {hit}/{len(targets)} 誤報 {len(false_alarms)} → {a.out}/detect_result{suffix}.md"
+    )
 
 
 if __name__ == "__main__":
