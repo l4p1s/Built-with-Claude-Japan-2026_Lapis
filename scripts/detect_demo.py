@@ -52,10 +52,13 @@ def main():
     )
     ap.add_argument("--data", default="data")
     ap.add_argument(
+        "--learn-days", type=int, default=0, help="平常期のうち直近の何日で学習するか（0 = 全部）"
+    )
+    ap.add_argument(
         "--quake-at", default="16:27", help="地震の時刻。誤報は地震より後のものだけ数える"
     )
     a = ap.parse_args()
-    tag = "当日だけ" if a.no_baseline else "平常期で学習"
+    tag = "当日だけ" if a.no_baseline else f"平常期で学習（{a.learn_days or '全'}日）"
     events = list(csv.DictReader(open(f"{a.out}/events.csv", encoding="utf-8")))
     places = list(csv.DictReader(open(f"{a.out}/places.csv", encoding="utf-8")))
     official = [(float(p["lat"]), float(p["lon"])) for p in places if p["official_shelter"] == "1"]
@@ -63,6 +66,8 @@ def main():
     files = sorted(glob.glob(f"{a.out}/points_*.csv.gz"))
     normal = [f for f in files if date.fromisoformat(f[-17:-7]).toordinal() < d0]
     after = [f for f in files if date.fromisoformat(f[-17:-7]).toordinal() >= d0]
+    if a.learn_days:
+        normal = normal[-a.learn_days :]
 
     # 1. 平常期: 人ごとの滞在と深夜の位置 → いつもの場所・自宅・探索型。マス別の滞在件数 → 期待値の配分
     stays_by = defaultdict(list)
@@ -154,7 +159,7 @@ def main():
     ]
     official_cands = [c for c in cands if c.official and id(c) not in matched]
 
-    suffix = "_nobase" if a.no_baseline else ""
+    suffix = "_nobase" if a.no_baseline else (f"_{a.learn_days}d" if a.learn_days else "")
     with open(f"{a.out}/detect_candidates{suffix}.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(
