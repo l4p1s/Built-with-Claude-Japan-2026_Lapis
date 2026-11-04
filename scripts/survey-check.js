@@ -8,17 +8,17 @@ const SHOTS = process.env.SHOTS ?? "/tmp/survey-shots";
 const errors = [];
 const ok = (name) => console.log(`OK  ${name}`);
 
-async function open(browser, opts = {}) {
+async function open(browser, opts = {}, url = URL) {
   const ctx = await browser.newContext({
     viewport: { width: 390, height: 844 }, locale: "ja-JP",
-    permissions: ["clipboard-read", "clipboard-write"], ...opts,
+    ...opts,
   });
   const page = await ctx.newPage();
   page.on("console", (m) => { if (m.type() === "error") errors.push(`[console] ${m.text()}`); });
   page.on("pageerror", (e) => errors.push(`[pageerror] ${e.message}`));
   page.on("dialog", (d) => d.accept());
-  await page.goto(URL);
-  await page.locator("#map canvas").waitFor({ state: "attached" });
+  await page.goto(url);
+  if (url === URL) await page.locator("#map canvas").waitFor({ state: "attached" });
   return { ctx, page };
 }
 
@@ -236,13 +236,27 @@ async function fillPlace(page, { type, usual, from, dur, to }) {
   assert.equal(guided, 9); // 画面の種類ごとに1回だけ（家・日付・家を出た・場所・種類・時刻・帰った・見直し・ほかの日）。2日目は出ない
   ok("5 地震前の休日・地震の日・地震の後の日。家に帰らない日（車中泊で翌朝まで）も書ける");
 
-  // 6. ほかの日 → 送る
+  // 6. ほかの日 → 送信（送り先の Apps Script は差し替える。1回目は失敗、2回目は成功）
   assert.equal(await title(page), "ほかの日も書きますか？");
   await press(page, "#more-no");
-  assert.equal(await title(page), "送る");
-  const json = await page.locator("#json").inputValue();
+  assert.equal(await title(page), "送信する");
+  const posted = [];
+  let accept = false;
+  await page.route("https://script.google.com/**", (r) => {
+    posted.push(r.request().postData());
+    r.fulfill({ json: accept ? { ok: true } : { ok: false, error: "bad_shape" } });
+  });
+  await page.locator("#submit").click();
+  await page.locator("#sent-err", { hasText: "送信できませんでした" }).waitFor();
+  accept = true;
+  await page.locator("#submit").click();
+  await page.locator("#sent-msg", { hasText: "送信しました" }).waitFor();
+  assert.equal(await page.locator("#sent-err").textContent(), "");
+  assert.equal(posted.length, 2);
+  const json = posted[1];
   const a = JSON.parse(json);
   assert.equal(a.v, 1);
+  assert.match(a.cid, /^[0-9a-f-]{36}$/); // 送り直しで上書きするための端末の番号
   assert.equal(a.name, "テスト");
   assert.deepEqual(a.home, [32.506, 130.586]); // 検索で動かした真ん中のピンの位置（約100mに丸め）
   assert.deepEqual(a.days.map((d) => d.label), ["地震前の平日", "地震前の休日", "地震の日", "地震の後の日"]);
@@ -262,11 +276,10 @@ async function fillPlace(page, { type, usual, from, dur, to }) {
   assert.equal(d1.date, "2026-07-29");
   assert.deepEqual(d1.stays.map((s) => s.type), ["home", "water", "car_sleeping"]);
   assert.deepEqual([d1.stays[2].from, d1.stays[2].to], ["20:00", "06:00"]);
-  await page.locator("#copy").click();
-  await page.locator("#copy-msg", { hasText: "コピーしました" }).waitFor();
-  assert.equal(await page.evaluate(() => navigator.clipboard.readText()), json);
   await page.screenshot({ path: `${SHOTS}/06-send.png` });
-  ok(`6 送る内容が設計の形で、家が小数3桁、コピーできる（${json.length}文字）`);
+  await page.reload(); // 開き直しても、送信済みと出る
+  await page.locator("#sent-msg", { hasText: "送信済み" }).waitFor();
+  ok(`6 送信できる。失敗したら知らせ、もう一度押せる。送る内容が設計の形で、家が小数3桁（${json.length}文字）`);
 
   // 7. 日を足す・開き直すと続きから・消去
   await press(page, "#back");
@@ -296,9 +309,43 @@ async function fillPlace(page, { type, usual, from, dur, to }) {
   await dark.page.screenshot({ path: `${SHOTS}/08-dark.png` });
   assert.equal(await dark.page.evaluate(() => document.documentElement.scrollWidth), 360);
 
+  ok("8 360px で横にはみ出さない");
+
+  // 9. 回答を見るページ: 合言葉で全員分を読み、人と日を選ぶと地図・帯・表に出る
+  const view = await open(browser, { viewport: { width: 1280, height: 800 } }, URL + "view.html");
+  await view.page.route("https://script.google.com/**", (r) => {
+    const body = JSON.parse(r.request().postData());
+    r.fulfill({ json: body.key !== "secret" ? { ok: false, error: "key" } : { ok: true, answers: [
+      { received: "2026-11-04T01:00:00.000Z", answer: a },
+      { received: "2026-11-05T01:00:00.000Z", answer: { ...a, name: "二人目", days: a.days.slice(0, 1) } },
+    ] } });
+  });
+  await view.page.locator("#key").fill("ちがう");
+  await view.page.locator("#login button").click();
+  await view.page.locator("#login-err", { hasText: "合言葉が違います" }).waitFor();
+  await view.page.locator("#key").fill("secret");
+  await view.page.locator("#login button").click();
+  await view.page.locator("#app").waitFor();
+  assert.equal(await view.page.locator("#count").textContent(), "2人");
+  assert.equal(await view.page.locator(".people button").first().locator("b").textContent(), "二人目"); // 新しい順
+  await view.page.locator(".people button").nth(1).click();
+  assert.equal(await view.page.locator(".tab").count(), 4);
+  assert.equal(await view.page.locator("#rows tr").count(), 4);
+  assert.equal(await view.page.locator(".pt--new").count(), 1); // 給水（ふだんは行かない）
+  await view.page.locator(".tab").nth(3).click();
+  assert.equal(await view.page.locator("#rows tr").count(), 3);
+  assert.equal(await view.page.locator(".pt").count(), 3);
+  await view.page.waitForTimeout(1500);
+  await view.page.screenshot({ path: `${SHOTS}/09-view.png` });
+  const [download] = await Promise.all([view.page.waitForEvent("download"), view.page.locator("#download").click()]);
+  assert.match(download.suggestedFilename(), /^survey-answers-\d{4}-\d{2}-\d{2}\.json$/);
+  await view.page.reload(); // 合言葉はタブを閉じるまで覚える
+  await view.page.locator("#app").waitFor();
+  ok("9 回答を見るページ: 合言葉で読み、人と日ごとに地図・帯・表、まとめて保存");
+
   await browser.close();
   assert.deepEqual(errors, []);
-  ok("8 Console にエラーなし、360px で横にはみ出さない");
+  ok("10 Console にエラーなし");
 })().catch((e) => {
   console.error("FAILED:", e.message);
   console.log("Console のエラー: " + (errors.length ? "\n" + errors.join("\n") : "なし"));

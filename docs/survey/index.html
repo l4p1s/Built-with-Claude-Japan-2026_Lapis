@@ -59,6 +59,7 @@
     body { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); height: 100dvh; }
     button, input, select { font: inherit; color: inherit; }
     button { cursor: pointer; }
+    button:disabled { opacity: 0.6; cursor: wait; }
     :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
     .icon { display: block; width: 22px; height: 22px; }
 
@@ -200,10 +201,6 @@
       min-height: 48px; padding: 0; border: 0; background: none; color: var(--fg-2);
       text-decoration: underline; font-size: 15px;
     }
-    textarea {
-      width: 100%; height: 120px; margin-top: 8px; padding: 8px; border-radius: 10px;
-      border: 1px solid var(--border); background: var(--surface-2); color: var(--fg); font: 12px/1.4 ui-monospace, monospace;
-    }
 
     /* 下: 戻る・次へ */
     .nav {
@@ -259,7 +256,7 @@
       <p>災害のときに、水や食べ物がもらえる場所を見つける仕組みを考えています。そのために、地震の前の平日と休日、地震の日、地震の後の日の、4日分の動きを集めています。</p>
       <ul>
         <li>1問ずつ聞いていきます。思い出せる範囲で、大まかで大丈夫です</li>
-        <li>書き終わったら、内容をコピーして LINE で送ってください。サーバーには何も保存しません</li>
+        <li>書き終わったら、最後の画面で「送信する」を押してください。回答は、発案者だけが見られる場所に集めます</li>
         <li>公開はしません。家の位置は約100mの細かさにぼかします</li>
       </ul>
       <label class="field" data-need="name">呼び名（ニックネームでよい）<em class="need">未入力</em>
@@ -328,15 +325,15 @@
     <section id="s-more" hidden>
       <div class="choices">
         <button type="button" id="more-yes" class="btn wide">はい、もう1日書く</button>
-        <button type="button" id="more-no" class="btn btn--primary wide">いいえ、送る</button>
+        <button type="button" id="more-no" class="btn btn--primary wide">いいえ、送信へ進む</button>
       </div>
     </section>
 
     <section id="s-send" hidden>
       <ul id="summary"></ul>
-      <button type="button" id="copy" class="btn btn--primary wide">コピーして LINE で送る</button>
-      <p id="copy-msg" class="note" role="status"></p>
-      <textarea id="json" readonly aria-label="送る内容"></textarea>
+      <button type="button" id="submit" class="btn btn--primary wide">送信する</button>
+      <p id="sent-msg" class="note" role="status"></p>
+      <p id="sent-err" class="warn" role="alert"></p>
       <button type="button" id="clear" class="link">この端末から消す</button>
     </section>
   </main>
@@ -348,23 +345,9 @@
 
   <script type="module">
     import * as maplibregl from "https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.mjs";
+    import { ENDPOINT, START, darkMode, mapStyle, jaLabels, TYPE, HEARD, MODE, minutes, clock, span } from "./common.js";
 
     const KEY = "aid-survey-v1";
-    const START = { center: [130.6016, 32.5072], zoom: 13 }; // 八代市役所
-    const MAP_STYLE = {
-      light: "https://tiles.openfreemap.org/styles/positron",
-      dark: "https://tiles.openfreemap.org/styles/dark",
-    };
-    // キーは本体の app/rules.py の Kind と重なるものは同じ名前
-    const TYPE = {
-      home: "自宅", work: "職場・学校", shop: "店", water: "給水", food: "炊き出し",
-      shelter: "避難所", car_sleeping: "車中泊", friend: "知人の家", other: "その他",
-    };
-    const HEARD = {
-      neighbor: "お隣さん", instagram: "インスタ", line: "LINE", poster: "張り紙",
-      passing: "通りがかり", usual: "いつも行く", other: "その他",
-    };
-    const MODE = { walk: "徒歩", car: "車", bicycle: "自転車", other: "その他" };
     const USUAL = { true: "はい", false: "いいえ" };
     const DETAIL_HINT = {
       work: "例: 会社、○○小学校", shop: "例: ○○スーパー八代店", water: "例: 給水車、ペットボトルの配布",
@@ -381,7 +364,6 @@
 
     const $ = (s) => document.querySelector(s);
     const round = (x, digits) => Number(x.toFixed(digits));
-    const minutes = (t) => (t ? Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5)) : null);
     const incomplete = (s) => !s.from || !s.to || !s.type || s.usual == null;
     // 「家に帰った」で足した、その日の最後の家（出た時刻は 24時）
     const isEnd = (s, i) => i > 0 && s.type === "home" && s.to === "00:00";
@@ -397,6 +379,7 @@
     };
     // いまの画面 { s: 画面, d: 何日目, i: 何番目の場所, edit: 見直しから直している }。開き直すとここから
     state.pos ??= { s: "intro" };
+    state.cid ??= crypto.randomUUID(); // 送り直したときに、前の回答に上書きするための端末の番号
     let tried = false; // この画面で「次へ」を押した（未入力を赤で知らせる）
     let markers = [];
     let route = [];
@@ -561,17 +544,18 @@
         prev: () => review(state.days.length - 1),
       },
       send: {
-        sec: "#s-send", title: "送る", help: "下のボタンでコピーして、LINE に貼り付けて送ってください",
+        sec: "#s-send", title: "送信する", help: "書いた日と場所の数を確かめて、送信してください",
         enter: () => {
           $("#summary").replaceChildren(...state.days.map((d) => {
             const li = document.createElement("li");
             const missing = d.stays.filter(incomplete).length;
-            li.textContent = `${d.label}${d.date ? ` ${d.date}` : "（日付なし）"}: ${Math.max(d.stays.length - 1, 0)}か所`
+            li.textContent = `${d.label}${d.date ? ` ${d.date}` : "（日付なし）"}: ${d.stays.filter((s) => s.type !== "home").length}か所`
               + (missing ? `（未入力がある場所 ${missing}）` : "");
             return li;
           }));
-          $("#json").value = answer();
-          $("#copy-msg").textContent = "";
+          $("#sent-err").textContent = "";
+          $("#sent-msg").textContent = state.sent
+            ? `${new Date(state.sent).toLocaleString("ja-JP")} に送信済みです。直したときは、もう一度送信すると前の回答に上書きされます` : "";
         },
         prev: () => ({ s: "more" }),
       },
@@ -672,8 +656,6 @@
 
     // ---- 地図 ----
 
-    const darkMode = matchMedia("(prefers-color-scheme: dark)");
-    const mapStyle = () => MAP_STYLE[darkMode.matches ? "dark" : "light"];
     const map = new maplibregl.Map({
       container: "map", style: mapStyle(), attributionControl: {
         compact: true,
@@ -684,13 +666,7 @@
     darkMode.addEventListener("change", () => map.setStyle(mapStyle()));
     const routeData = () => ({ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: route } });
     map.on("style.load", () => {
-      // OpenFreeMap の地名は「ローマ字＋日本語」の2段なので、日本語だけにする（本体と同じ）
-      for (const layer of map.getStyle().layers) {
-        const field = layer.layout?.["text-field"];
-        if (field && JSON.stringify(field).includes('"name')) {
-          map.setLayoutProperty(layer.id, "text-field", ["coalesce", ["get", "name:ja"], ["get", "name"]]);
-        }
-      }
+      jaLabels(map);
       map.addSource("route", { type: "geojson", data: routeData() });
       map.addLayer({
         id: "route", type: "line", source: "route",
@@ -866,13 +842,6 @@
 
     // ---- 見直し: 1日の帯と一覧 ----
 
-    // 夜をまたぐ滞在（出た時刻 < 着いた時刻）は、帯では24時まで
-    function span(s) {
-      const a = minutes(s.from), b = minutes(s.to);
-      if (a == null || b == null) return null;
-      return [a, b < a ? 1440 : b];
-    }
-    const clock = (t) => (t ? `${Number(t.slice(0, 2))}:${t.slice(3, 5)}` : "？");
 
     function paintReview() {
       const d = state.pos.d, stays = day().stays;
@@ -982,18 +951,28 @@
         return o;
       };
       return JSON.stringify({
-        v: 1, name: state.name, home: state.home,
+        v: 1, cid: state.cid, name: state.name, home: state.home,
         days: state.days.map((d) => ({ label: d.label, date: d.date, stays: d.stays.map(clean) })),
       });
     }
 
-    $("#copy").addEventListener("click", async () => {
+    // 送り先は Google Apps Script（scripts/survey-collect.gs）。本文は text/plain で送る（事前の確認の通信が要らない）
+    $("#submit").addEventListener("click", async () => {
+      const btn = $("#submit");
+      btn.disabled = true;
+      btn.textContent = "送信しています…";
+      $("#sent-err").textContent = "";
       try {
-        await navigator.clipboard.writeText($("#json").value);
-        $("#copy-msg").textContent = "コピーしました。LINE に貼り付けて送ってください";
+        const res = await (await fetch(ENDPOINT, { method: "POST", body: answer() })).json();
+        if (!res.ok) throw new Error(res.error);
+        state.sent = new Date().toISOString();
+        save();
+        $("#sent-msg").textContent = "送信しました。ありがとうございました。直したときは、もう一度送信すると前の回答に上書きされます";
       } catch {
-        $("#json").select();
-        $("#copy-msg").textContent = "コピーできませんでした。下の欄を長押ししてコピーしてください";
+        $("#sent-err").textContent = "送信できませんでした。電波のよいところで、もう一度押してください。書いた内容は消えていません";
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "送信する";
       }
     });
     $("#clear").addEventListener("click", () => {
@@ -1050,10 +1029,10 @@
         { target: "#next", title: "次へ", text: "よければ次へ進み、次の日を書きます。" },
       ],
       more: [
-        { target: ".choices", title: "ほかの日", text: "給水や炊き出しに行った日など、ほかにも書いておきたい日があれば、何日でも足せます。なければ「いいえ、送る」を押します。" },
+        { target: ".choices", title: "ほかの日", text: "給水や炊き出しに行った日など、ほかにも書いておきたい日があれば、何日でも足せます。なければ「いいえ、送信へ進む」を押します。" },
       ],
       send: [
-        { target: "#copy", title: "コピーして LINE で送る", text: "押すと、書いた内容がコピーされます。お願いされた LINE のトークに貼り付けて送ってください。" },
+        { target: "#submit", title: "送信する", text: "押すと、書いた内容が届きます。あとで直したときは、もう一度送信すると前の回答に上書きされます。" },
         { target: "#clear", title: "この端末から消す", text: "送ったあと、この端末に残っている記入を消せます。" },
       ],
     };

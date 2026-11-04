@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <title>回答を見る</title>
+  <meta name="description" content="記入フォームに集まった回答を、人と日ごとに地図と1日の帯で見るページ（合言葉が必要）">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.css">
+  <style>
+    /* 色は記入ページ（index.html）と同じ。設計: docs/survey-design.md §8 */
+    :root {
+      color-scheme: light dark;
+      --accent: #1e3a5f;
+      --on-accent: #fff;
+      --surface: #fff;
+      --surface-2: #eceff4;
+      --fg: #111827;
+      --fg-2: #4b5565;
+      --border: rgb(17 24 39 / 0.1);
+      --line: rgb(17 24 39 / 0.28);
+      --danger: #b91c1c;
+      font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+      font-variant-numeric: tabular-nums;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --accent: #60a5fa;
+        --on-accent: #0b0d14;
+        --surface: #11141c;
+        --surface-2: #1a1e28;
+        --fg: #eef0f5;
+        --fg-2: #a3a9b8;
+        --border: rgb(238 240 245 / 0.1);
+        --line: rgb(238 240 245 / 0.3);
+        --danger: #f87171;
+      }
+      .maplibregl-ctrl.maplibregl-ctrl-attrib { background: var(--surface); color: var(--fg); }
+      .maplibregl-ctrl-attrib a { color: var(--fg); }
+      .maplibregl-ctrl-attrib-button { filter: invert(1); }
+    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    html, body { margin: 0; height: 100%; background: var(--surface); color: var(--fg); }
+    body { font-size: 15px; line-height: 1.5; }
+    button, input { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+    h1 { margin: 0; font-size: 18px; font-weight: 600; }
+    .btn {
+      min-height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line);
+      background: var(--surface); font-weight: 600;
+    }
+    .btn--primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+    .muted { color: var(--fg-2); }
+    .err { color: var(--danger); font-weight: 600; }
+
+    /* 合言葉 */
+    .login { max-width: 360px; margin: 15vh auto 0; padding: 0 16px; }
+    .login p { margin: 8px 0 16px; }
+    .login input {
+      display: block; width: 100%; min-height: 44px; margin: 8px 0 12px; padding: 8px 12px;
+      border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2);
+    }
+    .login .btn { width: 100%; }
+
+    /* 一覧と地図: 広い画面は左に人の一覧、狭い画面は上から順に */
+    .app { display: grid; grid-template-rows: auto minmax(0, 1fr); height: 100dvh; }
+    .bar { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+    .bar h1 { margin-right: auto; }
+    .body { display: grid; grid-template-columns: 280px minmax(0, 1fr); min-height: 0; }
+    .people { margin: 0; padding: 8px; list-style: none; overflow-y: auto; border-right: 1px solid var(--border); }
+    .people button {
+      display: block; width: 100%; padding: 8px 12px; border: 0; border-radius: 8px; background: none; text-align: left;
+    }
+    .people button:hover { background: var(--surface-2); }
+    .people button[aria-pressed="true"] { background: var(--surface-2); box-shadow: inset 3px 0 0 var(--accent); }
+    .people b { display: block; font-weight: 600; }
+    .people small { font-size: 13px; color: var(--fg-2); }
+    .detail { display: grid; grid-template-rows: auto minmax(240px, 1fr) auto; min-height: 0; }
+    .tabs { display: flex; gap: 8px; padding: 12px 16px; overflow-x: auto; }
+    .tab {
+      flex: none; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid var(--line);
+      background: var(--surface); white-space: nowrap;
+    }
+    .tab[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+    .map-wrap { position: relative; }
+    #map { position: absolute; inset: 0; }
+    .pt {
+      width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--fg-2);
+      background: var(--surface); color: var(--fg); display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
+    }
+    .pt--new { background: var(--accent); color: var(--on-accent); border-color: var(--accent); } /* ふだんは行かない場所 */
+    .day { max-height: 40dvh; overflow-y: auto; padding: 12px 16px 16px; border-top: 1px solid var(--border); }
+    .ticks { display: flex; justify-content: space-between; font-size: 12px; color: var(--fg-2); }
+    .band {
+      position: relative; height: 28px; margin: 4px 0 12px; border-radius: 6px; overflow: hidden;
+      border: 1px solid var(--line);
+      background: repeating-linear-gradient(135deg, var(--surface-2) 0 4px, var(--surface) 4px 8px);
+    }
+    .block {
+      position: absolute; top: 0; bottom: 0; border-right: 1px solid var(--surface);
+      background: var(--fg-2); color: var(--surface); font-size: 12px; font-weight: 600; text-align: center; overflow: hidden;
+    }
+    .block--new { background: var(--accent); color: var(--on-accent); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+    th { font-size: 13px; font-weight: 600; color: var(--fg-2); }
+    td.n { white-space: nowrap; }
+    .legend { margin: 0 0 8px; font-size: 13px; color: var(--fg-2); }
+    .dot { display: inline-block; width: 10px; height: 10px; margin-right: 4px; border-radius: 50%; background: var(--accent); }
+    .empty { padding: 24px 16px; }
+    @media (max-width: 720px) {
+      .app { height: auto; }
+      .body { grid-template-columns: minmax(0, 1fr); }
+      .people { max-height: 30dvh; border-right: 0; border-bottom: 1px solid var(--border); }
+      .detail { grid-template-rows: auto 50dvh auto; }
+      .day { max-height: none; }
+      .table-wrap { overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+  <form id="login" class="login">
+    <h1>回答を見る</h1>
+    <p class="muted">記入フォームに集まった回答を見るページです。スプレッドシートの Apps Script に設定した合言葉を入れてください。</p>
+    <label>合言葉<input id="key" type="password" autocomplete="current-password" required></label>
+    <button class="btn btn--primary">見る</button>
+    <p id="login-err" class="err" role="alert"></p>
+  </form>
+
+  <div id="app" class="app" hidden>
+    <header class="bar">
+      <h1>回答を見る</h1>
+      <span id="count" class="muted"></span>
+      <button type="button" id="reload" class="btn">読み込み直す</button>
+      <button type="button" id="download" class="btn">まとめて保存</button>
+    </header>
+    <div class="body">
+      <ul id="people" class="people" aria-label="回答した人"></ul>
+      <section id="detail" class="detail">
+        <div id="tabs" class="tabs" role="group" aria-label="日"></div>
+        <div class="map-wrap"><div id="map" aria-label="地図"></div></div>
+        <div class="day">
+          <p class="legend"><span class="dot"></span>ふだんは行かない場所</p>
+          <div class="ticks" aria-hidden="true"><span>0</span><span>6</span><span>12</span><span>18</span><span>24時</span></div>
+          <div id="band" class="band" aria-label="1日の帯"></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th></th><th>時刻</th><th>種類</th><th>名前・くわしく</th><th>ふだん</th><th>何しに</th><th>知った</th><th>移動</th></tr></thead>
+              <tbody id="rows"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+      <p id="empty" class="empty muted" hidden>まだ回答がありません</p>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as maplibregl from "https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.mjs";
+    import { ENDPOINT, START, darkMode, mapStyle, jaLabels, TYPE, HEARD, MODE, clock, span } from "./common.js";
+
+    const $ = (s) => document.querySelector(s);
+    const KEY = "aid-survey-view-key"; // 合言葉は、このタブを閉じるまでだけ覚える
+    let answers = [], who = 0, dayIdx = 0, markers = [], map = null, route = [];
+
+    const isNew = (s) => s.type !== "home" && s.usual === false;
+    const mmdd = (d) => (d ? `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}` : "日付なし");
+    const el = (tag, props = {}) => Object.assign(document.createElement(tag), props);
+
+    // 送り先と同じ Apps Script（scripts/survey-collect.gs）に、合言葉を付けて全員分を頼む
+    async function fetchAll(key) {
+      const res = await (await fetch(ENDPOINT, { method: "POST", body: JSON.stringify({ list: true, key }) })).json();
+      if (!res.ok) throw new Error(res.error);
+      return res.answers.sort((a, b) => b.received.localeCompare(a.received));
+    }
+
+    async function open(key) {
+      $("#login-err").textContent = "";
+      try {
+        answers = await fetchAll(key);
+      } catch (e) {
+        $("#login-err").textContent = e.message === "key" ? "合言葉が違います" : "読み込めませんでした。送り先の設定と通信を確かめてください";
+        $("#login").hidden = false;
+        $("#app").hidden = true;
+        return;
+      }
+      try { sessionStorage.setItem(KEY, key); } catch { /* 覚えなくても見られる */ }
+      $("#login").hidden = true;
+      $("#app").hidden = false;
+      map ??= makeMap();
+      who = Math.min(who, Math.max(answers.length - 1, 0));
+      render();
+    }
+
+    $("#login").addEventListener("submit", (e) => { e.preventDefault(); open($("#key").value); });
+    $("#reload").addEventListener("click", () => {
+      let key = $("#key").value;
+      try { key ||= sessionStorage.getItem(KEY); } catch { /* なし */ }
+      open(key);
+    });
+
+    // まとめて保存: 全員分を1つの JSON にして、手元に保存する（リポジトリには入れない）
+    $("#download").addEventListener("click", () => {
+      const url = URL.createObjectURL(new Blob([JSON.stringify(answers, null, 1)], { type: "application/json" }));
+      el("a", { href: url, download: `survey-answers-${new Date().toISOString().slice(0, 10)}.json` }).click();
+      URL.revokeObjectURL(url);
+    });
+
+    function makeMap() {
+      const m = new maplibregl.Map({ container: "map", style: mapStyle(), attributionControl: { compact: true }, ...START });
+      darkMode.addEventListener("change", () => m.setStyle(mapStyle()));
+      m.on("style.load", () => {
+        jaLabels(m);
+        m.addSource("route", { type: "geojson", data: routeData() });
+        m.addLayer({
+          id: "route", type: "line", source: "route",
+          paint: {
+            "line-color": getComputedStyle(document.documentElement).getPropertyValue("--fg-2").trim(),
+            "line-width": 3, "line-dasharray": [2, 1],
+          },
+        });
+      });
+      return m;
+    }
+    const routeData = () => ({ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: route } });
+
+    function render() {
+      $("#count").textContent = `${answers.length}人`;
+      $("#empty").hidden = answers.length > 0;
+      $("#detail").hidden = !answers.length;
+      $("#people").replaceChildren(...answers.map((r, i) => {
+        const a = r.answer;
+        const places = a.days.reduce((n, d) => n + d.stays.filter((s) => s.type !== "home").length, 0);
+        const b = el("button", { type: "button" });
+        b.setAttribute("aria-pressed", String(i === who));
+        b.append(el("b", { textContent: a.name || "（呼び名なし）" }),
+          el("small", { textContent: `${new Date(r.received).toLocaleString("ja-JP")} ・ ${a.days.length}日 ・ ${places}か所` }));
+        b.addEventListener("click", () => { who = i; dayIdx = 0; render(); });
+        const li = el("li");
+        li.append(b);
+        return li;
+      }));
+      if (answers.length) renderDay();
+    }
+
+    function renderDay() {
+      const days = answers[who].answer.days;
+      dayIdx = Math.min(dayIdx, days.length - 1);
+      $("#tabs").replaceChildren(...days.map((d, i) => {
+        const b = el("button", { type: "button", className: "tab", textContent: `${d.label} ${mmdd(d.date)}` });
+        b.setAttribute("aria-pressed", String(i === dayIdx));
+        b.addEventListener("click", () => { dayIdx = i; renderDay(); });
+        return b;
+      }));
+      const stays = days[dayIdx].stays;
+      const mark = (s, i) => (s.type === "home" ? "家" : String(i));
+
+      // 地図: 行った順に点と点線。ふだんは行かない場所は紺
+      markers.forEach((m) => m.remove());
+      markers = stays.map((s, i) => new maplibregl.Marker({
+        element: el("div", { className: "pt" + (isNew(s) ? " pt--new" : ""), textContent: mark(s, i), title: TYPE[s.type] ?? "" }),
+      }).setLngLat([s.lon, s.lat]).addTo(map));
+      route = stays.map((s) => [s.lon, s.lat]);
+      map.getSource("route")?.setData(routeData());
+      map.resize();
+      if (stays.length) {
+        const b = new maplibregl.LngLatBounds();
+        stays.forEach((s) => b.extend([s.lon, s.lat]));
+        map.fitBounds(b, { padding: 48, maxZoom: 15, duration: 0 });
+      }
+
+      $("#band").replaceChildren(...stays.flatMap((s, i) => {
+        const sp = span(s);
+        if (!sp) return [];
+        const b = el("div", { className: "block" + (isNew(s) ? " block--new" : ""), textContent: mark(s, i) });
+        b.style.left = `${(sp[0] / 1440) * 100}%`;
+        b.style.width = `${((sp[1] - sp[0]) / 1440) * 100}%`;
+        b.title = `${TYPE[s.type] ?? ""} ${clock(s.from)}〜${clock(s.to)}`;
+        return [b];
+      }));
+
+      $("#rows").replaceChildren(...stays.map((s, i) => {
+        const tr = el("tr");
+        const time = `${clock(s.from)}〜${s.to && s.to < s.from ? "翌" : ""}${clock(s.to)}`;
+        for (const [text, cls] of [
+          [mark(s, i), "n"], [time, "n"], [TYPE[s.type] ?? s.type, "n"], [s.detail ?? ""],
+          [s.usual == null ? "" : s.usual ? "はい" : "いいえ", "n"], [s.purpose ?? ""],
+          [HEARD[s.heard] ?? "", "n"], [MODE[s.mode] ?? "", "n"],
+        ]) tr.append(el("td", { textContent: text, className: cls ?? "" }));
+        return tr;
+      }));
+    }
+
+    let saved = null;
+    try { saved = sessionStorage.getItem(KEY); } catch { /* なし */ }
+    if (saved) open(saved);
+  </script>
+</body>
+</html>
