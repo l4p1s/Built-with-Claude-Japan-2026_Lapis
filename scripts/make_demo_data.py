@@ -30,13 +30,20 @@ PARAMS = {
     "home_shop": 0.6,  # 在宅の人が平日に買い物に出る割合
     "weekend_mall": 0.5,  # 休日に大型店へ行く割合
     "weekend_out": 0.2,  # 休日に公園・飲食店へ行く割合
-    "evacuate_shelter": 0.25,  # 地震当日の夜に公式避難所へ行く割合
-    "evacuate_car": 0.20,  # 地震当日の夜に車中泊する割合（2016年は避難者の 68.3% が車中泊。熊本県アンケート）
-    "shelter_home_visit_D1": 0.5,  # 翌日、避難所から昼に家の様子を見に帰る割合
+    # 出典から置いた値: 2026年は避難指示 25.8 万人に対し避難所 8,698 人（熊本県 第1報）→ 約3%。
+    # 2016年は避難者の 68.3% が車中泊（熊本県アンケート）→ 車中泊は避難所の 2 倍
+    "evacuate_shelter": 0.03,  # 地震当日の夜に公式避難所へ行く割合
+    "evacuate_car": 0.06,  # 地震当日の夜に車中泊する割合
+    "shelter_home_visit_D1": 0.6,  # 翌日、避難所から昼に家の様子を見に帰る割合
     "shelter_return_D2": 0.3,  # 2日後に避難をやめて家に戻る割合
     "car_stop_D2": 0.5,  # 2日後に車中泊をやめる割合
     "work_D2": 0.3,  # 2日後に出勤する割合
-    "queue_D2": 0.25,  # 2日後、再開した店の行列（60分）に並ぶ割合
+    "queue_D2": 0.15,  # 2日後、再開した店の行列（60分）に並ぶ割合
+    "visit_relative": {
+        "D1": 0.25,
+        "D2": 0.15,
+    },  # 地震の翌日以降、親戚・知人の家（他の人の家）に 1〜3 時間いる割合
+    "water_radius_m": 3500,  # 市役所からこの距離に家がある人を「断水」とし、給水に行くのはその人だけ（断水した校区の近似）
     "speed_kmh": {"car": 30, "walk": 4, "car_after": 20},  # 移動速度。地震後の車は渋滞で遅い
     "gps_noise_m": 10,  # GPS 誤差（標準偏差）
 }
@@ -44,6 +51,7 @@ MINUTES = 1440
 LAT_M = 110574.0  # 緯度1度の長さ（m）
 LON_M = 111320.0 * math.cos(math.radians(32.5))  # 経度1度の長さ（八代の緯度）
 BBOX = (32.42, 32.62, 130.52, 130.72)
+CENTER = (32.5072, 130.6016)  # 八代市役所
 POI = {
     "park": {"1003", "1005"},
     "community": {"1305", "1309", "1390"},
@@ -152,7 +160,9 @@ def mesh_center(code):
 
 def load_home_weights(data):
     """家を置く点とその重み。e-Stat の 250m メッシュ人口があればそれ、無ければ小字の代表点（団地は重く）"""
-    files = glob.glob(f"{data}/estat/tblT0011*")  # T001142（2020 国勢調査）か T001102（同、JGD2000 版）
+    files = glob.glob(
+        f"{data}/estat/tblT0011*"
+    )  # T001142（2020 国勢調査）か T001102（同、JGD2000 版）
     cells = []
     for fn in files:
         raw = open(fn, "rb").read()
@@ -276,7 +286,10 @@ def plan_day(p, kind, quake_min, rng, by, scen, day_tag, event_visits):
     """その人のその日の予定。(visits, 夜に寝る場所 or None=家)"""
     H = (p["lat"], p["lon"])
     V = list(event_visits)  # 台本で決まった集まりへの参加
-    pos = lambda q: (q["lat"], q["lon"])
+
+    def pos(q):
+        return (q["lat"], q["lon"])
+
     sleep = None
 
     def shop(after, pool=None):
@@ -330,7 +343,9 @@ def plan_day(p, kind, quake_min, rng, by, scen, day_tag, event_visits):
             V.append(
                 (
                     *pos(p["shelter"]),
-                    quake_min + rng.integers(120, 300),
+                    rng.integers(
+                        18 * 60 + 30, 21 * 60 + 30
+                    ),  # 避難所の開設は 16 時台〜22 時台（BODIK）
                     MINUTES,
                     p["shelter"]["name"],
                 )
@@ -339,10 +354,24 @@ def plan_day(p, kind, quake_min, rng, by, scen, day_tag, event_visits):
         elif r < PARAMS["evacuate_shelter"] + PARAMS["evacuate_car"] and p["car"]:
             p["car_spot"] = scen["car_spots"][rng.integers(len(scen["car_spots"]))]
             V.append(
-                (*pos(p["car_spot"]), 20 * 60 + rng.integers(0, 90), MINUTES, p["car_spot"]["name"])
+                (
+                    *pos(p["car_spot"]),
+                    rng.integers(18 * 60 + 30, 21 * 60 + 30),
+                    MINUTES,
+                    p["car_spot"]["name"],
+                )
             )
             sleep = pos(p["car_spot"])
     elif kind in ("D1", "D2"):
+        if not p["shelter"] and rng.random() < PARAMS["visit_relative"][kind]:
+            # 親戚・知人の家。他の人の家から 5km 以内のものを引く
+            for _ in range(10):
+                h = scen["homes"][rng.integers(len(scen["homes"]))]
+                if 50 < dist_m(*H, *h) < 5000:
+                    V.append(
+                        (*h, rng.integers(10 * 60, 15 * 60), rng.integers(60, 181), "relative")
+                    )
+                    break
         if p["shelter"]:
             if kind == "D2" and rng.random() < PARAMS["shelter_return_D2"]:
                 V.append((*H, 9 * 60 + rng.integers(0, 120), MINUTES, "home"))
@@ -387,13 +416,18 @@ def plan_day(p, kind, quake_min, rng, by, scen, day_tag, event_visits):
 
 
 def pick_visitors(ev, people, rng, busy):
-    """集まりに来る人: 家が radius 内で、その日は避難所にいない人から、近いほど高い確率で選ぶ"""
+    """集まりに来る人: 家が radius 内で、その日に避難所にいない人から、近いほど高い確率で選ぶ。
+    busy は uid → その日に参加が決まった集まりの時間帯。時間が重なる集まりには出ない（1日 2 件まで）。
+    給水（water）は断水区域（市役所から water_radius_m）の人だけ"""
+    w0, w1 = hm(ev["start"]), hm(ev["end"])
     cand = [
         i
         for i, p in enumerate(people)
-        if i not in busy
+        if len(busy.get(i, ())) < 2
+        and all(w1 <= s or e <= w0 for s, e in busy.get(i, ()))
         and not p["shelter"]
         and dist_m(p["lat"], p["lon"], ev["lat"], ev["lon"]) <= ev["radius_m"]
+        and (ev["kind"] != "water" or p["water_out"])
     ]
     if not cand:
         return []
@@ -409,8 +443,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument(
         "--quake-at",
-        default="2026-07-28T16:00",
-        help="地震の日時（JST）。BODIK の避難所の最初の開設が 7/28 16時台なので、その時刻を既定にしている",
+        default="2026-07-28T16:27",
+        help="地震の日時（JST）。令和8年熊本地震の発生は 2026-07-28 16:27（気象庁）",
     )
     ap.add_argument("--people", type=int, default=1000)
     ap.add_argument("--normal-days", type=int, default=14)
@@ -443,7 +477,10 @@ def main():
     scen = {
         "car_spots": [byname[n] for n in scen_json["car_sleeping"]],
         "reopen": [byname[n] for n in scen_json["reopen_D2"]],
+        "homes": [(p["lat"], p["lon"]) for p in people],
     }
+    for p in people:
+        p["water_out"] = dist_m(p["lat"], p["lon"], *CENTER) <= PARAMS["water_radius_m"]
     events = []
     for k, e in enumerate(scen_json["events"]):
         pl = byname[e["place"]]
@@ -473,10 +510,11 @@ def main():
         tag = kind if kind.startswith("D") else d.strftime("%a")
         day_events = [e for e in events if e["day"] == kind]
         ev_visits = defaultdict(list)
-        busy = set()
+        busy = defaultdict(list)
         for e in day_events:
             chosen = pick_visitors(e, people, rng, busy)
-            busy |= set(chosen)
+            for i in chosen:
+                busy[i].append((hm(e["start"]), hm(e["end"])))
             e.setdefault("chosen", {})[d] = len(chosen)
             for i in chosen:
                 arrive = rng.integers(hm(e["start"]), hm(e["end"]) - e["stay_min"][0])
@@ -519,7 +557,17 @@ def main():
     with open(f"{a.out}/people.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(
-            ["uid", "home_lat", "home_lon", "role", "work", "usual_shop_ids", "car", "explorer"]
+            [
+                "uid",
+                "home_lat",
+                "home_lon",
+                "role",
+                "work",
+                "usual_shop_ids",
+                "car",
+                "explorer",
+                "water_out",
+            ]
         )
         for p in people:
             w.writerow(
@@ -532,6 +580,7 @@ def main():
                     " ".join(s["id"] for s in p["usual"]),
                     int(p["car"]),
                     int(p["explorer"]),
+                    int(p["water_out"]),
                 ]
             )
     with open(f"{a.out}/places.csv", "w", newline="", encoding="utf-8") as f:

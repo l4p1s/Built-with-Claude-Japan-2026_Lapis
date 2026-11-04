@@ -1,13 +1,23 @@
 {
-  "_comment": "地震後に埋め込む集まり。day は D0=地震当日, D1, D2。場所は places の名前で指定（公式避難所でない場所を選んでいる）。visitors は来る人の数、stay_min は滞在の長さの範囲。",
+  "_comment": "地震後に埋め込む集まり。day は D0=地震当日, D1, D2。場所は places の名前で指定。規模は 2026年熊本地震の実績に合わせた（個人店の炊き出し 約30食/日、町内会 約80食/日、給水車は団地の前。docs/demo-data-design.md §4）。visitors は来る人の数、stay_min は滞在の長さの範囲、radius_m は家がこの距離にある人から選ぶ。コミュニティセンターは避難所なので official=1 の公式給水になる。",
   "events": [
-    {"day": "D1", "place": "麦島東公園", "kind": "water", "start": "09:00", "end": "11:30", "visitors": 90, "stay_min": [15, 45], "radius_m": 1500},
-    {"day": "D1", "place": "金剛コミュニティセンター", "kind": "food", "start": "11:30", "end": "13:30", "visitors": 110, "stay_min": [20, 40], "radius_m": 2000},
-    {"day": "D1", "place": "八代よかとこ物産館", "kind": "water", "start": "10:00", "end": "15:00", "visitors": 150, "stay_min": [15, 45], "radius_m": 3000},
-    {"day": "D2", "place": "八代よかとこ物産館", "kind": "food", "start": "10:00", "end": "15:00", "visitors": 180, "stay_min": [20, 45], "radius_m": 3000},
-    {"day": "D2", "place": "うなぎ処 鰻新", "kind": "goods", "start": "10:00", "end": "12:00", "visitors": 50, "stay_min": [10, 25], "radius_m": 1500},
-    {"day": "D2", "place": "より藤", "kind": "goods", "start": "10:00", "end": "12:00", "visitors": 60, "stay_min": [10, 25], "radius_m": 1500},
-    {"day": "D2", "place": "北部中央公園", "kind": "water", "start": "14:00", "end": "16:30", "visitors": 100, "stay_min": [15, 45], "radius_m": 1500}
+    {"day": "D1", "place": "古城町団地", "kind": "water", "start": "09:00", "end": "11:00", "visitors": 50, "stay_min": [10, 30], "radius_m": 600},
+    {"day": "D1", "place": "毘舎丸団地", "kind": "water", "start": "13:00", "end": "15:00", "visitors": 50, "stay_min": [10, 30], "radius_m": 600},
+    {"day": "D1", "place": "松崎公園", "kind": "water", "start": "15:00", "end": "17:00", "visitors": 40, "stay_min": [10, 30], "radius_m": 1000},
+    {"day": "D1", "place": "うなぎ処 鰻新", "kind": "food", "start": "11:30", "end": "13:00", "visitors": 30, "stay_min": [15, 35], "radius_m": 1200},
+    {"day": "D1", "place": "なわや", "kind": "food", "start": "17:00", "end": "18:30", "visitors": 30, "stay_min": [15, 35], "radius_m": 1200},
+    {"day": "D1", "place": "西宮、上日置集会所", "kind": "food", "start": "12:00", "end": "13:30", "visitors": 70, "stay_min": [15, 35], "radius_m": 1500},
+    {"day": "D1", "place": "八代よかとこ物産館", "kind": "food", "start": "10:00", "end": "15:00", "visitors": 80, "stay_min": [20, 45], "radius_m": 3000},
+    {"day": "D1", "place": "代陽コミュニティセンター", "kind": "water", "start": "08:30", "end": "19:00", "visitors": 120, "stay_min": [10, 30], "radius_m": 2000},
+    {"day": "D2", "place": "迎町団地", "kind": "water", "start": "09:00", "end": "11:00", "visitors": 50, "stay_min": [10, 30], "radius_m": 600},
+    {"day": "D2", "place": "海士江町団地", "kind": "water", "start": "13:00", "end": "15:00", "visitors": 45, "stay_min": [10, 30], "radius_m": 600},
+    {"day": "D2", "place": "新町公園", "kind": "water", "start": "15:30", "end": "17:30", "visitors": 40, "stay_min": [10, 30], "radius_m": 1000},
+    {"day": "D2", "place": "あじつぼ", "kind": "food", "start": "12:00", "end": "13:30", "visitors": 30, "stay_min": [15, 35], "radius_m": 1200},
+    {"day": "D2", "place": "より藤", "kind": "food", "start": "17:00", "end": "18:30", "visitors": 25, "stay_min": [15, 35], "radius_m": 1200},
+    {"day": "D2", "place": "八代市働く婦人の家", "kind": "food", "start": "11:30", "end": "13:00", "visitors": 60, "stay_min": [15, 35], "radius_m": 1500},
+    {"day": "D2", "place": "八代よかとこ物産館", "kind": "goods", "start": "10:00", "end": "15:00", "visitors": 90, "stay_min": [20, 45], "radius_m": 3000},
+    {"day": "D2", "place": "松高コミュニティセンター", "kind": "water", "start": "08:30", "end": "19:00", "visitors": 100, "stay_min": [10, 30], "radius_m": 2000},
+    {"day": "D2", "place": "八代コミュニティセンター", "kind": "water", "start": "08:30", "end": "19:00", "visitors": 100, "stay_min": [10, 30], "radius_m": 2000}
   ],
   "car_sleeping": ["八代城跡公園", "ゆめタウン八代", "球磨川河川緑地"],
   "reopen_D2": ["マックスバリュ", "ゆめタウン八代"]
