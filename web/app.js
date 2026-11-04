@@ -238,22 +238,34 @@ function paintMap() {
   }
 }
 
-// 八代市の施設（web/places.geojson、scripts/make_places.py）。ピンが主役なので、小さな色の丸と灰色の名前で背景に置く。
-// 名前が重なると丸ごと出さない。z = 出し始めるズーム（店・病院・役所・給油は 14、それ以外は 15）
-const PLACE_COLOR = { shop: "#e0a43a", food: "#ec8a5e", medical: "#e0585f", public: "#7b8798", fuel: "#5b8fd6", school: "#a5835f", park: "#5aa864", sight: "#9b7bc8" };
-function addPlaces() {
+// 八代市の施設（web/places.geojson、scripts/make_places.py）。Google マップのように、種類の色の丸に白い印（lucide の形）と同じ系統の色の名前で出す。
+// ピンが主役なので、丸はピン（32px）より小さい 22px で影を付けない。名前が重なると丸ごと出さない。z = 出し始めるズーム（店・病院・役所・給油は 14、それ以外は 15）
+const PLACE = {
+  // 種類: [丸の色, 名前の色（明るい地図。暗い地図では丸の色）, 白い印]
+  shop: ["#3478f6", "#1d5fc9", '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>'],
+  food: ["#f2784b", "#c2532a", '<path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>'],
+  medical: ["#e5484d", "#c0262c", '<path fill="#fff" d="M4 9a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h4a1 1 0 0 1 1 1v4a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-4a1 1 0 0 1 1-1h4a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2h-4a1 1 0 0 1-1-1V4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4a1 1 0 0 1-1 1z"/>'],
+  public: ["#6b7a90", "#4f5d73", '<path d="M3 22h18M6 18v-7M10 18v-7M14 18v-7M18 18v-7"/><path d="M12 2l8 5H4z"/>'],
+  fuel: ["#1aa3b8", "#0d7f90", '<path d="M3 22h12M4 9h10"/><path d="M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18"/><path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5"/>'],
+  school: ["#9a7356", "#755239", '<path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/>'],
+  park: ["#3fa45b", "#277a3e", '<path d="M10 10v.2A3 3 0 0 1 8.9 16H5a3 3 0 0 1-1-5.8V10a3 3 0 0 1 6 0Z"/><path d="M7 16v6"/><path d="M13 19v3"/><path d="M12 19h8.3a1 1 0 0 0 .7-1.7L18 14h.3a1 1 0 0 0 .7-1.7L16 9h.2a1 1 0 0 0 .8-1.7L13 3l-1.4 1.5"/>'],
+  sight: ["#8e5bd6", "#6c3db5", '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>'],
+};
+async function addPlaces() {
   if (map.getSource("places")) return;
   const dark = theme() === "dark";
-  for (const [kind, color] of Object.entries(PLACE_COLOR)) {
-    const g = Object.assign(document.createElement("canvas"), { width: 24, height: 24 }).getContext("2d");
-    g.arc(12, 12, 8, 0, 2 * Math.PI);
-    g.fillStyle = color;
-    g.fill();
-    g.lineWidth = 3;
-    g.strokeStyle = dark ? "#1f2023" : "#fff";
-    g.stroke();
-    map.addImage(`place-${kind}`, g.getImageData(0, 0, 24, 24), { pixelRatio: 2 });
-  }
+  await Promise.all(
+    Object.entries(PLACE).map(async ([kind, [color, , glyph]]) => {
+      const img = new Image(48, 48);
+      img.src = "data:image/svg+xml," + encodeURIComponent(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><circle cx="24" cy="24" r="21.5" fill="${color}" stroke="${dark ? "#1f2023" : "#fff"}" stroke-width="3"/>` +
+          `<g transform="translate(12 12)" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">${glyph}</g></svg>`,
+      );
+      await img.decode();
+      if (!map.hasImage(`place-${kind}`)) map.addImage(`place-${kind}`, img, { pixelRatio: 2 });
+    }),
+  );
+  if (map.getSource("places")) return; // 印を読む間に、別の style.load が足した
   map.addSource("places", { type: "geojson", data: "places.geojson", attribution: "施設: © OpenStreetMap / 八代市 CC BY 4.0" });
   map.addLayer({
     id: "places",
@@ -265,13 +277,17 @@ function addPlaces() {
       "icon-image": ["concat", "place-", ["get", "kind"]],
       "text-field": ["get", "name"],
       "text-font": ["Noto Sans Regular"],
-      "text-size": 11,
+      "text-size": 12,
       "text-max-width": 8,
       "text-variable-anchor": ["left", "right", "top", "bottom"],
-      "text-radial-offset": 0.8,
+      "text-radial-offset": 1.1,
       "text-justify": "auto",
     },
-    paint: { "text-color": dark ? "#aeaeb2" : "#6e6e73", "text-halo-color": dark ? "#1f2023" : "#f5f2eb", "text-halo-width": 1.2 },
+    paint: {
+      "text-color": ["match", ["get", "kind"], ...Object.entries(PLACE).flatMap(([kind, [color, text]]) => [kind, dark ? color : text]), "#6e6e73"],
+      "text-halo-color": dark ? "#1f2023" : "#f5f2eb",
+      "text-halo-width": 1.2,
+    },
   });
 }
 
