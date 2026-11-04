@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>人の動き（合成データ）</title>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<style>
+  :root { --bg: #f4f3ef; --fg: #1b1f2a; --muted: #6b7080; --line: rgba(27,31,42,.1); --accent: #1f3a6e; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.5 system-ui, sans-serif; color: var(--fg); background: var(--bg); height: 100dvh; display: grid; grid-template-rows: auto 1fr auto; }
+  header, footer { padding: 8px 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; background: #fff; border-bottom: 1px solid var(--line); }
+  footer { border-top: 1px solid var(--line); border-bottom: 0; }
+  #map { width: 100%; height: 100%; }
+  select, button { font: inherit; padding: 4px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--fg); }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  #clock { font-variant-numeric: tabular-nums; font-size: 20px; min-width: 5ch; }
+  #slider { flex: 1; min-width: 200px; }
+  .muted { color: var(--muted); }
+  #events { font-size: 13px; }
+  .maplibregl-popup-content { font: 13px/1.4 system-ui, sans-serif; }
+</style>
+</head>
+<body>
+<header>
+  <strong>人の動き（合成データ、八代市）</strong>
+  <select id="day"></select>
+  <span id="kind" class="muted"></span>
+  <label class="muted"><input type="checkbox" id="nohome" checked> 家の周り 200m を薄く</label>
+  <label class="muted"><input type="checkbox" id="dots"> 点も出す</label>
+  <span id="events"></span>
+</header>
+<div id="map"></div>
+<footer>
+  <button id="play" class="primary">再生</button>
+  <span id="clock">00:00</span>
+  <input id="slider" type="range" min="0" max="287" value="0">
+  <select id="speed"><option value="400">ゆっくり</option><option value="150" selected>ふつう</option><option value="50">はやい</option></select>
+</footer>
+<script>
+const Q = (s) => document.querySelector(s);
+const map = new maplibregl.Map({
+  container: "map", style: "https://tiles.openfreemap.org/styles/positron", center: [130.6016, 32.5072], zoom: 12.3,
+});
+let idx, frames = null, n = 0, k = 0, timer = null;
+const empty = { type: "FeatureCollection", features: [] };
+const dayKind = (d, quake) => {
+  const diff = (new Date(d) - new Date(quake)) / 86400000;
+  if (diff < 0) return new Date(d).getDay() % 6 ? "平常（平日）" : "平常（休日）";
+  return diff === 0 ? "地震当日（16:00 発生）" : `地震の ${diff} 日後`;
+};
+map.on("load", async () => {
+  idx = await (await fetch("heatmap/index.json")).json();
+  map.addSource("pts", { type: "geojson", data: empty });
+  map.addSource("ev", { type: "geojson", data: empty });
+  map.addLayer({ id: "heat", type: "heatmap", source: "pts", paint: {
+    "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 10, 6, 13, 18, 16, 40],
+    "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 10, 0.6, 15, 2],
+    "heatmap-weight": ["get", "w"],
+    "heatmap-opacity": 0.8,
+    "heatmap-color": ["interpolate", ["linear"], ["heatmap-density"], 0, "rgba(31,58,110,0)", 0.2, "rgba(31,58,110,.35)", 0.5, "rgba(214,120,30,.7)", 1, "rgba(180,30,30,.95)"],
+  }});
+  map.addLayer({ id: "dots", type: "circle", source: "pts", layout: { visibility: "none" }, paint: { "circle-radius": 2.5, "circle-color": "#1f3a6e", "circle-opacity": 0.6 } });
+  map.addLayer({ id: "ev", type: "circle", source: "ev", paint: { "circle-radius": 14, "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": "#b41e1e", "circle-stroke-width": 3 } });
+  map.addLayer({ id: "ev-label", type: "symbol", source: "ev", layout: { "text-field": ["get", "label"], "text-offset": [0, 1.6], "text-size": 12, "text-font": ["Noto Sans Regular"] }, paint: { "text-color": "#b41e1e", "text-halo-color": "#fff", "text-halo-width": 1.5 } });
+  for (const d of idx.days) Q("#day").add(new Option(`${d.date}（${dayKind(d.date, idx.quake)}）`, d.date));
+  Q("#day").value = idx.days.at(-1).date;
+  await loadDay();
+});
+async function loadDay() {
+  stop();
+  const d = Q("#day").value;
+  const info = idx.days.find((x) => x.date === d);
+  n = info.people; k = 1440 / idx.step;
+  frames = new Int16Array(await (await fetch(`heatmap/${d}.bin`)).arrayBuffer());
+  Q("#slider").max = k - 1;
+  const evs = idx.events.filter((e) => e.date === d);
+  Q("#events").textContent = evs.length ? "集まり: " + evs.map((e) => `${e.place} ${kindJa(e.kind)} ${e.start}–${e.end} ${e.visitors}人`).join(" / ") : "集まりなし";
+  show(+Q("#slider").value);
+}
+const kindJa = (k) => ({ water: "給水", food: "炊き出し", goods: "配布" })[k] || k;
+function show(fi) {
+  const m = fi * idx.step;
+  Q("#clock").textContent = `${String(m / 60 | 0).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+  const feats = [];
+  const nohome = Q("#nohome").checked;
+  for (let i = 0; i < n; i++) {
+    const o = (fi * n + i) * 2;
+    const lat = idx.origin[0] + frames[o] / idx.scale, lon = idx.origin[1] + frames[o + 1] / idx.scale;
+    const h = idx.homes[i];
+    const atHome = h && Math.hypot((lat - h[0]) * 110574, (lon - h[1]) * 93900) < 200;
+    feats.push({ type: "Feature", geometry: { type: "Point", coordinates: [lon, lat] }, properties: { w: nohome && atHome ? 0.08 : 1 } });
+  }
+  map.getSource("pts").setData({ type: "FeatureCollection", features: feats });
+  const d = Q("#day").value;
+  const ev = idx.events.filter((e) => e.date === d && hm(e.start) - 30 <= m && m <= hm(e.end) + 30).map((e) => ({
+    type: "Feature", geometry: { type: "Point", coordinates: [+e.lon, +e.lat] }, properties: { label: `${e.place} ${kindJa(e.kind)}` },
+  }));
+  map.getSource("ev").setData({ type: "FeatureCollection", features: ev });
+}
+const hm = (s) => { const [h, mi] = s.split(":"); return h * 60 + +mi; };
+function stop() { clearInterval(timer); timer = null; Q("#play").textContent = "再生"; }
+Q("#play").onclick = () => {
+  if (timer) return stop();
+  Q("#play").textContent = "止める";
+  timer = setInterval(() => { const s = Q("#slider"); s.value = (+s.value + 1) % k; show(+s.value); }, +Q("#speed").value);
+};
+Q("#speed").onchange = () => { if (timer) { stop(); Q("#play").click(); } };
+Q("#slider").oninput = (e) => show(+e.target.value);
+Q("#day").onchange = loadDay;
+Q("#nohome").onchange = () => show(+Q("#slider").value);
+Q("#dots").onchange = (e) => map.setLayoutProperty("dots", "visibility", e.target.checked ? "visible" : "none");
+</script>
+</body>
+</html>
