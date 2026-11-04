@@ -41,13 +41,41 @@ function hm(s) {
   return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : 8 * 60;
 }
 const MAP_STYLE = {
-  light: "https://tiles.openfreemap.org/styles/positron",
+  light: "https://tiles.openfreemap.org/styles/liberty", // 公園・建物・施設名まで載っている
   dark: "https://tiles.openfreemap.org/styles/dark",
 };
-// 水を青、緑地を緑にして見分けやすくする（道路は白のまま。黄色い道路は未確認のオレンジのピンとまぎれる）
-const MAP_TINT = {
-  light: { water: ["fill-color", "#aad3df"], waterway: ["line-color", "#aad3df"], park: ["fill-color", "#d4e9cd"], landcover_wood: ["fill-color", "#dcebd5"] },
-  dark: { water: ["fill-color", "#17283a"], waterway: ["line-color", "#17283a"], landuse_park: ["fill-color", "#1a2a20"] },
+// 地図の塗り直し。[レイヤー ID に合う正規表現, 色] で、先に合ったものを使う。
+// 色はレイヤーの種類に合わせて fill-color / line-color / text-color などに入れる
+const MAP_PAINT = {
+  // Apple マップのような柔らかい配色: 温かい地面、緑の公園、青い水、白い道、幹線は淡い黄色
+  light: [
+    [/^background$/, "#f5f2eb"],
+    [/^landuse_residential$/, "#efebe2"],
+    [/^(park|landcover_(wood|grass))/, "#cfe7b6"],
+    [/^water$|^waterway_(tunnel|river|other)$/, "#a8d4f4"],
+    [/^building$/, "#e9e4da"],
+    [/motorway.*casing/, "#e8c070"],
+    [/motorway/, "#fcd987"],
+    [/(trunk_primary|secondary_tertiary|link).*casing/, "#e7dcbd"],
+    [/trunk_primary|secondary_tertiary|link/, "#fff5d1"],
+    [/casing/, "#e2ddd3"],
+    [/^label_|^airport$/, "#3a3a3c"],
+    [/^highway-name/, "#6e6e73"],
+    [/^poi_r/, "#7c7c80"],
+  ],
+  // 真っ黒ではなく、少し明るい灰色の地面に、紺の水と深い緑の公園
+  dark: [
+    [/^background$/, "#1f2023"],
+    [/^landuse_residential$/, "#242529"],
+    [/^water$|^waterway$/, "#1d3349"],
+    [/^(landuse_park|landcover_wood)$/, "#1f3326"],
+    [/^building$/, "#2b2c30"],
+    [/^highway_(minor|path)$/, "#38393d"],
+    [/inner$|subtle$/, "#4a4b50"],
+    [/^place_/, "#c7c7cc"],
+    [/^highway_name/, "#8e8e93"],
+    [/^water_name$/, "#7fa6cc"],
+  ],
 };
 const SEND_EVERY_MS = 60_000; // 位置を送り、質問と地図を更新する間隔
 const RECORD_EVERY_MS = 30_000; // 位置を記録する間隔
@@ -195,16 +223,21 @@ const map = new maplibregl.Map({ container: "map", style: MAP_STYLE[theme()], ..
 map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
 darkMode.addEventListener("change", () => map.setStyle(MAP_STYLE[theme()]));
 map.on("style.load", useJapaneseLabels);
-map.on("style.load", tintMap);
+map.on("style.load", paintMap);
 map.on("moveend", refreshSpots);
+map.on("zoomend", declutterNames);
 // 地図を押すと詳細を閉じる（ピンを押したときは閉じない）
 map.on("click", (e) => {
   if (!e.originalEvent.target.closest(".pin")) $("#detail").close();
 });
 
-function tintMap() {
-  for (const [id, [prop, color]] of Object.entries(MAP_TINT[theme()])) {
-    if (map.getLayer(id)) map.setPaintProperty(id, prop, color);
+function paintMap() {
+  for (const layer of map.getStyle().layers) {
+    // 立体の建物は柔らかい見た目に合わず、古いスマホでは重いので出さない。平らな建物も、街全体を見る縮尺では出さない
+    if (layer.type === "fill-extrusion") map.setLayoutProperty(layer.id, "visibility", "none");
+    if (layer.id === "building") map.setLayerZoomRange(layer.id, 15, 24);
+    const rule = MAP_PAINT[theme()].find(([re]) => re.test(layer.id));
+    if (rule) map.setPaintProperty(layer.id, layer.type === "symbol" ? "text-color" : `${layer.type}-color`, rule[1]);
   }
 }
 
@@ -237,13 +270,30 @@ async function refreshSpots() {
 
 function drawSpots() {
   for (const m of markers) m.remove();
+  // 公式のピンを先に（下に）描く。同じ場所の検知・報告のピンを隠さない
+  const official = (f) => f.properties.source === "official";
   markers = spots
     .filter(matchesFilter)
+    .sort((a, b) => official(b) - official(a))
     .map((f) =>
-      new maplibregl.Marker({ element: pinElement(f), anchor: "bottom" })
+      new maplibregl.Marker({ element: pinElement(f) })
         .setLngLat(f.geometry.coordinates)
         .addTo(map),
     );
+  declutterNames();
+}
+
+// ピンの名前が、ほかのピンの丸や先に出した名前と重なったら隠す（Apple マップのように）。種類の名前を施設名より先に出す
+function declutterNames() {
+  const taken = [...document.querySelectorAll(".pin__shape")].map((el) => el.getBoundingClientRect());
+  const names = [...document.querySelectorAll(".pin:not(.pin--official) .pin__name"), ...document.querySelectorAll(".pin--official .pin__name")];
+  for (const el of names) {
+    el.style.visibility = "";
+    const r = el.getBoundingClientRect();
+    const hit = taken.some((t) => r.left < t.right && t.left < r.right && r.top < t.bottom && t.top < r.bottom);
+    el.style.visibility = hit ? "hidden" : "";
+    if (!hit) taken.push(r);
+  }
 }
 
 function matchesFilter({ properties: p }) {
@@ -280,11 +330,13 @@ function pinElement(feature) {
   el.setAttribute("aria-label", pinTitle(p));
   const shape = document.createElement("span");
   shape.className = "pin__shape";
-  const text = document.createElement("span");
-  text.className = "pin__text";
-  text.textContent = pinLabel(p);
-  shape.append(text);
-  el.append(shape);
+  shape.textContent = pinLabel(p);
+  // 丸の下に名前（Apple マップのように）。公式は施設名、それ以外は種類。デモの正解の名前は出さない
+  const name = document.createElement("span");
+  name.className = "pin__name";
+  name.setAttribute("aria-hidden", "true");
+  name.textContent = p.source === "official" ? p.name : (KIND_LABEL[p.top_kind] ?? "人の集まり");
+  el.append(shape, name);
   return el;
 }
 
