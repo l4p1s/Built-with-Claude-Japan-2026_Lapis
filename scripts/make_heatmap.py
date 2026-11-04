@@ -58,6 +58,11 @@ def main():
         [float(r["home_lat"]), float(r["home_lon"])]
         for r in csv.DictReader(open(f"{a.out}/people.csv", encoding="utf-8"))
     ]
+    # 検知の結果（scripts/detect_demo.py の出力）があれば、再生でピンを立てるために入れる
+    cand_path = f"{a.out}/detect_candidates.csv"
+    cands = (
+        list(csv.DictReader(open(cand_path, encoding="utf-8"))) if os.path.exists(cand_path) else []
+    )
     d1 = next((e["date"] for e in events if e["day"] == "D1"), None)
     quake = str(date.fromisoformat(d1) - timedelta(days=1)) if d1 else days[-1]["date"]
     json.dump(
@@ -69,6 +74,8 @@ def main():
             "days": days,
             "events": events,
             "homes": homes,
+            "candidates": cands,
+            "window": 30,  # 検知の時間帯の長さ（分）。ピンは最初の時間帯が終わった時刻に立つ
         },
         open(f"{hdir}/index.json", "w", encoding="utf-8"),
         ensure_ascii=False,

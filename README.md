@@ -18,7 +18,7 @@ docker compose run --rm api pytest    # テスト
 - 検知アルゴリズムの説明: [docs/algorithm.md](docs/algorithm.md)
 - 構成と設計の理由: [docs/architecture.md](docs/architecture.md) / 画面: [docs/web-ui-design.md](docs/web-ui-design.md)
 - DB を初期化し直す: `docker compose down -v`（取り込んだデータも消えるので、取り込みをやり直す）
-- デモ・実験用の人流データ（八代市 1000人 × 1分刻み × 17日）: `python scripts/make_demo_data.py --out data/out`（numpy が要る）。作り方と仮定は [docs/demo-data-design.md](docs/demo-data-design.md)、入力の出典は [data/README.md](data/README.md)。動きを見る: `python scripts/make_heatmap.py` → `python3 -m http.server 18091 -d data/out` → http://localhost:18091/heatmap.html 。検知の答え合わせ: `python scripts/detect_demo.py`（検知は `app/detect.py`）
+- デモ・実験用の人流データ（八代市 1000人 × 1分刻み × 17日）: `python scripts/make_demo_data.py --out data/out`（numpy が要る）。作り方と仮定は [docs/demo-data-design.md](docs/demo-data-design.md)、入力の出典は [data/README.md](data/README.md)。検知の答え合わせ: `python scripts/detect_demo.py`（検知は `app/detect.py`）。早送りで見る: `python scripts/make_heatmap.py` → `python3 -m http.server 18091 -d data/out` → http://localhost:18091/heatmap.html （1 日を 43 秒で再生し、人が集まった 30 分後に「？」のピンが立つ）
 
 ## 参考文献
 

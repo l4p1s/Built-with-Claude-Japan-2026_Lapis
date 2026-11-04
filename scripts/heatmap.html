@@ -20,7 +20,13 @@
   #slider { flex: 1; min-width: 200px; }
   .muted { color: var(--muted); }
   #events { font-size: 13px; }
-  .maplibregl-popup-content { font: 13px/1.4 system-ui, sans-serif; }
+  main { position: relative; min-height: 0; }
+  #log { position: absolute; top: 12px; right: 12px; z-index: 1; width: 300px; max-height: calc(100% - 24px); overflow: auto; margin: 0; padding: 12px 14px; list-style: none; background: rgba(255,255,255,.94); border: 1px solid var(--line); border-radius: 12px; font-size: 13px; }
+  #log li { padding: 4px 0; border-top: 1px solid var(--line); }
+  #log li:first-child { border-top: 0; font-weight: 600; }
+  #log .t { font-variant-numeric: tabular-nums; color: var(--muted); margin-right: 6px; }
+  #log .new { color: #b45309; font-weight: 600; }
+  @media (max-width: 720px) { #log { width: calc(100% - 24px); max-height: 40%; } }
 </style>
 </head>
 <body>
@@ -30,14 +36,19 @@
   <span id="kind" class="muted"></span>
   <label class="muted"><input type="checkbox" id="nohome" checked> 家の周り 200m を薄く</label>
   <label class="muted"><input type="checkbox" id="dots"> 点も出す</label>
-  <span id="events"></span>
+  <label class="muted"><input type="checkbox" id="truth"> 台本の集まりを出す</label>
+  <span id="events" hidden></span>
 </header>
-<div id="map"></div>
+<main>
+  <div id="map"></div>
+  <ol id="log"><li>検知の記録</li></ol>
+</main>
 <footer>
   <button id="play" class="primary">再生</button>
   <span id="clock">00:00</span>
+  <span id="count" class="muted">候補 0 件</span>
   <input id="slider" type="range" min="0" max="287" value="0">
-  <select id="speed"><option value="400">ゆっくり</option><option value="150" selected>ふつう</option><option value="50">はやい</option></select>
+  <select id="speed"><option value="400">ゆっくり（1日 2分）</option><option value="150" selected>ふつう（1日 43秒）</option><option value="60">はやい（1日 17秒）</option></select>
 </footer>
 <script>
 const Q = (s) => document.querySelector(s);
@@ -55,6 +66,7 @@ map.on("load", async () => {
   idx = await (await fetch("heatmap/index.json")).json();
   map.addSource("pts", { type: "geojson", data: empty });
   map.addSource("ev", { type: "geojson", data: empty });
+  map.addSource("cand", { type: "geojson", data: empty });
   map.addLayer({ id: "heat", type: "heatmap", source: "pts", paint: {
     "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 10, 6, 13, 18, 16, 40],
     "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 10, 0.6, 15, 2],
@@ -63,8 +75,13 @@ map.on("load", async () => {
     "heatmap-color": ["interpolate", ["linear"], ["heatmap-density"], 0, "rgba(31,58,110,0)", 0.2, "rgba(31,58,110,.35)", 0.5, "rgba(214,120,30,.7)", 1, "rgba(180,30,30,.95)"],
   }});
   map.addLayer({ id: "dots", type: "circle", source: "pts", layout: { visibility: "none" }, paint: { "circle-radius": 2.5, "circle-color": "#1f3a6e", "circle-opacity": 0.6 } });
-  map.addLayer({ id: "ev", type: "circle", source: "ev", paint: { "circle-radius": 14, "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": "#b41e1e", "circle-stroke-width": 3 } });
-  map.addLayer({ id: "ev-label", type: "symbol", source: "ev", layout: { "text-field": ["get", "label"], "text-offset": [0, 1.6], "text-size": 12, "text-font": ["Noto Sans Regular"] }, paint: { "text-color": "#b41e1e", "text-halo-color": "#fff", "text-halo-width": 1.5 } });
+  map.addLayer({ id: "ev", type: "circle", source: "ev", layout: { visibility: "none" }, paint: { "circle-radius": 14, "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": "#b41e1e", "circle-stroke-width": 3 } });
+  // 検知のピン（アプリの「？」のピンと同じオレンジ）。立った直後は大きく出す
+  map.addLayer({ id: "cand-halo", type: "circle", source: "cand", paint: { "circle-radius": ["case", ["get", "fresh"], 26, 0], "circle-color": "rgba(234,138,0,.25)" } });
+  map.addLayer({ id: "cand", type: "circle", source: "cand", paint: { "circle-radius": ["case", ["get", "fresh"], 16, 12], "circle-color": "#ea8a00", "circle-stroke-color": "#fff", "circle-stroke-width": 2 } });
+  map.addLayer({ id: "cand-text", type: "symbol", source: "cand", layout: { "text-field": "？", "text-size": 14, "text-font": ["Noto Sans Bold"], "text-allow-overlap": true }, paint: { "text-color": "#111827" } });
+  map.addLayer({ id: "cand-label", type: "symbol", source: "cand", layout: { "text-field": ["get", "label"], "text-offset": [0, 1.8], "text-size": 12, "text-font": ["Noto Sans Regular"] }, paint: { "text-color": "#8a4b00", "text-halo-color": "#fff", "text-halo-width": 1.5 } });
+  map.addLayer({ id: "ev-label", type: "symbol", source: "ev", layout: { visibility: "none", "text-field": ["get", "label"], "text-offset": [0, 1.6], "text-size": 12, "text-font": ["Noto Sans Regular"] }, paint: { "text-color": "#b41e1e", "text-halo-color": "#fff", "text-halo-width": 1.5 } });
   for (const d of idx.days) Q("#day").add(new Option(`${d.date}（${dayKind(d.date, idx.quake)}）`, d.date));
   Q("#day").value = idx.days.at(-1).date;
   await loadDay();
@@ -79,6 +96,38 @@ async function loadDay() {
   const evs = idx.events.filter((e) => e.date === d);
   Q("#events").textContent = evs.length ? "集まり: " + evs.map((e) => `${e.place} ${kindJa(e.kind)} ${e.start}–${e.end} ${e.visitors}人`).join(" / ") : "集まりなし";
   show(+Q("#slider").value);
+}
+// 検知の候補: 最初の時間帯（30 分）が終わった時刻に立ち、集まりが終わって 60 分で消える
+function candidatesAt(d, m) {
+  return (idx.candidates || []).filter((c) => c.date === d && hm(c.start) + idx.window <= m && m <= hm(c.end) + 60 && c.official === "0");
+}
+const nearest = (c) => {
+  // 候補の近く（300m）で、その時刻にやっている台本の集まりの名前（答え合わせ用。検知そのものは名前を知らない）
+  const at = hm(c.start) + idx.window;
+  const dist = (e) => Math.hypot((+e.lat - +c.lat) * 110574, (+e.lon - +c.lon) * 93900);
+  const e = idx.events
+    .filter((e) => e.date === c.date && dist(e) < 300 && hm(e.start) - 30 <= at && at <= hm(e.end) + 60)
+    .sort((a, b) => dist(a) - dist(b))[0];
+  return e ? `${e.place} ${kindJa(e.kind)}` : "";
+};
+function updateLog(d, m) {
+  const log = Q("#log");
+  const seen = new Set([...log.querySelectorAll("li[data-id]")].map((li) => li.dataset.id));
+  const now = candidatesAt(d, m);
+  for (const c of now) {
+    const id = `${c.date}|${c.cell}|${c.start}`;
+    if (seen.has(id)) continue;
+    const at = hm(c.start) + idx.window;
+    const li = document.createElement("li");
+    li.dataset.id = id;
+    li.innerHTML = `<span class="t">${String(at / 60 | 0).padStart(2, "0")}:${String(at % 60).padStart(2, "0")}</span><span class="new">検知</span> ${nearest(c) || "マス " + c.cell}（${Math.round(+c.observed)} 人）`;
+    log.insertBefore(li, log.children[1]);
+  }
+  for (const li of log.querySelectorAll("li[data-id]")) {
+    const [date, , start] = li.dataset.id.split("|");
+    if (date !== d || hm(start) + idx.window > m) li.remove(); // 日を変えた・巻き戻したら消す
+  }
+  Q("#count").textContent = `候補 ${now.length} 件`;
 }
 const kindJa = (k) => ({ water: "給水", food: "炊き出し", goods: "配布", car_sleeping: "車中泊", shop: "店の行列" })[k] || k;
 function show(fi) {
@@ -99,6 +148,12 @@ function show(fi) {
     type: "Feature", geometry: { type: "Point", coordinates: [+e.lon, +e.lat] }, properties: { label: `${e.place} ${kindJa(e.kind)}` },
   }));
   map.getSource("ev").setData({ type: "FeatureCollection", features: ev });
+  const cands = candidatesAt(d, m).map((c) => ({
+    type: "Feature", geometry: { type: "Point", coordinates: [+c.lon, +c.lat] },
+    properties: { fresh: m - (hm(c.start) + idx.window) < 20, label: `${Math.round(+c.observed)} 人` },
+  }));
+  map.getSource("cand").setData({ type: "FeatureCollection", features: cands });
+  updateLog(d, m);
 }
 const hm = (s) => { const [h, mi] = s.split(":"); return h * 60 + +mi; };
 function stop() { clearInterval(timer); timer = null; Q("#play").textContent = "再生"; }
@@ -112,6 +167,7 @@ Q("#slider").oninput = (e) => show(+e.target.value);
 Q("#day").onchange = loadDay;
 Q("#nohome").onchange = () => show(+Q("#slider").value);
 Q("#dots").onchange = (e) => map.setLayoutProperty("dots", "visibility", e.target.checked ? "visible" : "none");
+Q("#truth").onchange = (e) => { for (const l of ["ev", "ev-label"]) map.setLayoutProperty(l, "visibility", e.target.checked ? "visible" : "none"); Q("#events").hidden = !e.target.checked; };
 </script>
 </body>
 </html>
