@@ -131,7 +131,8 @@ async function nudgeMap(page) {
   assert.equal(nShelter, nAll);
   ok(`8 絞り込み: 公式の避難所 すべて=${nAll} / 食=${nFood} / 避難=${nShelter}`);
   if (nAll > 0) {
-    await A.page.locator(".pin--official").first().click();
+    // 検知の候補のピンが上に重なっていることがあるので、要素を直接押す
+  await A.page.locator(".pin--official").first().evaluate((el) => el.click());
     const text = await A.page.locator("#detail").innerText();
     assert.match(text, /公式の避難所/);
     assert.match(text, /開設:/);
