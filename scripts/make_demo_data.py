@@ -152,7 +152,7 @@ def mesh_center(code):
 
 def load_home_weights(data):
     """家を置く点とその重み。e-Stat の 250m メッシュ人口があればそれ、無ければ小字の代表点（団地は重く）"""
-    files = glob.glob(f"{data}/estat/tblT001142*")
+    files = glob.glob(f"{data}/estat/tblT0011*")  # T001142（2020 国勢調査）か T001102（同、JGD2000 版）
     cells = []
     for fn in files:
         raw = open(fn, "rb").read()
@@ -163,7 +163,7 @@ def load_home_weights(data):
         )
         rows = list(csv.reader(text.splitlines()))
         head = rows[0]
-        ci, pi = head.index("KEY_CODE"), head.index("T001142001")
+        ci, pi = head.index("KEY_CODE"), 4  # 5列目が「人口（総数）」
         for r in rows[1:]:
             if len(r) <= pi or not r[ci].isdigit() or not r[pi].isdigit():
                 continue
@@ -171,7 +171,7 @@ def load_home_weights(data):
             if BBOX[0] <= lat <= BBOX[1] and BBOX[2] <= lon <= BBOX[3]:
                 cells.append((lat, lon, int(r[pi]), 125 / LAT_M, 125 / LON_M))
     if cells:
-        return cells, "e-Stat 国勢調査2020 250m メッシュ人口（T001142）"
+        return cells, f"e-Stat 国勢調査2020 250m メッシュ人口（{os.path.basename(files[0])}）"
     pts = json.load(open(f"{data}/addresses/yatsushiro.json", encoding="utf-8"))["data"]
     for p in pts:
         if not p.get("point"):

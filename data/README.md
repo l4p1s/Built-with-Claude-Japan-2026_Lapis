@@ -9,5 +9,5 @@
 | `bodik/shelters.geojson` | 令和8年熊本地震の避難所（開設・閉鎖日時つき） | [BODIK 令和8年熊本地震オープンデータ](https://odcs.bodik.jp/kumamoto-r8/data/portal/shelters.geojson)。取得日 2026-11-04 |
 | `osm/poi_yatsushiro.csv` | 八代市中心部の店・職場（スーパー・コンビニ・飲食店・工場など 509件）。`scripts/extract_osm_poi.py` で抽出 | © OpenStreetMap contributors, [ODbL](https://www.openstreetmap.org/copyright) |
 | `addresses/yatsushiro.json` | 八代市の小字の代表点。e-Stat のメッシュ人口が無いときに家を置く代用 | デジタル庁 アドレス・ベース・レジストリ由来（別プロジェクトで整形したもの） |
-| `estat/tblT001142*.txt`（**各自で取得・コミットしない**） | 国勢調査2020 250m メッシュ人口（1次メッシュ 4830）。家の重みに使う | [e-Stat 統計地理情報システム](https://www.e-stat.go.jp/gis) → 統計データダウンロード → 国勢調査 2020年 → 4次メッシュ（250m）→ 人口及び世帯 → 4830 |
+| `estat/tblT0011*.txt`（例 `tblT001102Q4830.txt`）（**各自で取得・コミットしない**） | 国勢調査2020 250m メッシュ人口（1次メッシュ 4830）。家の重みに使う | [e-Stat 統計地理情報システム](https://www.e-stat.go.jp/gis) → 統計データダウンロード → 国勢調査 2020年 → 5次メッシュ（250m）→ 人口及び世帯（JGD2000）→ 第1次地域区画 4830 |
 | `out/`（**コミットしない**） | 生成した人流データ | — |
