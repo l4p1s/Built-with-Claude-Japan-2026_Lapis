@@ -67,7 +67,13 @@
     .bar { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
     .bar i { display: block; height: 100%; background: var(--accent); transition: width 250ms ease; }
     @media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
-    .where { min-height: 24px; margin: 8px 0 0; font-size: 15px; font-weight: 600; color: var(--fg-2); }
+    .top-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+    .where { flex: 1; margin: 0; font-size: 15px; font-weight: 600; color: var(--fg-2); }
+    .round {
+      flex: none; width: 44px; height: 44px; padding: 0; border-radius: 22px;
+      border: 1.5px solid var(--line); background: var(--surface); color: var(--fg);
+      display: flex; align-items: center; justify-content: center;
+    }
 
     /* 中: 問い */
     main { display: flex; flex-direction: column; overflow-y: auto; padding: 4px 16px 24px; }
@@ -205,13 +211,45 @@
       border-top: 1px solid var(--border);
     }
     .nav .btn--primary { flex: 1; font-size: 17px; }
+
+    /* 画面の紹介: 説明する場所だけ明るく抜き、その近くに説明のカードを出す */
+    .guide-layer { position: fixed; inset: 0; z-index: 10; }
+    .spot {
+      position: fixed; border-radius: 12px; pointer-events: none;
+      box-shadow: 0 0 0 3px var(--accent), 0 0 0 9999px rgb(0 0 0 / 0.5);
+      transition: all 250ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .spot--none { box-shadow: 0 0 0 9999px rgb(0 0 0 / 0.5); }
+    @media (prefers-reduced-motion: reduce) { .spot { transition: none; } }
+    .guide {
+      position: fixed; z-index: 11; left: 16px; right: 16px; max-width: 400px; margin: 0 auto;
+      padding: 16px; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow);
+    }
+    .guide h2 { margin: 0 0 8px; font-size: 18px; font-weight: 600; }
+    .guide p { margin: 0; line-height: 1.6; }
+    .guide-acts { display: flex; align-items: center; gap: 16px; margin-top: 12px; }
+    .guide-acts .count { margin-right: auto; font-size: 14px; color: var(--muted); }
   </style>
 </head>
 <body>
   <header class="top">
     <div class="bar" aria-hidden="true"><i id="bar"></i></div>
-    <p id="where" class="where"></p>
+    <div class="top-row">
+      <p id="where" class="where"></p>
+      <button type="button" id="help" class="round" aria-label="この画面の使い方"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/></svg></button>
+    </div>
   </header>
+
+  <div id="guide-layer" class="guide-layer" hidden><div id="spot" class="spot"></div></div>
+  <section id="guide" class="guide" role="dialog" aria-modal="true" aria-labelledby="guide-title" hidden>
+    <h2 id="guide-title"></h2>
+    <p id="guide-text"></p>
+    <div class="guide-acts">
+      <span id="guide-count" class="count"></span>
+      <button type="button" id="guide-skip" class="link">とばす</button>
+      <button type="button" id="guide-next" class="btn btn--primary"></button>
+    </div>
+  </section>
 
   <main id="main">
     <h1 id="qt"></h1>
@@ -558,6 +596,7 @@
       tried = false;
       sc.enter?.(p);
       paint();
+      if (!state.seen?.includes(p.s)) startGuide(); // 初めて出る画面は、使い方を順に紹介する
     }
 
     function paint() {
@@ -954,6 +993,114 @@
       try { localStorage.removeItem(KEY); } catch { /* 保存していない */ }
       location.reload();
     });
+
+    // ---- 画面の紹介（画面ごとに初めて出たとき。右上の ? からいつでも見直せる） ----
+
+    const GUIDE = {
+      intro: [
+        { target: null, title: "このページについて",
+          text: "ふだんの日と地震の後の日に、どこへ行ったかを1問ずつ聞いていきます。画面ごとに、使い方を順に紹介します。" },
+        { target: "#bar", title: "進み具合", text: "上の線で、どこまで進んだかが分かります。その下に、いま書いている日と何か所目かが出ます。" },
+        { target: "#help", title: "使い方を見直す", text: "この ? を押すと、いま出ている画面の使い方をもう一度見られます。" },
+        { target: "#next", title: "次へ進む", text: "答えたら、下のボタンで次の問いへ進みます。次の画面からは、左に「戻る」も出ます。" },
+      ],
+      home: [
+        { target: "#search", title: "場所を探す", text: "店や施設の名前、住所、町名を入れると、地図がその場所へ動きます。見つからないときは、近くの町名や目印で探してください。" },
+        { target: "#center-pin", title: "真ん中のピンを、家に合わせる",
+          text: "地図を指で動かして、真ん中のピンを家のだいたいの場所に合わせます。地図をタップすると、そこへピンが動きます。約100mの細かさにぼかすので、ぴったりでなくて大丈夫です。" },
+        { target: "#next", title: "ここが家", text: "ピンが合ったら押します。" },
+      ],
+      date: [
+        { target: "#day-date", title: "日付を選ぶ", text: "押すとカレンダーが出ます。日付は、あとで見直すときの目印になります。" },
+      ],
+      leave: [
+        { target: "#s-hm .hm", title: "時刻を選ぶ", text: "左で「時」、右で「分」を選びます。大まかで大丈夫です。" },
+      ],
+      place: [
+        { target: "#center-pin", title: "行った場所にピンを合わせる",
+          text: "家のときと同じく、名前で探すか、地図を動かしてピンを合わせます。それまでの場所は、点と点線で出ます。" },
+        { target: "#next", title: "ここに行った", text: "ピンが合ったら押します。続けて、そこが何か、何時ごろいたかを聞きます。" },
+        { target: ".map-acts", title: "家に帰ったら",
+          text: "最後に家に帰ったら「家に帰った」を押します。車中泊や避難所に泊まって帰らなかった日は「この日はここまで」を押します。" },
+      ],
+      type: [
+        { target: "#f-type", title: "種類を選ぶ", text: "近いものを1つ選びます。選ぶと、すぐ下に場所の名前を書く欄が出ます（書かなくても大丈夫です）。" },
+        { target: '[data-need="usual"]', title: "ふだんも行くか", text: "地震の前から、ふだん行っていた場所かどうかを選びます。" },
+        { target: ".more", title: "くわしく（任意）", text: "何をしに行ったか、どうやって知ったか、移動手段を、わかる範囲で選べます。" },
+      ],
+      time: [
+        { target: '[data-need="from"]', title: "着いた時刻", text: "その場所に着いた、だいたいの時刻を選びます。" },
+        { target: "#f-dur", title: "いた長さ", text: "どのくらいいたかを選びます。3時間より長いときは「それ以上…」で、出た時刻を選べます。翌朝までいた場合も選べます。" },
+      ],
+      back: [
+        { target: "#s-hm .hm", title: "帰った時刻", text: "家に帰った、だいたいの時刻を選びます。" },
+      ],
+      review: [
+        { target: ".map-wrap", title: "地図で確かめる", text: "この日に行った場所が、点と点線で出ます。点を押すと、その場所を直せます。" },
+        { target: "#band", title: "1日の帯", text: "どこに何時いたかが、0時から24時の帯に並びます。しま模様のところは、まだ書いていない時間です。" },
+        { target: "#list", title: "場所の一覧", text: "押すと、その場所を直せます。赤いものは、まだ入れていない項目がある場所です。" },
+        { target: "#next", title: "次へ", text: "よければ次へ進みます。ふだんの日のあとは、地震の後の日を書きます。" },
+      ],
+      more: [
+        { target: ".choices", title: "ほかの日", text: "給水や炊き出しに行った日がほかにもあれば、もう1日書けます。なければ「いいえ、送る」を押します。" },
+      ],
+      send: [
+        { target: "#copy", title: "コピーして LINE で送る", text: "押すと、書いた内容がコピーされます。お願いされた LINE のトークに貼り付けて送ってください。" },
+        { target: "#clear", title: "この端末から消す", text: "送ったあと、この端末に残っている記入を消せます。" },
+      ],
+    };
+    let guideStep = 0;
+
+    const steps = () => GUIDE[state.pos.s] ?? [];
+    function startGuide() {
+      if (steps().length) showGuide(0);
+    }
+
+    function showGuide(i) {
+      guideStep = i;
+      const step = steps()[i];
+      const els = step.target ? [...document.querySelectorAll(step.target)].filter((el) => el.offsetParent) : [];
+      els[0]?.scrollIntoView({ block: "nearest" });
+      // 説明する場所を明るく抜く。場所がない段は画面の中央に出す
+      const rs = els.length ? els.map((el) => el.getBoundingClientRect())
+        : [{ top: innerHeight / 2, bottom: innerHeight / 2, left: innerWidth / 2, right: innerWidth / 2 }];
+      $("#spot").classList.toggle("spot--none", !els.length);
+      const r = {
+        top: Math.min(...rs.map((x) => x.top)) - 4, left: Math.min(...rs.map((x) => x.left)) - 4,
+        bottom: Math.max(...rs.map((x) => x.bottom)) + 4, right: Math.max(...rs.map((x) => x.right)) + 4,
+      };
+      Object.assign($("#spot").style, {
+        top: `${r.top}px`, left: `${r.left}px`, width: `${r.right - r.left}px`, height: `${r.bottom - r.top}px`,
+      });
+      const card = $("#guide");
+      $("#guide-title").textContent = step.title;
+      $("#guide-text").textContent = step.text;
+      $("#guide-count").textContent = `${i + 1} / ${steps().length}`;
+      $("#guide-next").textContent = i === steps().length - 1 ? "わかった" : "次へ";
+      $("#guide-layer").hidden = false;
+      card.hidden = false;
+      // カードは、抜いた場所の下に入れば下、上に入れば上、どちらも無理なら（地図など大きい場所）その中の下の方に出す
+      const h = card.offsetHeight + 12;
+      const top = !els.length ? (innerHeight - h) / 2
+        : r.bottom + h < innerHeight ? r.bottom + 12
+        : r.top - h > 0 ? r.top - h
+        : r.bottom - h - 4;
+      card.style.top = `${top}px`;
+      $("#guide-next").focus();
+    }
+
+    function endGuide() {
+      $("#guide-layer").hidden = true;
+      $("#guide").hidden = true;
+      state.seen = [...new Set([...(state.seen ?? []), state.pos.s])]; // 送る内容（answer）には入らない
+      save();
+    }
+
+    $("#guide-next").addEventListener("click", () => (guideStep < steps().length - 1 ? showGuide(guideStep + 1) : endGuide()));
+    $("#guide-skip").addEventListener("click", endGuide);
+    $("#help").addEventListener("click", startGuide);
+    addEventListener("resize", () => { if (!$("#guide").hidden) showGuide(guideStep); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#guide").hidden) endGuide(); });
 
     if (!S[state.pos.s] || (state.pos.d != null && !day())) state.pos = { s: "intro" }; // 壊れた保存は最初から
     show();

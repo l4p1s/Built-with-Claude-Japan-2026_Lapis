@@ -23,7 +23,18 @@ async function open(browser, opts = {}) {
 }
 
 const title = (page) => page.locator("#qt").textContent();
-const next = (page) => page.locator("#next").click();
+// 初めて出る画面では紹介が出るので、最後まで進めて閉じる。紹介した画面の数を数える
+let guided = 0;
+async function dismiss(page) {
+  await page.waitForTimeout(50);
+  if (await page.locator("#guide").isVisible()) guided++;
+  while (await page.locator("#guide").isVisible()) await page.locator("#guide-next").click();
+}
+async function press(page, sel) {
+  await page.locator(sel).click();
+  await dismiss(page);
+}
+const next = (page) => press(page, "#next");
 const needs = (page) => page.locator("main > section:not([hidden]) .field--need").evaluateAll((els) => els.map((e) => e.dataset.need));
 
 // 地図をタップして真ん中のピンをそこへ動かし、「ここに行った」を押す
@@ -69,6 +80,21 @@ async function fillPlace(page, { type, usual, from, dur, to }) {
     { geometry: { coordinates: [130.6016, 32.5072] }, properties: { title: "熊本県八代市松江城町" } },
   ] }));
 
+  // 0. 開いてすぐ、画面の紹介が順に出る。? で見直せて、とばせる
+  await page.locator("#guide").waitFor();
+  assert.equal(await page.locator("#guide-count").textContent(), "1 / 4");
+  for (let i = 1; i <= 4; i++) {
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: `${SHOTS}/00-guide-${i}.png` });
+    await page.locator("#guide-next").click();
+  }
+  assert.equal(await page.locator("#guide").isHidden(), true);
+  await page.locator("#help").click();
+  await page.locator("#guide").waitFor();
+  await page.locator("#guide-skip").click();
+  assert.equal(await page.locator("#guide").isHidden(), true);
+  ok("0 開いてすぐ紹介が4段で進む。? で見直せて、とばせる");
+
   // 1. はじめに（呼び名がないと進めない）
   assert.equal(await page.locator("#back").isHidden(), true);
   await page.screenshot({ path: `${SHOTS}/01-intro.png` });
@@ -88,6 +114,7 @@ async function fillPlace(page, { type, usual, from, dur, to }) {
   await page.locator("#results button").first().waitFor();
   assert.equal(await page.locator("#results button").count(), 2);
   await page.screenshot({ path: `${SHOTS}/02-search.png` });
+  assert.equal(guided, 1); // 家の画面の紹介
   await page.locator("#results button").first().click();
   await page.waitForTimeout(2500);
   await page.screenshot({ path: `${SHOTS}/02-home.png` });
@@ -142,7 +169,7 @@ async function fillPlace(page, { type, usual, from, dur, to }) {
   await page.screenshot({ path: `${SHOTS}/03-time.png` });
   await next(page);
 
-  await page.locator("#go-home").click();
+  await press(page, "#go-home");
   assert.equal(await title(page), "何時ごろ家に帰りましたか？");
   await setHM(page, "10:15");
   await next(page);
@@ -154,18 +181,19 @@ async function fillPlace(page, { type, usual, from, dur, to }) {
   assert.equal(await page.locator("#list .row").count(), 4);
   assert.equal(await page.locator(".pt").count(), 4);
   await page.screenshot({ path: `${SHOTS}/04-review.png` });
-  await page.locator("#list .row").nth(1).click(); // 店を直す → 種類 → 時刻 → 見直しに戻る
+  await page.locator("#list .row").nth(1).click();
+  await dismiss(page); // 店を直す → 種類 → 時刻 → 見直しに戻る
   assert.equal(await title(page), "そこは何ですか？");
   await next(page);
   await page.locator("#f-dur button", { hasText: "それ以上" }).click();
   await setTime(page, "#f-to-h", "#f-to-m", "08:45");
   await next(page);
   assert.equal(await title(page), "この日の動きを確かめてください");
-  await page.locator("#back").click();
+  await press(page, "#back");
   assert.equal(await title(page), "何時ごろ家に帰りましたか？");
-  await page.locator("#back").click();
+  await press(page, "#back");
   assert.equal(await title(page), "次に行った場所はどこですか？"); // 家に帰った、の手前
-  await page.locator("#go-home").click(); // 帰った時刻は残っている
+  await press(page, "#go-home"); // 帰った時刻は残っている
   assert.equal(await page.locator("#h-h").inputValue(), "10");
   await next(page);
   ok("4 見直し: 帯と一覧が出て、押すと直せ、戻るで1問ずつ戻れる");
@@ -188,16 +216,17 @@ async function fillPlace(page, { type, usual, from, dur, to }) {
   await setTime(page, "#f-to-h", "#f-to-m", "06:00");
   assert.match(await page.locator("#f-note").textContent(), /翌日の 06:00/);
   await next(page);
-  await page.locator("#end-day").click(); // 家に帰らず、この日はここまで
+  await press(page, "#end-day"); // 家に帰らず、この日はここまで
   assert.equal(await title(page), "この日の動きを確かめてください");
   assert.equal(await page.locator("#list .row").count(), 3);
   assert.equal(await page.locator(".row--need").count(), 0);
   await next(page);
+  assert.equal(guided, 9); // 画面の種類ごとに1回だけ（家・日付・家を出た・場所・種類・時刻・帰った・見直し・ほかの日）。2日目は出ない
   ok("5 地震の後の日: 家に帰らない日（車中泊で翌朝まで）も書ける");
 
   // 6. ほかの日 → 送る
   assert.equal(await title(page), "ほかの日も書きますか？");
-  await page.locator("#more-no").click();
+  await press(page, "#more-no");
   assert.equal(await title(page), "送る");
   const json = await page.locator("#json").inputValue();
   const a = JSON.parse(json);
@@ -228,17 +257,17 @@ async function fillPlace(page, { type, usual, from, dur, to }) {
   ok(`6 送る内容が設計の形で、家が小数3桁、コピーできる（${json.length}文字）`);
 
   // 7. 日を足す・開き直すと続きから・消去
-  await page.locator("#back").click();
-  await page.locator("#more-yes").click();
+  await press(page, "#back");
+  await press(page, "#more-yes");
   assert.equal(await title(page), "地震の後の日は、何月何日ですか？");
   assert.equal(await page.locator("#del-day").isVisible(), true);
   await page.reload();
   await page.locator("#map canvas").waitFor({ state: "attached" });
   assert.equal(await title(page), "地震の後の日は、何月何日ですか？");
-  await page.locator("#del-day").click();
+  await press(page, "#del-day");
   assert.equal(await title(page), "この日の動きを確かめてください");
   await next(page);
-  await page.locator("#more-no").click();
+  await press(page, "#more-no");
   await page.locator("#clear").click();
   await page.waitForLoadState("load");
   await page.locator("#name").waitFor();
@@ -248,6 +277,7 @@ async function fillPlace(page, { type, usual, from, dur, to }) {
 
   // 360px 幅・ダークモードの見た目（目で確かめる用）
   const dark = await open(browser, { colorScheme: "dark", viewport: { width: 360, height: 740 } });
+  await dismiss(dark.page);
   await dark.page.locator("#name").fill("夜");
   await next(dark.page);
   await dark.page.waitForTimeout(1500);
