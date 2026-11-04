@@ -53,7 +53,16 @@ async function nudgeMap(page) {
   await A.page.waitForFunction(() => [...document.querySelectorAll("#dock-kinds button")].every((b) => !b.disabled));
   await A.page.waitForTimeout(3000); // タイルと地名の読み込み
   await A.page.screenshot({ path: `${SHOTS}/02-map.png` });
-  ok("2 現在地の点が出て、知らせるボタンが押せる（地名は 02-map.png で目視）");
+  assert.equal(await A.page.locator("#replay").isVisible(), false);
+  ok("2 現在地の点が出て、知らせるボタンが押せる。デモの再生バーは出ない（地名は 02-map.png で目視）");
+
+  // 現在地ボタン: 地図をずらしてから押すと、現在地が画面の真ん中に戻る
+  await nudgeMap(A.page);
+  await A.page.locator("#locate").click();
+  await A.page.waitForTimeout(1000);
+  const me = await A.page.locator(".me").boundingBox();
+  assert.ok(Math.abs(me.x + me.width / 2 - 195) < 3 && Math.abs(me.y + me.height / 2 - 422) < 3, JSON.stringify(me));
+  ok("15 現在地ボタンで現在地が真ん中に戻る");
 
   // 5 → 3. 報告（URL は弾かれ、正しい備考なら送れる）
   await A.page.locator("#dock-kinds .kind[data-kind=water]").click();
@@ -75,15 +84,19 @@ async function nudgeMap(page) {
   await A.page.screenshot({ path: `${SHOTS}/04-pending-pin.png` });
   ok("3 給水を報告するとオレンジの「水?」のピンが立つ");
 
-  // 4. ピンの詳細
+  // 4. ピンの詳細（地図を暗くしないシート。押したピンが大きくなる）
   await pending.click();
   const detail = await A.page.locator("#detail").innerText();
   assert.match(detail, /給水（未確認）/);
+  assert.match(detail, /ここから \d+m/);
   assert.match(detail, /回答: 給水 1人/);
   assert.match(detail, /12時まで/);
+  assert.equal(await A.page.locator("#detail").evaluate((d) => d.matches(":modal")), false);
+  assert.equal(await A.page.locator(`.pin--selected[data-candidate-id="${cid}"]`).count(), 1);
   await A.page.waitForTimeout(400); await A.page.screenshot({ path: `${SHOTS}/05-detail.png` });
   await A.page.locator("#detail [data-close]").click();
-  ok("4 ピンの詳細に種類・回答数・備考が出る");
+  await A.page.waitForFunction(() => !document.querySelector(".pin--selected")); // close イベントは後から届く
+  ok("4 ピンの詳細に種類・距離・回答数・備考が出て、地図は暗くならず、押したピンが大きくなる");
 
   // 6. 別のセッションに通知 → 回答 → 紺のピン
   const B = await open(browser);

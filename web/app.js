@@ -44,6 +44,11 @@ const MAP_STYLE = {
   light: "https://tiles.openfreemap.org/styles/positron",
   dark: "https://tiles.openfreemap.org/styles/dark",
 };
+// 水を青、緑地を緑にして見分けやすくする（道路は白のまま。黄色い道路は未確認のオレンジのピンとまぎれる）
+const MAP_TINT = {
+  light: { water: ["fill-color", "#aad3df"], waterway: ["line-color", "#aad3df"], park: ["fill-color", "#d4e9cd"], landcover_wood: ["fill-color", "#dcebd5"] },
+  dark: { water: ["fill-color", "#17283a"], waterway: ["line-color", "#17283a"], landuse_park: ["fill-color", "#1a2a20"] },
+};
 const SEND_EVERY_MS = 60_000; // 位置を送り、質問と地図を更新する間隔
 const RECORD_EVERY_MS = 30_000; // 位置を記録する間隔
 const MAX_BUFFER = 1000; // 送れないときに端末にためる位置の上限（API の1回の上限と同じ）
@@ -62,6 +67,7 @@ let markers = [];
 let spotsSeq = 0; // 後から出した地図の更新を優先する
 let filter = "all";
 let reportKind = null;
+let selected = null; // 詳細を開いているピン（pinKey）
 const dismissed = new Set(); // 閉じた質問の候補 ID。開き直すまで聞かない
 
 // ---- セッションと API ----
@@ -171,6 +177,7 @@ function start() {
 }
 
 if (DEMO) {
+  $("#locate").hidden = true; // 地図の中心が自分の位置
   $("#demo-note").hidden = false;
   $("#consent-demo").hidden = false;
   $("#consent-ok").textContent = "デモを始める";
@@ -182,12 +189,24 @@ if (DEMO) {
 // ---- 地図とピン ----
 
 const darkMode = matchMedia("(prefers-color-scheme: dark)");
-const mapStyle = () => MAP_STYLE[darkMode.matches ? "dark" : "light"];
+const theme = () => (darkMode.matches ? "dark" : "light");
 
-const map = new maplibregl.Map({ container: "map", style: mapStyle(), ...START });
-darkMode.addEventListener("change", () => map.setStyle(mapStyle()));
+const map = new maplibregl.Map({ container: "map", style: MAP_STYLE[theme()], ...START, attributionControl: false });
+map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
+darkMode.addEventListener("change", () => map.setStyle(MAP_STYLE[theme()]));
 map.on("style.load", useJapaneseLabels);
+map.on("style.load", tintMap);
 map.on("moveend", refreshSpots);
+// 地図を押すと詳細を閉じる（ピンを押したときは閉じない）
+map.on("click", (e) => {
+  if (!e.originalEvent.target.closest(".pin")) $("#detail").close();
+});
+
+function tintMap() {
+  for (const [id, [prop, color]] of Object.entries(MAP_TINT[theme()])) {
+    if (map.getLayer(id)) map.setPaintProperty(id, prop, color);
+  }
+}
 
 // OpenFreeMap の地名は「ローマ字＋日本語」の2段なので、日本語だけにする
 function useJapaneseLabels() {
@@ -247,10 +266,14 @@ function pinTitle(p) {
   return `${kind}（${p.status === "confirmed" ? "確認済み" : "未確認"}）`;
 }
 
+const pinKind = (p) => (p.source === "official" ? "official" : p.status);
+const pinKey = (p) => String(p.candidate_id ?? p.official_id ?? p.name);
+
 function pinElement(feature) {
   const p = feature.properties;
-  const kind = p.source === "official" ? "official" : p.status;
-  const el = button("", () => openDetail(feature), `pin pin--${kind}`);
+  const el = button("", () => openDetail(feature), `pin pin--${pinKind(p)}`);
+  el.dataset.key = pinKey(p);
+  if (el.dataset.key === selected) el.classList.add("pin--selected");
   if (p.faded) el.classList.add("pin--faded");
   if (p.fresh) el.classList.add("pin--new"); // 出たばかり（デモ）
   if (p.candidate_id) el.dataset.candidateId = p.candidate_id;
@@ -275,9 +298,18 @@ for (const chip of document.querySelectorAll(".chip")) {
 
 // ---- ピンの詳細 ----
 
+function selectPin(key) {
+  selected = key;
+  for (const el of document.querySelectorAll(".pin")) el.classList.toggle("pin--selected", el.dataset.key === key);
+}
+
 function openDetail(feature) {
   const p = feature.properties;
+  selectPin(pinKey(p));
+  $("#detail-tag").className = `tag tag--${pinKind(p)}`;
+  $("#detail-tag").textContent = pinLabel(p);
   $("#detail-title").textContent = pinTitle(p);
+  $("#detail-distance").textContent = distanceText(feature);
   $("#detail-error").textContent = "";
   const body = $("#detail-body");
   body.replaceChildren();
@@ -307,7 +339,19 @@ function openDetail(feature) {
     }
     for (const n of p.notes) body.append(noteRow(n));
   }
-  $("#detail").showModal();
+  $("#detail").show(); // モーダルにしない: 地図を見たまま、ほかのピンも押せる
+}
+
+$("#detail").addEventListener("close", () => selectPin(null));
+addEventListener("keydown", (e) => {
+  if (e.key === "Escape") $("#detail").close(); // モーダルでないシートは Esc で閉じないので
+});
+
+function distanceText(feature) {
+  if (!here) return "";
+  const [lon, lat] = feature.geometry.coordinates;
+  const m = distanceM(here, { lat, lon });
+  return `ここから ${m < 1000 ? `${Math.max(10, Math.round(m / 10) * 10)}m` : `${(m / 1000).toFixed(1)}km`}`;
 }
 
 function noteRow(n) {
@@ -364,6 +408,7 @@ function startTracking() {
 function placeMe(lat, lon) {
   here = { lat, lon };
   setLocationState("on");
+  $("#locate").disabled = false;
   if (meMarker) {
     meMarker.setLngLat([lon, lat]);
   } else {
@@ -461,7 +506,7 @@ function demoQuestions() {
 }
 
 function distanceM(p, q) {
-  return Math.hypot((p.lat - q.lat) * 110574, (p.lon - q.lon) * 93900);
+  return Math.hypot((p.lat - q.lat) * 110574, (p.lon - q.lon) * 111320 * Math.cos((p.lat * Math.PI) / 180));
 }
 
 function render() {
@@ -612,6 +657,8 @@ $("#report-form").addEventListener("submit", async (e) => {
   }
 });
 
+$("#locate").addEventListener("click", () => map.easeTo({ center: [here.lon, here.lat] }));
+
 // ---- メニュー ----
 
 $("#menu-btn").addEventListener("click", () => $("#menu").showModal());
@@ -694,6 +741,29 @@ for (const d of document.querySelectorAll("dialog.sheet")) {
 }
 for (const b of document.querySelectorAll("[data-close]")) {
   b.addEventListener("click", () => b.closest("dialog").close());
+}
+// つまみを下に引くと閉じる
+for (const g of document.querySelectorAll(".grabber")) {
+  const sheet = g.closest("dialog");
+  let y0 = null;
+  const end = (e) => {
+    if (y0 === null) return;
+    const pulled = e.clientY - y0 > 80;
+    y0 = null;
+    if (pulled) sheet.close();
+    sheet.style.transform = "";
+    sheet.classList.remove("dragging");
+  };
+  g.addEventListener("pointerdown", (e) => {
+    y0 = e.clientY;
+    g.setPointerCapture(e.pointerId);
+    sheet.classList.add("dragging");
+  });
+  g.addEventListener("pointermove", (e) => {
+    if (y0 !== null) sheet.style.transform = `translateY(${Math.max(0, e.clientY - y0)}px)`;
+  });
+  g.addEventListener("pointerup", end);
+  g.addEventListener("pointercancel", end);
 }
 
 // ---- 起動 ----

@@ -19,9 +19,9 @@
   <header class="top">
     <div class="chips" role="group" aria-label="絞り込み">
       <button type="button" class="chip" data-filter="all" aria-pressed="true">すべて</button>
-      <button type="button" class="chip" data-filter="water" aria-pressed="false">水</button>
-      <button type="button" class="chip" data-filter="food" aria-pressed="false">食</button>
-      <button type="button" class="chip" data-filter="shelter" aria-pressed="false">避難</button>
+      <button type="button" class="chip" data-filter="water" aria-pressed="false"><span class="tag" aria-hidden="true">水</span>給水</button>
+      <button type="button" class="chip" data-filter="food" aria-pressed="false"><span class="tag" aria-hidden="true">食</span>食べ物</button>
+      <button type="button" class="chip" data-filter="shelter" aria-pressed="false"><span class="tag" aria-hidden="true">避</span>避難</button>
     </div>
     <button type="button" id="menu-btn" class="round" aria-label="メニュー"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
   </header>
@@ -36,6 +36,8 @@
     <div id="question-kinds"></div>
     <p id="question-error" class="error" role="alert"></p>
   </section>
+
+  <button type="button" id="locate" class="round fab" aria-label="現在地に戻る" disabled><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12h3M19 12h3M12 2v3M12 19v3"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></svg></button>
 
   <nav class="dock" aria-label="知らせる">
     <h2>ここにあるものを知らせる</h2>
@@ -68,16 +70,20 @@
     </div>
   </dialog>
 
+  <!-- ピンの詳細は地図を暗くしないシート（show() で開く）。つまみを下に引くか、地図を押すと閉じる -->
   <dialog id="detail" class="sheet">
+    <div class="grabber" aria-hidden="true"></div>
+    <button type="button" class="close" data-close aria-label="閉じる"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
     <div class="sheet-body">
-      <h2 id="detail-title"></h2>
+      <h2 class="detail__title"><span id="detail-tag" class="tag" aria-hidden="true"></span><span id="detail-title"></span></h2>
+      <p id="detail-distance" class="meta"></p>
       <div id="detail-body"></div>
       <p id="detail-error" class="error" role="alert"></p>
-      <div class="actions"><button type="button" class="btn" data-close>閉じる</button></div>
     </div>
   </dialog>
 
   <dialog id="report" class="sheet">
+    <div class="grabber" aria-hidden="true"></div>
     <form id="report-form" class="sheet-body">
       <h2>今いる場所にあるものは？</h2>
       <p class="hint">今いる場所が地図に載ります</p>
@@ -93,6 +99,7 @@
   </dialog>
 
   <dialog id="menu" class="sheet">
+    <div class="grabber" aria-hidden="true"></div>
     <div class="sheet-body">
       <h2>メニュー</h2>
       <details>
