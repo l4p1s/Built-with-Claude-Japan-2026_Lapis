@@ -162,8 +162,10 @@ async function fillPlace(page, { type, usual, from, dur, to }) {
   await page.locator('#f-usual [data-v="false"]').click();
   await page.locator(".more summary").click();
   await page.locator('#f-heard [data-v="neighbor"]').click();
+  assert.equal(await page.locator("#f-purpose").evaluate((e) => e.tagName), "TEXTAREA"); // 折り返して全部見える
   await page.locator("#f-purpose").fill("水をもらいに");
-  await page.locator("#f-purpose").blur();
+  // 欄から出なくても保存されている
+  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem("aid-survey-v1")).days[0].stays[2].purpose), "水をもらいに");
   await next(page);
   await page.locator("#f-from-m").selectOption("30");
   await page.locator("#f-dur button", { hasText: "30分" }).click();

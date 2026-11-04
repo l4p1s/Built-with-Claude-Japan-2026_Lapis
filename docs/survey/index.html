@@ -168,10 +168,12 @@
     section > .field:first-child { margin-top: 0; }
     label, .q { display: block; font-size: 16px; font-weight: 600; color: var(--fg); }
     .need { display: none; margin-left: 8px; font-style: normal; font-size: 15px; color: var(--danger); }
-    input, select {
+    input, select, textarea {
       display: block; width: 100%; min-height: 52px; margin-top: 8px; padding: 8px 12px;
       border-radius: 10px; border: 1.5px solid var(--input-line); background: var(--input); font-size: 17px;
     }
+    /* 文章は折り返して全部見えるようにし、書いた分だけ伸ばす（スマホで読み返して直しやすく） */
+    textarea { font: inherit; font-size: 17px; font-weight: 400; line-height: 1.6; resize: vertical; field-sizing: content; min-height: 5.5em; max-height: 14em; }
     .hm { display: flex; gap: 8px; }
     /* 選ぶものはプルダウンでなく、大きなボタンを並べる。選んだものは紺で塗って ✓ を付ける */
     .opts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
@@ -307,12 +309,12 @@
       <div class="field" data-need="type"><span class="q">種類<em class="need">未入力</em></span>
         <div class="opts" id="f-type" role="group" aria-label="種類"></div></div>
       <p id="home-note" class="note" hidden>帰ったあと出かけなかったら、次の画面の「このあとは出かけない」を押してください</p>
-      <label class="field" id="fd-detail" hidden>場所の名前・くわしく（任意）<input id="f-detail" maxlength="50"></label>
+      <label class="field" id="fd-detail" hidden>場所の名前・くわしく（任意）<textarea id="f-detail" maxlength="100" rows="2"></textarea></label>
       <div class="field" data-need="usual"><span class="q">ふだんも行く場所ですか？<em class="need">未入力</em></span>
         <div class="opts opts--2" id="f-usual" role="group" aria-label="ふだんも行く"></div></div>
       <details class="more">
         <summary>くわしく（任意）</summary>
-        <label class="field">何をしに行った？<input id="f-purpose" maxlength="50" placeholder="例: 水をもらいに"></label>
+        <label class="field">何をしに行った？<textarea id="f-purpose" maxlength="200" rows="3" placeholder="例: 水をもらいに"></textarea></label>
         <div class="field"><span class="q">どうやって知った？</span><div class="opts" id="f-heard" role="group" aria-label="知ったきっかけ"></div></div>
         <div class="field"><span class="q">そこまでの移動手段</span><div class="opts opts--2" id="f-mode" role="group" aria-label="移動手段"></div></div>
       </details>
@@ -506,7 +508,7 @@
           }
           [s.lat, s.lon] = [round(lat, 5), round(lng, 5)];
           // 検索で選んだ場所のまま決めたなら、その名前を「場所の名前」に入れておく
-          if (lastPick && map.getCenter().distanceTo(lastPick.at) < 30 && !s.detail) s.detail = lastPick.name.slice(0, 50);
+          if (lastPick && map.getCenter().distanceTo(lastPick.at) < 30 && !s.detail) s.detail = lastPick.name.slice(0, 100);
           return { s: "type", d: p.d, i: p.i, edit: p.edit };
         },
         prev: (p) => (p.edit ? review(p.d) : p.i <= 1 ? { s: "leave", d: p.d, i: 0 } : { s: "time", d: p.d, i: p.i - 1 }),
@@ -832,7 +834,8 @@
       paint();
     }
     for (const [id, key] of [["#f-detail", "detail"], ["#f-purpose", "purpose"]]) {
-      $(id).addEventListener("change", (e) => { stay()[key] = e.target.value || undefined; save(); });
+      // 1文字ごとに保存する（書いている途中で画面を閉じても消えない）
+      $(id).addEventListener("input", (e) => { stay()[key] = e.target.value.trim() ? e.target.value : undefined; save(); });
     }
     $("#del-stay").addEventListener("click", () => {
       if (!confirm("この場所を消しますか？")) return;
