@@ -306,6 +306,7 @@
     <section id="s-type" hidden>
       <div class="field" data-need="type"><span class="q">種類<em class="need">未入力</em></span>
         <div class="opts" id="f-type" role="group" aria-label="種類"></div></div>
+      <p id="home-note" class="note" hidden>帰ったあと出かけなかったら、次の画面の「このあとは出かけない」を押してください</p>
       <label class="field" id="fd-detail" hidden>場所の名前・くわしく（任意）<input id="f-detail" maxlength="50"></label>
       <div class="field" data-need="usual"><span class="q">ふだんも行く場所ですか？<em class="need">未入力</em></span>
         <div class="opts opts--2" id="f-usual" role="group" aria-label="ふだんも行く"></div></div>
@@ -523,6 +524,7 @@
           opts($("#f-type"), TYPE, s.type, (v) => setField("type", v));
           // 種類を選ぶと、そのすぐ下に場所の名前やくわしい内容の欄を出す（家は出さない）
           $("#fd-detail").hidden = !s.type || s.type === "home";
+          $("#home-note").hidden = s.type !== "home";
           $("#f-detail").placeholder = DETAIL_HINT[s.type] ?? "";
           opts($("#f-usual"), USUAL, s.usual == null ? null : String(s.usual), (v) => setField("usual", v === "true"));
           opts($("#f-heard"), HEARD, s.heard, (v) => setField("heard", v), true);
@@ -534,7 +536,9 @@
       },
       time: {
         sec: "#s-time", help: "大まかで大丈夫です",
-        title: () => (usual() ? "何時ごろ着いて、どのくらいいますか？" : "何時ごろ着いて、どのくらいいましたか？"),
+        title: () => (stay().type === "home"
+          ? (usual() ? "何時ごろ家に帰って、どのくらい家にいますか？" : "何時ごろ家に帰って、どのくらい家にいましたか？")
+          : usual() ? "何時ごろ着いて、どのくらいいますか？" : "何時ごろ着いて、どのくらいいましたか？"),
         enter: () => {
           moreOpen = false;
           pendingDur = null;
@@ -546,7 +550,9 @@
           const s = stay();
           return [!s.from && "from", !s.to && !pendingDur && "dur", !s.to && "to"].filter(Boolean);
         },
-        done: (p) => (p.edit ? review(p.d) : { s: "place", d: p.d, i: p.i + 1 }),
+        // 家に帰って「このあとは出かけない」なら、その日はここまで（家に帰った、と同じ）
+        done: (p) => (isEnd(stay(), p.i) ? (cutAfter(p.i + 1) ? review(p.d) : p)
+          : p.edit ? review(p.d) : { s: "place", d: p.d, i: p.i + 1 }),
         prev: (p) => ({ s: "type", d: p.d, i: p.i, edit: p.edit }),
       },
       back: {
@@ -866,14 +872,16 @@
     const DURATIONS = [[15, "15分"], [30, "30分"], [60, "1時間"], [120, "2時間"], [180, "3時間"]];
     const hm = (m) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
     const stayed = (s) => (s.from && s.to ? (minutes(s.to) - minutes(s.from) + 1440) % 1440 : null);
-    const endOf = (from, k) => hm(minutes(from) + Number(k));
+    const endOf = (from, k) => (k === "end" ? "00:00" : hm(minutes(from) + Number(k)));
     let moreOpen = false; // 「それ以上…」で出た時刻を直接選んでいる
     let pendingDur = null; // 着いた時刻より先に選んだ、いた長さ
 
     function paintTime() {
       const s = stay(), d = stayed(s);
-      const chip = DURATIONS.some(([m]) => m === d) ? String(d) : null;
-      $("#f-dur").replaceChildren(...[...DURATIONS.map(([m, label]) => [String(m), label]), ["more", "それ以上…"]].map(([k, label]) => {
+      const home = s.type === "home";
+      const chip = home && s.to === "00:00" ? "end" : DURATIONS.some(([m]) => m === d) ? String(d) : null;
+      const durs = [...DURATIONS.map(([m, label]) => [String(m), label]), ...(home ? [["end", "このあとは出かけない"]] : []), ["more", "それ以上…"]];
+      $("#f-dur").replaceChildren(...durs.map(([k, label]) => {
         const b = document.createElement("button");
         b.type = "button";
         b.textContent = label;
@@ -890,7 +898,8 @@
         if ($("#f-to-h").value !== h) $("#f-to-h").value = h;
         if ($("#f-to-m").value !== m) $("#f-to-m").value = m;
       }
-      $("#f-note").textContent = s.from && s.to && s.to < s.from ? `翌日の ${s.to} まで` : "";
+      $("#f-note").textContent = chip === "end" ? "その日の終わりまで家にいた"
+        : s.from && s.to && s.to < s.from ? `翌日の ${s.to} まで` : "";
       const prev = day().stays[state.pos.i - 1];
       const prevEnd = prev && span(prev)?.[1];
       $("#f-warn").textContent = prevEnd != null && s.from && minutes(s.from) < prevEnd
@@ -913,7 +922,7 @@
         const d = stayed(s); // 着いた時刻を直しても、いた長さは保つ
         s.from = pickTime("#f-from-h", "#f-from-m");
         if (s.from && pendingDur) { s.to = endOf(s.from, pendingDur); pendingDur = null; }
-        else if (s.from && d != null && !moreOpen) s.to = hm(minutes(s.from) + d);
+        else if (s.from && d != null && !moreOpen && !(s.type === "home" && s.to === "00:00")) s.to = hm(minutes(s.from) + d);
         save();
         paint();
       });
