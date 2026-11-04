@@ -57,7 +57,7 @@ async function fillPlace(page, { type, usual, from, dur, to }) {
   await page.locator(`#f-type [data-v="${type}"]`).click();
   await page.locator(`#f-usual [data-v="${usual}"]`).click();
   await next(page);
-  assert.equal(await title(page), "何時ごろ着いて、どのくらいいましたか？");
+  assert.match(await title(page), /^何時ごろ着いて、どのくらい/);
   await setTime(page, "#f-from-h", "#f-from-m", from);
   if (dur) await page.locator("#f-dur button", { hasText: dur }).click();
   if (to) {
@@ -110,6 +110,12 @@ async function fillPlace(page, { type, usual, from, dur, to }) {
   assert.equal(await page.locator("#go-home").isHidden(), true);
   const mapH = (await page.locator("#map").boundingBox()).height;
   assert.ok(mapH > 450, `地図の高さ ${mapH}`);
+  await page.locator("#layer").click(); // 航空写真に切り替えて、地図に戻す
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: `${SHOTS}/02-photo.png` });
+  assert.equal(await page.locator("#layer").textContent(), "地図");
+  await page.locator("#layer").click();
+  assert.equal(await page.locator("#layer").textContent(), "写真");
   await page.locator("#q").fill("ゆめタウン");
   await page.locator("#results button").first().waitFor();
   assert.equal(await page.locator("#results button").count(), 2);
@@ -119,20 +125,17 @@ async function fillPlace(page, { type, usual, from, dur, to }) {
   await page.waitForTimeout(2500);
   await page.screenshot({ path: `${SHOTS}/02-home.png` });
   await next(page);
-  ok(`2 家: 名前で探して真ん中のピンで決める（地図の高さ ${Math.round(mapH)}px）`);
+  ok(`2 家: 名前で探して真ん中のピンで決める。航空写真に切り替えられる（地図の高さ ${Math.round(mapH)}px）`);
 
-  // 3. 地震前の平日: 日付 → 家を出た → 2か所 → 家に帰った
-  assert.equal(await title(page), "地震前の平日は、何月何日ですか？");
+  // 3. いつもの平日（日付は聞かない）: 家を出た → 2か所 → 家に帰った
+  assert.equal(await title(page), "いつもの平日は、何時ごろ家を出ますか？");
+  assert.equal(await page.locator("#where").textContent(), "いつもの平日");
   await next(page);
-  assert.deepEqual(await needs(page), ["date"]);
-  await page.locator("#day-date").fill("2026-07-20");
-  await next(page);
-  assert.equal(await title(page), "その日、何時ごろ家を出ましたか？");
-  assert.equal(await page.locator("#where").textContent(), "地震前の平日 7/20");
+  assert.deepEqual(await needs(page), ["hm"]);
   await setHM(page, "07:45");
   await next(page);
 
-  assert.equal(await title(page), "最初に行った場所はどこですか？");
+  assert.equal(await title(page), "最初に行く場所はどこですか？");
   assert.equal(await page.locator("#next").textContent(), "ここに行った");
   assert.equal(await page.locator(".pt").count(), 1); // 家の点
   await placeAt(page, 80, -60);
@@ -150,7 +153,7 @@ async function fillPlace(page, { type, usual, from, dur, to }) {
   await page.screenshot({ path: `${SHOTS}/03-type.png` });
   await fillPlace(page, { type: "shop", usual: "true", from: "08:00", dur: "30分" });
 
-  assert.equal(await title(page), "次に行った場所はどこですか？");
+  assert.equal(await title(page), "次に行く場所はどこですか？");
   assert.equal(await page.locator(".pt").count(), 2);
   await page.screenshot({ path: `${SHOTS}/03-place.png` });
   await placeAt(page, -80, -50);
@@ -170,10 +173,10 @@ async function fillPlace(page, { type, usual, from, dur, to }) {
   await next(page);
 
   await press(page, "#go-home");
-  assert.equal(await title(page), "何時ごろ家に帰りましたか？");
+  assert.equal(await title(page), "何時ごろ家に帰りますか？");
   await setHM(page, "10:15");
   await next(page);
-  ok("3 地震前の平日: 日付 → 家を出た → 2か所（種類・時刻）→ 家に帰った");
+  ok("3 いつもの平日: 日付なしで、家を出た → 2か所（種類・時刻）→ 家に帰った");
 
   // 4. 見直し: 帯と一覧、押すと直せる。戻るで戻れる
   assert.equal(await title(page), "この日の動きを確かめてください");
@@ -182,7 +185,11 @@ async function fillPlace(page, { type, usual, from, dur, to }) {
   assert.equal(await page.locator(".pt").count(), 4);
   await page.screenshot({ path: `${SHOTS}/04-review.png` });
   await page.locator("#list .row").nth(1).click();
-  await dismiss(page); // 店を直す → 種類 → 時刻 → 見直しに戻る
+  await dismiss(page); // 店を直す → 場所 → 種類 → 時刻 → 見直しに戻る
+  assert.equal(await title(page), "この場所はどこですか？");
+  assert.equal(await page.locator("#next").textContent(), "ここに決める");
+  assert.equal(await page.locator("#go-home").isHidden(), true); // 直すときは「家に帰った」を出さない
+  await next(page);
   assert.equal(await title(page), "そこは何ですか？");
   await next(page);
   await page.locator("#f-dur button", { hasText: "それ以上" }).click();
@@ -190,31 +197,53 @@ async function fillPlace(page, { type, usual, from, dur, to }) {
   await next(page);
   assert.equal(await title(page), "この日の動きを確かめてください");
   await press(page, "#back");
-  assert.equal(await title(page), "何時ごろ家に帰りましたか？");
+  assert.equal(await title(page), "何時ごろ家に帰りますか？");
   await press(page, "#back");
-  assert.equal(await title(page), "次に行った場所はどこですか？"); // 家に帰った、の手前
+  assert.equal(await title(page), "次に行く場所はどこですか？"); // 家に帰った、の手前
   await press(page, "#go-home"); // 帰った時刻は残っている
   assert.equal(await page.locator("#h-h").inputValue(), "10");
   await next(page);
   ok("4 見直し: 帯と一覧が出て、押すと直せ、戻るで1問ずつ戻れる");
 
-  // 5. 地震前の休日・地震の日は家を出て帰っただけ。地震の後の日は家に帰らない日（車中泊）
-  for (const [label, date] of [["地震前の休日", "2026-07-19"], ["地震の日", "2026-07-27"]]) {
-    await next(page);
-    assert.equal(await title(page), `${label}は、何月何日ですか？`);
-    assert.equal(await page.locator("#del-day").isHidden(), true); // 最初の4日は消せない
-    await page.locator("#day-date").fill(date);
-    await next(page);
-    await setHM(page, "09:00");
-    await next(page);
-    await press(page, "#go-home");
-    await setHM(page, "11:00");
-    await next(page);
-  }
+  // 5. いつもの休日 → 地震の日（いつもの平日と同じ。写して1か所足す）→ 地震の後の日（違った。家に帰らない日）
+  await next(page);
+  assert.equal(await title(page), "いつもの休日は、何時ごろ家を出ますか？");
+  await setHM(page, "09:00");
+  await next(page);
+  await press(page, "#go-home");
+  await setHM(page, "11:00");
+  await next(page);
+
+  await next(page);
+  assert.equal(await title(page), "地震の日は、何月何日ですか？");
+  assert.equal(await page.locator("#del-day").isHidden(), true); // 最初の4日は消せない
+  await next(page);
+  assert.deepEqual(await needs(page), ["date"]);
+  await page.locator("#day-date").fill("2026-07-27");
+  await next(page);
+  assert.equal(await title(page), "この日の動きは、いつもと同じでしたか？");
+  await page.locator('[data-copy="0"]').click();
+  await dismiss(page);
+  assert.equal(await title(page), "この日の動きを確かめてください");
+  assert.equal(await page.locator("#list .row").count(), 4); // いつもの平日を写した
+  await press(page, "#add-place");
+  assert.equal(await title(page), "足す場所はどこですか？");
+  await placeAt(page, 40, 80);
+  await fillPlace(page, { type: "food", usual: "false", from: "07:00", dur: "30分" });
+  assert.equal(await title(page), "この日の動きを確かめてください");
+  assert.equal(await page.locator("#list .row").count(), 5);
+  assert.match(await page.locator("#list .row").nth(1).textContent(), /炊き出し/); // 着いた時刻の順に並ぶ
+  await page.screenshot({ path: `${SHOTS}/05-copied.png` });
+  await press(page, "#back");
+  assert.equal(await title(page), "この日の動きは、いつもと同じでしたか？"); // 写した日の戻るは、この問い
+  await page.locator('[data-copy="0"]').click(); // 戻ってきて同じ方を押しても、写し直さない
+  assert.equal(await page.locator("#list .row").count(), 5);
   await next(page);
   assert.equal(await title(page), "地震の後の日は、何月何日ですか？");
   await page.locator("#day-date").fill("2026-07-29");
   await next(page);
+  await press(page, "#same-no");
+  assert.equal(await title(page), "その日、何時ごろ家を出ましたか？");
   await setHM(page, "08:00");
   await next(page);
   await placeAt(page, 60, -60);
@@ -233,8 +262,8 @@ async function fillPlace(page, { type, usual, from, dur, to }) {
   assert.equal(await page.locator("#list .row").count(), 3);
   assert.equal(await page.locator(".row--need").count(), 0);
   await next(page);
-  assert.equal(guided, 9); // 画面の種類ごとに1回だけ（家・日付・家を出た・場所・種類・時刻・帰った・見直し・ほかの日）。2日目は出ない
-  ok("5 地震前の休日・地震の日・地震の後の日。家に帰らない日（車中泊で翌朝まで）も書ける");
+  assert.equal(guided, 10); // 画面の種類ごとに1回だけ（家・家を出た・場所・種類・時刻・帰った・見直し・日付・同じ？・ほかの日）
+  ok("5 いつもの休日。地震の日はいつもの平日を写して1か所足す。地震の後の日は家に帰らない日（車中泊）");
 
   // 6. ほかの日 → 送信（送り先の Apps Script は差し替える。1回目は失敗、2回目は成功）
   assert.equal(await title(page), "ほかの日も書きますか？");
@@ -259,7 +288,11 @@ async function fillPlace(page, { type, usual, from, dur, to }) {
   assert.match(a.cid, /^[0-9a-f-]{36}$/); // 送り直しで上書きするための端末の番号
   assert.equal(a.name, "テスト");
   assert.deepEqual(a.home, [32.506, 130.586]); // 検索で動かした真ん中のピンの位置（約100mに丸め）
-  assert.deepEqual(a.days.map((d) => d.label), ["地震前の平日", "地震前の休日", "地震の日", "地震の後の日"]);
+  assert.deepEqual(a.days.map((d) => d.label), ["いつもの平日", "いつもの休日", "地震の日", "地震の後の日"]);
+  assert.deepEqual(a.days.map((d) => d.date), [null, null, "2026-07-27", "2026-07-29"]);
+  assert.equal(a.days[2].copied_from, "いつもの平日");
+  assert.deepEqual(a.days[2].stays.map((s) => s.type), ["home", "food", "shop", "water", "home"]);
+  assert.equal(a.days[3].copied_from, undefined);
   const [h, shop, water, back] = a.days[0].stays;
   assert.deepEqual([h.type, shop.type, water.type, back.type], ["home", "shop", "water", "home"]);
   assert.deepEqual([h.lat, h.lon], a.home);

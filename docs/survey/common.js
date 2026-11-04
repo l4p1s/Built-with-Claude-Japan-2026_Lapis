@@ -4,22 +4,24 @@
 export const ENDPOINT = "https://script.google.com/macros/s/AKfycbzUitSKkbpA2hOK7SUtZX3DGqB3FGGCPv2DK5_BRs182hzvylbc59iBOIIuf8vJ0mdz/exec";
 
 export const START = { center: [130.6016, 32.5072], zoom: 13 }; // 八代市役所
-const MAP_STYLE = {
-  light: "https://tiles.openfreemap.org/styles/positron",
-  dark: "https://tiles.openfreemap.org/styles/dark",
-};
-export const darkMode = matchMedia("(prefers-color-scheme: dark)");
-export const mapStyle = () => MAP_STYLE[darkMode.matches ? "dark" : "light"];
-
-// OpenFreeMap の地名は「ローマ字＋日本語」の2段なので、日本語だけにする（本体と同じ）
-export function jaLabels(map) {
-  for (const layer of map.getStyle().layers) {
-    const field = layer.layout?.["text-field"];
-    if (field && JSON.stringify(field).includes('"name')) {
-      map.setLayoutProperty(layer.id, "text-field", ["coalesce", ["get", "name:ja"], ["get", "name"]]);
-    }
-  }
+// 地図は国土地理院の標準地図（学校・病院・神社・町名などの目印が載る）と、航空写真（家の屋根で見つけやすい）。
+// どちらも明るい地図だけなので、ダークモードでも地図は明るいまま
+const GSI = { map: ["std", "png"], photo: ["seamlessphoto", "jpg"] };
+export function gsiStyle(kind = "map") {
+  const [id, ext] = GSI[kind];
+  return {
+    version: 8,
+    sources: {
+      gsi: {
+        type: "raster", tileSize: 256, maxzoom: 18,
+        tiles: [`https://cyberjapandata.gsi.go.jp/xyz/${id}/{z}/{x}/{y}.${ext}`],
+        attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>',
+      },
+    },
+    layers: [{ id: "gsi", type: "raster", source: "gsi" }],
+  };
 }
+export const ROUTE_COLOR = "#1e3a5f"; // 地図はいつも明るいので、線は濃い紺
 
 // キーは本体の app/rules.py の Kind と重なるものは同じ名前
 export const TYPE = {

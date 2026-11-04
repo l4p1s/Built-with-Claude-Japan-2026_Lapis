@@ -161,7 +161,7 @@
 
   <script type="module">
     import * as maplibregl from "https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.mjs";
-    import { ENDPOINT, START, darkMode, mapStyle, jaLabels, TYPE, HEARD, MODE, clock, span } from "./common.js";
+    import { ENDPOINT, START, gsiStyle, ROUTE_COLOR, TYPE, HEARD, MODE, clock, span } from "./common.js";
 
     const $ = (s) => document.querySelector(s);
     const KEY = "aid-survey-view-key"; // 合言葉は、このタブを閉じるまでだけ覚える
@@ -211,15 +211,13 @@
     });
 
     function makeMap() {
-      const m = new maplibregl.Map({ container: "map", style: mapStyle(), attributionControl: { compact: true }, ...START });
-      darkMode.addEventListener("change", () => m.setStyle(mapStyle()));
+      const m = new maplibregl.Map({ container: "map", style: gsiStyle(), maxZoom: 19, attributionControl: { compact: true }, ...START });
       m.on("style.load", () => {
-        jaLabels(m);
         m.addSource("route", { type: "geojson", data: routeData() });
         m.addLayer({
           id: "route", type: "line", source: "route",
           paint: {
-            "line-color": getComputedStyle(document.documentElement).getPropertyValue("--fg-2").trim(),
+            "line-color": ROUTE_COLOR,
             "line-width": 3, "line-dasharray": [2, 1],
           },
         });
@@ -251,7 +249,7 @@
       const days = answers[who].answer.days;
       dayIdx = Math.min(dayIdx, days.length - 1);
       $("#tabs").replaceChildren(...days.map((d, i) => {
-        const b = el("button", { type: "button", className: "tab", textContent: `${d.label} ${mmdd(d.date)}` });
+        const b = el("button", { type: "button", className: "tab", textContent: d.label + (d.date ? ` ${mmdd(d.date)}` : "") + (d.copied_from ? "（写した）" : "") });
         b.setAttribute("aria-pressed", String(i === dayIdx));
         b.addEventListener("click", () => { dayIdx = i; renderDay(); });
         return b;

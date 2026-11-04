@@ -131,6 +131,11 @@
       font-size: 16px; font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
     }
     .pt--need { border-color: var(--danger); box-shadow: 0 0 0 3px var(--need-bg), 0 1px 3px rgb(0 0 0 / 0.3); }
+    .layer-btn {
+      position: absolute; z-index: 2; right: 12px; bottom: 44px; min-height: 44px; padding: 0 14px;
+      border-radius: 22px; box-shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 4px 12px rgb(0 0 0 / 0.1);
+    }
+    .add-btn { width: 100%; margin-top: 12px; }
     .map-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; padding: 12px 16px 4px; }
 
     /* 見直し: 1日の帯と、場所の一覧 */
@@ -253,7 +258,7 @@
     <p id="qh" class="help"></p>
 
     <section id="s-intro" hidden>
-      <p>災害のときに、水や食べ物がもらえる場所を見つける仕組みを考えています。そのために、地震の前の平日と休日、地震の日、地震の後の日の、4日分の動きを集めています。</p>
+      <p>災害のときに、水や食べ物がもらえる場所を見つける仕組みを考えています。そのために、いつもの平日と休日、地震の日、地震の後の日の動きを集めています。</p>
       <ul>
         <li>1問ずつ聞いていきます。思い出せる範囲で、大まかで大丈夫です</li>
         <li>書き終わったら、最後の画面で「送信する」を押してください。回答は、発案者だけが見られる場所に集めます</li>
@@ -274,6 +279,7 @@
         <div id="center-pin" class="center-pin" aria-hidden="true">
           <svg viewBox="0 0 36 48"><path d="M18 46S3 28 3 17a15 15 0 0 1 30 0c0 11-15 29-15 29z"/><circle cx="18" cy="17" r="5.5"/></svg>
         </div>
+        <button type="button" id="layer" class="btn layer-btn" aria-label="航空写真に切り替える">写真</button>
       </div>
       <div class="map-acts">
         <button type="button" id="go-home" class="btn">家に帰った</button>
@@ -283,6 +289,7 @@
         <div class="ticks" aria-hidden="true"><span>0</span><span>6</span><span>12</span><span>18</span><span>24時</span></div>
         <div id="band" class="band" aria-label="1日の帯"></div>
         <ol id="list" class="list"></ol>
+        <button type="button" id="add-place" class="btn add-btn">場所を足す</button>
       </div>
     </section>
 
@@ -322,6 +329,14 @@
       <p id="f-warn" class="warn"></p>
     </section>
 
+    <section id="s-same" hidden>
+      <div class="choices">
+        <button type="button" class="btn wide" data-copy="0">いつもの平日と同じ</button>
+        <button type="button" class="btn wide" data-copy="1">いつもの休日と同じ</button>
+        <button type="button" id="same-no" class="btn btn--primary wide">違った</button>
+      </div>
+    </section>
+
     <section id="s-more" hidden>
       <div class="choices">
         <button type="button" id="more-yes" class="btn wide">はい、もう1日書く</button>
@@ -345,7 +360,7 @@
 
   <script type="module">
     import * as maplibregl from "https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.mjs";
-    import { ENDPOINT, START, darkMode, mapStyle, jaLabels, TYPE, HEARD, MODE, minutes, clock, span } from "./common.js";
+    import { ENDPOINT, START, gsiStyle, ROUTE_COLOR, TYPE, HEARD, MODE, minutes, clock, span } from "./common.js";
 
     const KEY = "aid-survey-v1";
     const USUAL = { true: "はい", false: "いいえ" };
@@ -356,8 +371,6 @@
     };
 
     const DATE_HELP = {
-      地震前の平日: "地震の前の、いつもどおりの平日を1日選んでください。いつでも大丈夫です",
-      地震前の休日: "地震の前の、いつもどおりの休日を1日選んでください。いつでも大丈夫です",
       地震の日: "地震が起きた日を選んでください",
       地震の後の日: "地震の後で、給水や炊き出しに行った日があれば、その日を選んでください",
     };
@@ -367,18 +380,22 @@
     const incomplete = (s) => !s.from || !s.to || !s.type || s.usual == null;
     // 「家に帰った」で足した、その日の最後の家（出た時刻は 24時）
     const isEnd = (s, i) => i > 0 && s.type === "home" && s.to === "00:00";
+    // いつもの平日・休日は、特定の日でなく「いつもの動き」を聞く（日付は聞かない）
+    const isUsual = (d) => d.label.startsWith("いつもの");
 
     let state = load() ?? {
       v: 1, name: "", home: null,
       days: [
-        { label: "地震前の平日", date: null, stays: [] },
-        { label: "地震前の休日", date: null, stays: [] },
+        { label: "いつもの平日", date: null, stays: [] },
+        { label: "いつもの休日", date: null, stays: [] },
         { label: "地震の日", date: null, stays: [] },
         { label: "地震の後の日", date: null, stays: [] },
       ],
     };
     // いまの画面 { s: 画面, d: 何日目, i: 何番目の場所, edit: 見直しから直している }。開き直すとここから
     state.pos ??= { s: "intro" };
+    // 前の版の名前（地震前の平日・休日）は、いつもの平日・休日に読み替える
+    for (const d of state.days) d.label = { 地震前の平日: "いつもの平日", 地震前の休日: "いつもの休日" }[d.label] ?? d.label;
     state.cid ??= crypto.randomUUID(); // 送り直したときに、前の回答に上書きするための端末の番号
     let tried = false; // この画面で「次へ」を押した（未入力を赤で知らせる）
     let markers = [];
@@ -411,8 +428,16 @@
     const review = (d) => ({ s: "review", d });
     const editPos = (d, i) => {
       const s = state.days[d].stays[i];
-      return { s: i === 0 ? "leave" : isEnd(s, i) ? "back" : "type", d, i, edit: true };
+      return { s: i === 0 ? "leave" : isEnd(s, i) ? "back" : "place", d, i, edit: true };
     };
+    // その日のはじめの画面。いつもの日は家を出た時刻から、それ以外は日付から
+    function startDay(d) {
+      const dd = state.days[d];
+      if (!isUsual(dd)) return { s: "date", d };
+      if (!dd.stays.length) dd.stays.push(homeStay("00:00", "")); // 1日は家から始まる
+      return { s: "leave", d, i: 0 };
+    }
+    const usual = () => isUsual(day());
 
     const S = {
       intro: {
@@ -428,7 +453,7 @@
         done: () => {
           const { lat, lng } = map.getCenter();
           setHome(lat, lng);
-          return { s: "date", d: 0 };
+          return startDay(0);
         },
         prev: () => ({ s: "intro" }),
       },
@@ -439,20 +464,30 @@
         missing: () => (day().date ? [] : ["date"]),
         done: (p) => {
           if (!day().stays.length) day().stays.push(homeStay("00:00", "")); // 1日は家から始まる
-          return { s: "leave", d: p.d, i: 0 };
+          return { s: "same", d: p.d };
         },
-        prev: (p) => (p.d === 0 ? { s: "home" } : review(p.d - 1)),
+        prev: (p) => review(p.d - 1),
+      },
+      // 被災していなければ、いつもと同じ動きのことが多い。同じなら写して、違うところだけ直す
+      same: {
+        sec: "#s-same", title: "この日の動きは、いつもと同じでしたか？",
+        help: "同じなら、いつもの日の動きを写します。違ったところだけ、あとで直せます",
+        prev: (p) => ({ s: "date", d: p.d }),
       },
       leave: {
-        sec: "#s-hm", hm: "to", title: "その日、何時ごろ家を出ましたか？", help: "大まかで大丈夫です",
+        sec: "#s-hm", hm: "to",
+        title: () => (usual() ? `${day().label}は、何時ごろ家を出ますか？` : "その日、何時ごろ家を出ましたか？"),
+        help: () => (usual() ? "日によって違うときは、いちばん多いときで大丈夫です" : "大まかで大丈夫です"),
         enter: () => setHM(stay().to),
         missing: () => (stay().to ? [] : ["hm"]),
         done: (p) => (p.edit ? review(p.d) : { s: "place", d: p.d, i: 1 }),
-        prev: (p) => (p.edit ? review(p.d) : { s: "date", d: p.d }),
+        prev: (p) => (p.edit ? review(p.d) : !usual() ? { s: "same", d: p.d } : p.d === 0 ? { s: "home" } : review(p.d - 1)),
       },
       place: {
         sec: "#s-map", map: "place", next: "ここに行った",
-        title: (p) => (p.i === 1 ? "最初に行った場所はどこですか？" : "次に行った場所はどこですか？"),
+        title: (p) => (p.edit ? (stay() && !isEnd(stay(), p.i) ? "この場所はどこですか？" : "足す場所はどこですか？")
+          : usual() ? (p.i === 1 ? "最初に行く場所はどこですか？" : "次に行く場所はどこですか？")
+          : p.i === 1 ? "最初に行った場所はどこですか？" : "次に行った場所はどこですか？"),
         help: "名前で探すか、地図を動かして、真ん中のピンを合わせてください",
         enter: (p) => {
           const s = stay();
@@ -471,9 +506,9 @@
           [s.lat, s.lon] = [round(lat, 5), round(lng, 5)];
           // 検索で選んだ場所のまま決めたなら、その名前を「場所の名前」に入れておく
           if (lastPick && map.getCenter().distanceTo(lastPick.at) < 30 && !s.detail) s.detail = lastPick.name.slice(0, 50);
-          return { s: "type", d: p.d, i: p.i };
+          return { s: "type", d: p.d, i: p.i, edit: p.edit };
         },
-        prev: (p) => (p.i <= 1 ? { s: "leave", d: p.d, i: 0 } : { s: "time", d: p.d, i: p.i - 1 }),
+        prev: (p) => (p.edit ? review(p.d) : p.i <= 1 ? { s: "leave", d: p.d, i: 0 } : { s: "time", d: p.d, i: p.i - 1 }),
       },
       type: {
         sec: "#s-type", title: "そこは何ですか？",
@@ -495,10 +530,11 @@
         },
         missing: () => [!stay().type && "type", stay().usual == null && "usual"].filter(Boolean),
         done: (p) => ({ s: "time", d: p.d, i: p.i, edit: p.edit }),
-        prev: (p) => (p.edit ? review(p.d) : { s: "place", d: p.d, i: p.i }),
+        prev: (p) => ({ s: "place", d: p.d, i: p.i, edit: p.edit }),
       },
       time: {
-        sec: "#s-time", title: "何時ごろ着いて、どのくらいいましたか？", help: "大まかで大丈夫です",
+        sec: "#s-time", help: "大まかで大丈夫です",
+        title: () => (usual() ? "何時ごろ着いて、どのくらいいますか？" : "何時ごろ着いて、どのくらいいましたか？"),
         enter: () => {
           moreOpen = false;
           pendingDur = null;
@@ -514,15 +550,18 @@
         prev: (p) => ({ s: "type", d: p.d, i: p.i, edit: p.edit }),
       },
       back: {
-        sec: "#s-hm", hm: "from", title: "何時ごろ家に帰りましたか？", help: "大まかで大丈夫です",
+        sec: "#s-hm", hm: "from", help: "大まかで大丈夫です",
+        title: () => (usual() ? "何時ごろ家に帰りますか？" : "何時ごろ家に帰りましたか？"),
         enter: () => setHM(stay().from),
         missing: () => (stay().from ? [] : ["hm"]),
         done: (p) => review(p.d),
         prev: (p) => (p.edit ? review(p.d) : { s: "place", d: p.d, i: p.i }),
       },
       review: {
-        sec: "#s-map", map: "route", title: "この日の動きを確かめてください", help: "直したい場所を押すと、直せます",
+        sec: "#s-map", map: "route", title: "この日の動きを確かめてください",
+        help: "直したい場所を押すと、直せます。行った場所が抜けていたら「場所を足す」",
         enter: () => {
+          sortDay();
           const b = new maplibregl.LngLatBounds();
           day().stays.forEach((s) => b.extend([s.lon, s.lat]));
           map.fitBounds(b, { padding: 48, maxZoom: 15, duration: 0 });
@@ -532,9 +571,10 @@
         done: (p) => {
           const i = day().stays.findIndex(incomplete);
           if (i >= 0) return editPos(p.d, i);
-          return p.d < state.days.length - 1 ? { s: "date", d: p.d + 1 } : { s: "more" };
+          return p.d < state.days.length - 1 ? startDay(p.d + 1) : { s: "more" };
         },
         prev: (p) => {
+          if (day().copied_from) return { s: "same", d: p.d };
           const st = day().stays, last = st.length - 1;
           return isEnd(st[last], last) ? { s: "back", d: p.d, i: last } : { s: "place", d: p.d, i: st.length };
         },
@@ -549,7 +589,8 @@
           $("#summary").replaceChildren(...state.days.map((d) => {
             const li = document.createElement("li");
             const missing = d.stays.filter(incomplete).length;
-            li.textContent = `${d.label}${d.date ? ` ${d.date}` : "（日付なし）"}: ${d.stays.filter((s) => s.type !== "home").length}か所`
+            li.textContent = `${d.label}${d.date ? ` ${d.date}` : ""}: ${d.stays.filter((s) => s.type !== "home").length}か所`
+              + (d.copied_from ? `（${d.copied_from}から写した）` : "")
               + (missing ? `（未入力がある場所 ${missing}）` : "");
             return li;
           }));
@@ -578,9 +619,10 @@
       $("#next").hidden = !sc.done;
       $("#back").hidden = !sc.prev;
       $("#main").classList.toggle("main--map", sc.map === "home" || sc.map === "place");
+      $("#next").textContent = sc.map === "place" && p.edit ? "ここに決める" : $("#next").textContent;
       $("#main").scrollTop = 0;
       if (sc.map) {
-        $("#s-map").dataset.mode = sc.map;
+        $("#s-map").dataset.mode = sc.map === "place" && p.edit ? "edit" : sc.map; // 直すときは「家に帰った」を出さない
         $("#q").value = "";
         showResults(null);
         map.resize(); // 隠れていた地図を、出したときの大きさに合わせる
@@ -654,24 +696,63 @@
     });
     $("#more-no").addEventListener("click", () => go({ s: "send" }));
 
+    // ---- いつもと同じ・場所を足す ----
+
+    for (const b of document.querySelectorAll("[data-copy]")) {
+      b.addEventListener("click", () => {
+        const d = day(), src = state.days[Number(b.dataset.copy)];
+        if (d.copied_from === src.label) return go(review(state.pos.d)); // 戻ってきただけなら、写し直さない（直したところを残す）
+        if (d.stays.length > 1 && !confirm("この日に書いた場所は消えます。よろしいですか？")) return;
+        d.stays = structuredClone(src.stays);
+        d.copied_from = src.label; // 送る内容に残し、本人が書いた日と区別する
+        go(review(state.pos.d));
+      });
+    }
+    $("#same-no").addEventListener("click", () => {
+      const d = day();
+      if (d.copied_from) { delete d.copied_from; d.stays = [homeStay("00:00", "")]; } // 写したものは消して書き直す
+      go({ s: "leave", d: state.pos.d, i: 0 });
+    });
+    // 足す場所は、最後の家（家に帰った）の前に入れる。見直しに戻ると時刻の順に並ぶ
+    $("#add-place").addEventListener("click", () => {
+      const st = day().stays, last = st.length - 1;
+      go({ s: "place", d: state.pos.d, i: isEnd(st[last], last) ? last : st.length, edit: true });
+    });
+    // 家を出た → 場所（着いた時刻の順）→ 家に帰った、に並べ直す
+    // ponytail: 0時を過ぎてから着いた場所は先頭に来る。そういう回答が出てきたら、家を出た時刻からの経過で並べる
+    function sortDay() {
+      const st = day().stays, last = st.length - 1;
+      const end = last > 0 && isEnd(st[last], last) ? [st[last]] : [];
+      const mid = st.slice(1, st.length - end.length);
+      mid.sort((a, b) => (minutes(a.from) ?? 1440) - (minutes(b.from) ?? 1440));
+      day().stays = [st[0], ...mid, ...end];
+      save();
+    }
+
     // ---- 地図 ----
 
     const map = new maplibregl.Map({
-      container: "map", style: mapStyle(), attributionControl: {
+      container: "map", style: gsiStyle(), maxZoom: 19, attributionControl: {
         compact: true,
         customAttribution: '検索: <a href="https://photon.komoot.io/">Photon</a>・<a href="https://msearch.gsi.go.jp/">国土地理院</a>',
       },
       ...(state.home ? { center: [state.home[1], state.home[0]], zoom: 14 } : START),
     });
-    darkMode.addEventListener("change", () => map.setStyle(mapStyle()));
+    // 地図と航空写真を切り替える（家の屋根や駐車場の形で探せる）
+    let layer = "map";
+    $("#layer").addEventListener("click", () => {
+      layer = layer === "map" ? "photo" : "map";
+      map.setStyle(gsiStyle(layer));
+      $("#layer").textContent = layer === "map" ? "写真" : "地図";
+      $("#layer").setAttribute("aria-label", layer === "map" ? "航空写真に切り替える" : "地図に切り替える");
+    });
     const routeData = () => ({ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: route } });
     map.on("style.load", () => {
-      jaLabels(map);
       map.addSource("route", { type: "geojson", data: routeData() });
       map.addLayer({
         id: "route", type: "line", source: "route",
         paint: {
-          "line-color": getComputedStyle(document.documentElement).getPropertyValue("--fg-2").trim(),
+          "line-color": ROUTE_COLOR,
           "line-width": 3, "line-dasharray": [2, 1],
         },
       });
@@ -688,7 +769,8 @@
       markers.forEach((m) => m.remove());
       const p = state.pos, mode = S[p.s].map;
       const stays = mode && p.d != null ? day().stays : [];
-      const shown = (mode === "route" ? stays : mode === "place" ? stays.slice(0, p.i) : []).map((s, i) => [s, i]);
+      // 場所を直す・足すときは、ほかの場所を全部出す
+      const shown = stays.map((s, i) => [s, i]).filter(([, i]) => mode === "route" || (mode === "place" && (p.edit ? i !== p.i : i < p.i)));
       markers = shown.map(([s, i]) => {
         const el = document.createElement(mode === "route" ? "button" : "div");
         el.className = "pt" + (mode === "route" && incomplete(s) ? " pt--need" : "");
@@ -952,7 +1034,9 @@
       };
       return JSON.stringify({
         v: 1, cid: state.cid, name: state.name, home: state.home,
-        days: state.days.map((d) => ({ label: d.label, date: d.date, stays: d.stays.map(clean) })),
+        days: state.days.map((d) => ({
+          label: d.label, date: d.date, ...(d.copied_from ? { copied_from: d.copied_from } : {}), stays: d.stays.map(clean),
+        })),
       });
     }
 
@@ -986,7 +1070,7 @@
     const GUIDE = {
       intro: [
         { target: null, title: "このページについて",
-          text: "地震の前の平日と休日、地震の日、地震の後の日の4日分、どこへ行ったかを1問ずつ聞いていきます。画面ごとに、使い方を順に紹介します。" },
+          text: "いつもの平日と休日、地震の日、地震の後の日に、どこへ行ったかを1問ずつ聞いていきます。画面ごとに、使い方を順に紹介します。" },
         { target: "#bar", title: "進み具合", text: "上の線で、どこまで進んだかが分かります。その下に、いま書いている日と何か所目かが出ます。" },
         { target: "#help", title: "使い方を見直す", text: "この ? を押すと、いま出ている画面の使い方をもう一度見られます。" },
         { target: "#next", title: "次へ進む", text: "答えたら、下のボタンで次の問いへ進みます。次の画面からは、左に「戻る」も出ます。" },
@@ -995,6 +1079,7 @@
         { target: "#search", title: "場所を探す", text: "店や施設の名前、住所、町名を入れると、地図がその場所へ動きます。見つからないときは、近くの町名や目印で探してください。" },
         { target: "#center-pin", title: "真ん中のピンを、家に合わせる",
           text: "地図を指で動かして、真ん中のピンを家のだいたいの場所に合わせます。地図をタップすると、そこへピンが動きます。約100mの細かさにぼかすので、ぴったりでなくて大丈夫です。" },
+        { target: "#layer", title: "写真に切り替える", text: "地図で分かりにくいときは、航空写真に切り替えると、屋根や駐車場の形で家を見つけやすくなります。もう一度押すと地図に戻ります。" },
         { target: "#next", title: "ここが家", text: "ピンが合ったら押します。" },
       ],
       date: [
@@ -1022,10 +1107,15 @@
       back: [
         { target: "#s-hm .hm", title: "帰った時刻", text: "家に帰った、だいたいの時刻を選びます。" },
       ],
+      same: [
+        { target: ".choices", title: "いつもと同じなら、写す",
+          text: "いつもと同じ動きだったら、同じ方を押してください。いつもの日の動きを写して、見直しの画面に進みます。違ったところだけ直したり、足したりできます。" },
+      ],
       review: [
         { target: ".map-wrap", title: "地図で確かめる", text: "この日に行った場所が、点と点線で出ます。点を押すと、その場所を直せます。" },
         { target: "#band", title: "1日の帯", text: "どこに何時いたかが、0時から24時の帯に並びます。しま模様のところは、まだ書いていない時間です。" },
         { target: "#list", title: "場所の一覧", text: "押すと、その場所を直せます。赤いものは、まだ入れていない項目がある場所です。" },
+        { target: "#add-place", title: "場所を足す", text: "行った場所が抜けていたら、ここから足せます。足した場所は、着いた時刻の順に並びます。" },
         { target: "#next", title: "次へ", text: "よければ次へ進み、次の日を書きます。" },
       ],
       more: [
