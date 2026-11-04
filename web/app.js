@@ -19,7 +19,8 @@ const START = { center: [130.6016, 32.5072], zoom: 13 }; // 八代市役所
 // デモ（/?demo=1）: API を使わず、合成データの 1 日（web/demo/、scripts/make_demo_assets.py）を早回しで再生する。
 // 地図の中心を自分の位置にする。at=lat,lon で最初の場所、from=HH:MM で最初の時刻を決められる
 const PARAMS = new URLSearchParams(location.search);
-const DEMO = PARAMS.has("demo");
+// サーバーを DEMO=1 で起動していないと web/demo/ が 404 になり、?demo=1 でもふだんの画面になる
+const DEMO = PARAMS.has("demo") && (await fetch("demo/timeline.json", { method: "HEAD" }).then((r) => r.ok, () => false));
 const AT = PARAMS.get("at")?.split(",").map(Number);
 if (AT?.length === 2 && AT.every(Number.isFinite)) START.center = [AT[1], AT[0]];
 const SIM = {
