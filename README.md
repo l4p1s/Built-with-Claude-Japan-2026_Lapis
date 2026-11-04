@@ -68,6 +68,7 @@ docker compose exec api python -m app.detect_job                # 今の時刻�
 | [docs/web-ui-implementation.md](docs/web-ui-implementation.md) | 画面を作ったときの実装手順書（履歴。現在の仕様は web-ui-design.md） |
 | [docs/demo-data-design.md](docs/demo-data-design.md) | 合成の人流データ: 作り方・仮定値・2026年熊本地震の事実・答え合わせ |
 | [docs/survey-design.md](docs/survey-design.md) | 友人の行動を集める記入フォーム（GitHub Pages の `docs/survey/`） |
+| [docs/scenario.md](docs/scenario.md) | 紹介動画のシナリオ: シーンごとの画面・テロップ・出典、デモの撮影リスト |
 | [data/README.md](data/README.md) | 入力データの出典とライセンス |
 
 ## 参考文献
