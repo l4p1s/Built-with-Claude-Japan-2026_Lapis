@@ -1,7 +1,7 @@
 // 記入ページ（index.html）と、回答を見るページ（view.html）で共通に使うもの。設計: docs/survey-design.md
 
 // 回答の送り先（Google Apps Script のウェブアプリの URL）。設定のしかたは docs/survey-design.md §8
-export const ENDPOINT = "https://script.google.com/macros/s/SET_ME/exec";
+export const ENDPOINT = "https://script.google.com/macros/s/AKfycbzUitSKkbpA2hOK7SUtZX3DGqB3FGGCPv2DK5_BRs182hzvylbc59iBOIIuf8vJ0mdz/exec";
 
 export const START = { center: [130.6016, 32.5072], zoom: 13 }; // 八代市役所
 const MAP_STYLE = {
