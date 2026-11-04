@@ -1,4 +1,7 @@
 import mimetypes
+import os
+import threading
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Literal
@@ -8,11 +11,23 @@ from fastapi import FastAPI, HTTPException, Query, status
 from fastapi.staticfiles import StaticFiles
 from pydantic import AfterValidator, AwareDatetime, BaseModel, Field
 
-from app import rules, spots
+from app import detect_job, rules, spots
 from app.auth import SESSION_TTL, Session, create_session
 from app.db import Conn
 
-app = FastAPI(title="Aid Spot Finder API", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 検知の定期処理。DETECT_EVERY_S=0 で止める（テスト・検知を手で回すとき）
+    every = int(os.environ.get("DETECT_EVERY_S", "300"))
+    stop = threading.Event()
+    if every:
+        threading.Thread(target=detect_job.loop, args=(every, stop), daemon=True).start()
+    yield
+    stop.set()
+
+
+app = FastAPI(title="Aid Spot Finder API", version="0.1.0", lifespan=lifespan)
 
 Lat = Annotated[float, Field(ge=-90, le=90)]
 Lon = Annotated[float, Field(ge=-180, le=180)]

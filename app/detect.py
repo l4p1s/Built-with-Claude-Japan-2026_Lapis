@@ -94,7 +94,7 @@ class Person:
     explorer: bool
 
     def is_usual(self, lat, lon):
-        if dist_m(lat, lon, *self.home) <= HOME_RADIUS_M:
+        if self.home and dist_m(lat, lon, *self.home) <= HOME_RADIUS_M:
             return True
         return any(dist_m(lat, lon, *u) <= PLACE_RADIUS_M for u in self.usual)
 
@@ -104,10 +104,16 @@ class Person:
 
 
 def learn_person(stays_by_day, night_points):
-    home = home_of(night_points)
+    """平常期の滞在と深夜の位置から、その人の自宅・いつもの場所・探索型かを決める。
+    深夜の位置がなければ自宅は None（自宅の除外をしない）、平常期がなければいつもの場所は空"""
+    home = home_of(night_points) if night_points else None
     places = places_of(stays_by_day)
     usual = [(la, lo) for la, lo, d in places if d >= USUAL_DAYS]
-    once = sum(1 for la, lo, d in places if d == 1 and dist_m(la, lo, *home) > HOME_RADIUS_M)
+    once = sum(
+        1
+        for la, lo, d in places
+        if d == 1 and (home is None or dist_m(la, lo, *home) > HOME_RADIUS_M)
+    )
     return Person(home, usual, once >= EXPLORER_NEW_PLACES)
 
 
@@ -142,14 +148,17 @@ def baseline_share(cell_counts):
     return {c: n / total for c, n in cell_counts.items()}
 
 
-def detect(unusual, share, window=WINDOW, step=STEP):
-    """unusual: [(uid, Stay, weight)] その日の「いつもと違う滞在」。share: baseline_share の結果。
+def detect(unusual, share, window=WINDOW, step=STEP, t_start=0, t_end=1440):
+    """unusual: [(uid, Stay, weight)] 「いつもと違う滞在」（時刻は分。t_start〜t_end の範囲を調べる）。
+    share: baseline_share の結果（空なら期待値は下限だけ）。
     → 時間帯ごとに p < P_THRESHOLD かつ人数 >= MIN_OBSERVED のマスを候補として返す（時間帯が続けば 1 つにまとめる）"""
     by_cell = defaultdict(list)
     for uid, s, w in unusual:
         by_cell[mesh_code(s.lat, s.lon)].append((uid, s, w))
+    # share が空（平常の滞在がまだない）なら期待値は下限 MIN_EXPECTED だけになり、
+    # MIN_OBSERVED 人以上の「いつもと違う滞在」の集まりはそのまま候補になる（確認で消す前提）
     raw = []
-    for w0 in range(0, 1440 - window + 1, step):
+    for w0 in range(t_start, t_end - window + 1, step):
         w1 = w0 + window
         per_cell = {}
         total = 0.0
