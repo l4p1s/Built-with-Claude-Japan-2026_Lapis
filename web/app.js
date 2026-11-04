@@ -16,6 +16,11 @@ const REPORT_KINDS = ["water", "food", "goods", "car_sleeping", "shelter", "othe
 const QUESTION_KINDS = ["water", "food", "goods", "car_sleeping", "shelter", "none"];
 
 const START = { center: [130.6016, 32.5072], zoom: 13 }; // 八代市役所
+// デモ（/?demo=1）: 位置を使わず、地図の中心を自分の位置にする。at=lat,lon で最初の場所を決められる
+const PARAMS = new URLSearchParams(location.search);
+const DEMO = PARAMS.has("demo");
+const AT = PARAMS.get("at")?.split(",").map(Number);
+if (AT?.length === 2 && AT.every(Number.isFinite)) START.center = [AT[1], AT[0]];
 const MAP_STYLE = {
   light: "https://tiles.openfreemap.org/styles/positron",
   dark: "https://tiles.openfreemap.org/styles/dark",
@@ -135,9 +140,16 @@ $("#consent-ok").addEventListener("click", async () => {
 function start() {
   if (!tracking) {
     tracking = true;
-    startTracking();
+    if (DEMO) startDemo();
+    else startTracking();
   }
   refreshSpots();
+}
+
+if (DEMO) {
+  $("#demo-note").hidden = false;
+  $("#consent-demo").hidden = false;
+  $("#consent-ok").textContent = "デモを始める";
 }
 
 // ---- 地図とピン ----
@@ -308,9 +320,7 @@ function startTracking() {
   );
 }
 
-function onPosition(pos) {
-  const { latitude: lat, longitude: lon, accuracy } = pos.coords;
-  const first = here === null;
+function placeMe(lat, lon) {
   here = { lat, lon };
   setLocationState("on");
   if (meMarker) {
@@ -322,6 +332,26 @@ function onPosition(pos) {
     dot.setAttribute("aria-label", "現在地");
     meMarker = new maplibregl.Marker({ element: dot }).setLngLat([lon, lat]).addTo(map);
   }
+}
+
+// デモ: 地図の中心を自分の位置にする。位置は送らない（flush は質問と地図の更新だけになる）
+function startDemo() {
+  setInterval(flush, SEND_EVERY_MS);
+  const c = map.getCenter();
+  placeMe(c.lat, c.lng);
+  map.on("move", () => meMarker.setLngLat(map.getCenter()));
+  map.on("moveend", () => {
+    const m = map.getCenter();
+    placeMe(m.lat, m.lng);
+    checkQuestions();
+  });
+  checkQuestions();
+}
+
+function onPosition(pos) {
+  const { latitude: lat, longitude: lon, accuracy } = pos.coords;
+  const first = here === null;
+  placeMe(lat, lon);
   if (token && pos.timestamp - lastRecorded >= RECORD_EVERY_MS) {
     lastRecorded = pos.timestamp;
     buffer.push({ lat, lon, accuracy_m: accuracy, recorded_at: new Date(pos.timestamp).toISOString() });

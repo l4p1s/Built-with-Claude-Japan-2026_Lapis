@@ -14,6 +14,7 @@ docker compose run --rm api pytest    # テスト
 - API 仕様書: http://localhost:18080/docs （OpenAPI: `/openapi.json`）
 - 公式の避難所データ（BODIK 令和8年熊本地震）の取り込み: `docker compose run --rm api python scripts/import_bodik.py`
 - 検知を通して見る: `python scripts/simulate.py`（合成データを API 経由で投入、数分）→ `docker compose exec api python -m app.detect_job`（検知。5 分ごとにも自動で回る）→ 地図に `?` のピンが出る
+- スマホで見せるデモ: `ngrok http 18080` で公開し、スマホで `https://<ngrok の URL>/?demo=1` を開く。デモでは位置を使わず、**地図の中心が自分の位置**になる。`?` のピンに地図を合わせると「近くで人が集まっています」が出て、答えると確認済みになる。`&at=32.5174,130.6371` で最初の場所を指定できる。合成データは「地震の翌日 = 投入した日」にずらしてあるので、投入の翌日まで再生される（それ以降は投入し直す）
 - 検知アルゴリズムの説明: [docs/algorithm.md](docs/algorithm.md)
 - 構成と設計の理由: [docs/architecture.md](docs/architecture.md) / 画面: [docs/web-ui-design.md](docs/web-ui-design.md)
 - DB を初期化し直す: `docker compose down -v`（取り込んだデータも消えるので、取り込みをやり直す）
