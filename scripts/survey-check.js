@@ -18,54 +18,42 @@ async function open(browser, opts = {}) {
   page.on("pageerror", (e) => errors.push(`[pageerror] ${e.message}`));
   page.on("dialog", (d) => d.accept());
   await page.goto(URL);
-  await page.locator("#map canvas").waitFor();
+  await page.locator("#map canvas").waitFor({ state: "attached" });
   return { ctx, page };
 }
 
-// 地図の中心から (dx, dy) ずらした位置をタップする
-async function tapMap(page, dx, dy) {
+const title = (page) => page.locator("#qt").textContent();
+const next = (page) => page.locator("#next").click();
+const needs = (page) => page.locator("main > section:not([hidden]) .field--need").evaluateAll((els) => els.map((e) => e.dataset.need));
+
+// 地図をタップして真ん中のピンをそこへ動かし、「ここに行った」を押す
+async function placeAt(page, dx, dy) {
   const box = await page.locator("#map").boundingBox();
   await page.mouse.click(box.x + box.width / 2 + dx, box.y + box.height / 2 + dy);
-}
-
-// 地図をタップして真ん中のピンをそこへ動かし、登録ボタンを押す
-async function placeAt(page, dx, dy) {
-  await tapMap(page, dx, dy);
   await page.waitForTimeout(800); // 地図が動き終わるのを待つ
-  await page.locator("#place-btn").click();
+  await next(page);
 }
 
-// 選んでいるタブを押して日付を入れる
-async function setDate(page, date) {
-  await page.locator('.tab[aria-pressed="true"]').click();
-  await page.locator("#date-dlg").waitFor();
-  await page.locator("#day-date").fill(date);
-  await page.locator("#date-dlg button.btn--primary").click();
-  await page.locator("#date-dlg").waitFor({ state: "hidden" });
+async function setTime(page, h, m, t) {
+  const [hh, mm] = t.split(":");
+  await page.locator(h).selectOption(hh);
+  await page.locator(m).selectOption(mm);
 }
+const setHM = (page, t) => setTime(page, "#h-h", "#h-m", t);
 
-async function setTime(page, which, t) {
-  const [h, m] = t.split(":");
-  await page.locator(`#f-${which}-h`).selectOption(h);
-  await page.locator(`#f-${which}-m`).selectOption(m);
-}
-
-// 「くわしく（任意）」の中の項目を選ぶ
-async function pickMore(page, id, v) {
-  if (!(await page.locator(".more").evaluate((d) => d.open))) await page.locator(".more summary").click();
-  await page.locator(`${id} [data-v="${v}"]`).click();
-}
-
-// from: 何時ごろ着いた / dur: どのくらいいた（ボタンの文字） / to: 出た時刻（「それ以上…」から）
-async function fillStay(page, { from, dur, to, type, usual }) {
-  if (type) await page.locator(`#f-type [data-v="${type}"]`).click();
-  if (usual) await page.locator(`#f-usual [data-v="${usual}"]`).click();
-  if (from) await setTime(page, "from", from);
+// 「そこは何？」→「何時ごろ着いて、どのくらい？」
+async function fillPlace(page, { type, usual, from, dur, to }) {
+  await page.locator(`#f-type [data-v="${type}"]`).click();
+  await page.locator(`#f-usual [data-v="${usual}"]`).click();
+  await next(page);
+  assert.equal(await title(page), "何時ごろ着いて、どのくらいいましたか？");
+  await setTime(page, "#f-from-h", "#f-from-m", from);
   if (dur) await page.locator("#f-dur button", { hasText: dur }).click();
   if (to) {
-    if (await page.locator("#t-to").isHidden()) await page.locator("#f-dur button", { hasText: "それ以上" }).click();
-    await setTime(page, "to", to);
+    await page.locator("#f-dur button", { hasText: "それ以上" }).click();
+    await setTime(page, "#f-to-h", "#f-to-m", to);
   }
+  await next(page);
 }
 
 (async () => {
@@ -73,215 +61,202 @@ async function fillStay(page, { from, dur, to, type, usual }) {
     executablePath: process.env.HOME + "/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome",
   });
   require("fs").mkdirSync(SHOTS, { recursive: true });
-
-  // 1. 開いてすぐの使い方の案内 → 説明と呼び名
   const { ctx, page } = await open(browser);
-  await page.locator("#guide").waitFor();
-  assert.equal(await page.locator("#intro").evaluate((d) => d.open), false);
-  const steps = await page.evaluate(() => document.querySelector("#guide-count").textContent.split(" / ")[1]);
-  for (let i = 1; i <= Number(steps); i++) {
-    assert.equal(await page.locator("#guide-count").textContent(), `${i} / ${steps}`);
-    await page.waitForTimeout(400);
-    await page.screenshot({ path: `${SHOTS}/01-guide-${i}.png` });
-    await page.locator("#guide-next").click();
-  }
-  await page.locator("#guide").waitFor({ state: "hidden" });
-  assert.equal(await page.locator("#intro").evaluate((d) => d.open), true);
-  await page.keyboard.press("Escape");
-  assert.equal(await page.locator("#intro").evaluate((d) => d.open), true);
-  await page.screenshot({ path: `${SHOTS}/01-intro.png` });
-  await page.locator("#name").fill("テスト");
-  await page.locator("#intro-form button").click();
-  assert.equal(await page.locator("#intro").evaluate((d) => d.open), false);
-  await page.locator("#help").click();
-  await page.locator("#guide").waitFor();
-  await page.locator("#guide-skip").click();
-  await page.locator("#guide").waitFor({ state: "hidden" });
-  ok(`1 開いてすぐ案内が${steps}段で進み、そのあと説明と呼び名。? から見直せて、とばせる`);
-
-  // 1b. 場所の検索（Photon と国土地理院は、決まった答えを返すように差し替える）
   await page.route("https://photon.komoot.io/api/**", (r) => r.fulfill({ json: { features: [
     { geometry: { coordinates: [130.585695, 32.5057637] }, properties: { name: "ゆめタウン八代", city: "八代市", state: "熊本県" } },
   ] } }));
   await page.route("https://msearch.gsi.go.jp/**", (r) => r.fulfill({ json: [
     { geometry: { coordinates: [130.6016, 32.5072] }, properties: { title: "熊本県八代市松江城町" } },
   ] }));
-  assert.equal(await page.locator("#place-btn").textContent(), "ここを家にする");
-  assert.equal(await page.locator("#center-pin").isVisible(), true);
+
+  // 1. はじめに（呼び名がないと進めない）
+  assert.equal(await page.locator("#back").isHidden(), true);
+  await page.screenshot({ path: `${SHOTS}/01-intro.png` });
+  await next(page);
+  assert.deepEqual(await needs(page), ["name"]);
+  await page.locator("#name").fill("テスト");
+  await next(page);
+  ok("1 はじめに: 呼び名がないと赤で知らせ、入れると進む");
+
+  // 2. 家（検索して真ん中のピン）
+  assert.equal(await title(page), "家はどこですか？");
+  assert.equal(await page.locator("#next").textContent(), "ここが家");
+  assert.equal(await page.locator("#go-home").isHidden(), true);
+  const mapH = (await page.locator("#map").boundingBox()).height;
+  assert.ok(mapH > 450, `地図の高さ ${mapH}`);
   await page.locator("#q").fill("ゆめタウン");
   await page.locator("#results button").first().waitFor();
   assert.equal(await page.locator("#results button").count(), 2);
-  await page.screenshot({ path: `${SHOTS}/01b-search.png` });
-  await page.locator("#results button").first().click(); // 地図がそこへ動き、真ん中のピンが合う
+  await page.screenshot({ path: `${SHOTS}/02-search.png` });
+  await page.locator("#results button").first().click();
   await page.waitForTimeout(2500);
-  await page.screenshot({ path: `${SHOTS}/01b-pin.png` });
-  await page.locator("#place-btn").click();
-  assert.equal(await page.locator(".pt").count(), 1);
-  assert.equal(await page.locator("#center-pin").isHidden(), true); // 入力中はピンとボタンを隠す
-  await page.route("https://photon.komoot.io/api/**", (r) => r.fulfill({ json: { features: [] } }));
-  await page.route("https://msearch.gsi.go.jp/**", (r) => r.fulfill({ json: [] }));
-  await page.locator("#q").fill("ないところ");
-  await page.locator("#results", { hasText: "見つかりませんでした" }).waitFor();
-  await page.locator("#q").fill("");
-  ok("1b 名前で探すと地図がそこへ動き、ここを家にする で真ん中のピンの位置が家になる");
+  await page.screenshot({ path: `${SHOTS}/02-home.png` });
+  await next(page);
+  ok(`2 家: 名前で探して真ん中のピンで決める（地図の高さ ${Math.round(mapH)}px）`);
 
-  // 2. 家 → 2か所 → 家に帰った
-  assert.equal(await page.locator("#t-from").isHidden(), true); // 1件目の家は「出た時刻」だけ
-  assert.equal(await page.locator("#t-to").evaluate((e) => e.classList.contains("field--need")), true); // 未入力は赤
-  await fillStay(page, { to: "07:45" });
-  assert.equal(await page.locator("#t-to").evaluate((e) => e.classList.contains("field--need")), false);
-  const mapOpen = (await page.locator("#map").boundingBox()).height;
-  assert.equal(await page.locator("#confirm").textContent(), "確定して次の場所へ");
-  await page.locator("#confirm").click(); // 確定すると入力欄が閉じ、地図が広くなる
-  assert.equal(await page.locator("#card").isHidden(), true);
-  const mapClosed = (await page.locator("#map").boundingBox()).height;
-  assert.ok(mapClosed > mapOpen + 150, `地図の高さ ${mapOpen} → ${mapClosed}`);
-  assert.equal(await page.locator("#next-tip").isVisible(), true); // 家を決めたら、次にすることを示す
-  await page.screenshot({ path: `${SHOTS}/02-closed.png` });
-  assert.equal(await page.locator(".tab").first().evaluate((e) => e.classList.contains("tab--need")), true);
-  await setDate(page, "2026-07-20"); // ふだんの日にも日付
-  assert.equal(await page.locator(".tab").first().textContent(), "ふだん 7/20");
-  assert.equal(await page.locator(".tab").first().evaluate((e) => e.classList.contains("tab--need")), false);
-  assert.equal(await page.locator("#place-btn").textContent(), "ここを次の場所にする");
+  // 3. ふだんの日: 日付 → 家を出た → 2か所 → 家に帰った
+  assert.equal(await title(page), "ふだんの日は、何月何日ですか？");
+  await next(page);
+  assert.deepEqual(await needs(page), ["date"]);
+  await page.locator("#day-date").fill("2026-07-20");
+  await next(page);
+  assert.equal(await title(page), "その日、何時ごろ家を出ましたか？");
+  assert.equal(await page.locator("#where").textContent(), "ふだんの日 7/20");
+  await setHM(page, "07:45");
+  await next(page);
+
+  assert.equal(await title(page), "最初に行った場所はどこですか？");
+  assert.equal(await page.locator("#next").textContent(), "ここに行った");
+  assert.equal(await page.locator(".pt").count(), 1); // 家の点
   await placeAt(page, 80, -60);
-  assert.equal(await page.locator(".pt--need").count(), 1); // 入れていない場所の点は赤
-  assert.equal(await page.locator("#next-tip").isHidden(), true);
+  assert.equal(await title(page), "そこは何ですか？");
+  assert.match(await page.locator("#where").textContent(), /1か所目$/);
+  await next(page);
+  assert.deepEqual(await needs(page), ["type", "usual"]);
   assert.equal(await page.locator("#fd-detail").isHidden(), true); // 種類を選ぶまでは出さない
-  await fillStay(page, { type: "shop", usual: "true", from: "08:00", dur: "30分" });
-  assert.equal(await page.locator("#fd-detail").isVisible(), true); // 種類を選ぶと、すぐ下に詳細の欄
+  await page.locator('#f-type [data-v="shop"]').click();
+  assert.deepEqual(await needs(page), ["usual"]); // 入れた項目から赤が消える
+  assert.equal(await page.locator("#fd-detail").isVisible(), true);
   await page.locator("#f-detail").fill("○○スーパー");
-  await pickMore(page, "#f-mode", "car");
-  await page.locator("#confirm").click(); // 確定して次の場所へ → 地図に戻り、次の場所を促す
-  assert.equal(await page.locator("#card").isHidden(), true);
-  assert.equal(await page.locator("#next-tip").isVisible(), true);
-  await placeAt(page, -80, -50); // 入力中に地図をタップすると、入力欄が閉じてピンが動く
+  await page.locator(".more summary").click();
+  await page.locator('#f-mode [data-v="car"]').click();
+  await page.screenshot({ path: `${SHOTS}/03-type.png` });
+  await fillPlace(page, { type: "shop", usual: "true", from: "08:00", dur: "30分" });
+
+  assert.equal(await title(page), "次に行った場所はどこですか？");
+  assert.equal(await page.locator(".pt").count(), 2);
+  await page.screenshot({ path: `${SHOTS}/03-place.png` });
+  await placeAt(page, -80, -50);
   // どの順番でも入る: 分 → 長さ → 時 の順に選ぶ
   await page.locator('#f-type [data-v="water"]').click();
   await page.locator('#f-usual [data-v="false"]').click();
-  await page.locator("#f-from-m").selectOption("30");
-  assert.equal(await page.locator("#f-from-m").inputValue(), "30"); // 時より先に選んだ分が消えない
-  await page.locator("#f-dur button", { hasText: "30分" }).click(); // 着いた時刻より先に押せる
-  assert.equal(await page.locator("#f-dur button", { hasText: "30分" }).getAttribute("aria-pressed"), "true");
-  await page.locator("#f-from-h").selectOption("09");
-  await pickMore(page, "#f-heard", "neighbor");
+  await page.locator(".more summary").click();
+  await page.locator('#f-heard [data-v="neighbor"]').click();
   await page.locator("#f-purpose").fill("水をもらいに");
+  await page.locator("#f-purpose").blur();
+  await next(page);
+  await page.locator("#f-from-m").selectOption("30");
+  await page.locator("#f-dur button", { hasText: "30分" }).click();
+  assert.equal(await page.locator("#f-from-m").inputValue(), "30");
+  await page.locator("#f-from-h").selectOption("09");
+  await page.screenshot({ path: `${SHOTS}/03-time.png` });
+  await next(page);
+
   await page.locator("#go-home").click();
-  await fillStay(page, { from: "10:15", dur: "朝まで" });
-  assert.match(await page.locator("#f-note").textContent(), /その日の終わり/);
-  assert.equal(await page.locator(".pt").count(), 4);
-  ok("2 タブで日付、真ん中のピンで 家 → 2か所 → 家に帰った（朝まで）");
+  assert.equal(await title(page), "何時ごろ家に帰りましたか？");
+  await setHM(page, "10:15");
+  await next(page);
+  ok("3 ふだんの日: 日付 → 家を出た → 2か所（種類・時刻）→ 家に帰った");
 
-  // 3. 1日の帯
+  // 4. 見直し: 帯と一覧、押すと直せる。戻るで戻れる
+  assert.equal(await title(page), "この日の動きを確かめてください");
   assert.equal(await page.locator("#band .block").count(), 4);
-  await page.locator("#band .block").nth(1).click();
-  assert.match(await page.locator("#card-title").textContent(), /^2か所目: 店/);
-  assert.equal(await page.locator("#need-type").isHidden(), true); // 入れた項目には「未入力」が出ない
-  assert.equal(await page.locator("#f-dur button", { hasText: "30分" }).getAttribute("aria-pressed"), "true");
-  await fillStay(page, { to: "08:45" }); // それ以上… で出た時刻を直接選ぶ
-  await page.locator("#band .block").nth(2).click();
-  await setTime(page, "from", "08:00"); // 前の店（〜8:45）と重ねる
-  assert.match(await page.locator("#f-warn").textContent(), /重なって/);
-  await setTime(page, "from", "09:30");
-  await page.screenshot({ path: `${SHOTS}/02-day.png` });
-  ok("3 時刻を入れると帯に出て、帯から場所を選べ、重なりを注意する");
+  assert.equal(await page.locator("#list .row").count(), 4);
+  assert.equal(await page.locator(".pt").count(), 4);
+  await page.screenshot({ path: `${SHOTS}/04-review.png` });
+  await page.locator("#list .row").nth(1).click(); // 店を直す → 種類 → 時刻 → 見直しに戻る
+  assert.equal(await title(page), "そこは何ですか？");
+  await next(page);
+  await page.locator("#f-dur button", { hasText: "それ以上" }).click();
+  await setTime(page, "#f-to-h", "#f-to-m", "08:45");
+  await next(page);
+  assert.equal(await title(page), "この日の動きを確かめてください");
+  await page.locator("#back").click();
+  assert.equal(await title(page), "何時ごろ家に帰りましたか？");
+  await page.locator("#back").click();
+  assert.equal(await title(page), "次に行った場所はどこですか？"); // 家に帰った、の手前
+  await page.locator("#go-home").click(); // 帰った時刻は残っている
+  assert.equal(await page.locator("#h-h").inputValue(), "10");
+  await next(page);
+  ok("4 見直し: 帯と一覧が出て、押すと直せ、戻るで1問ずつ戻れる");
 
-  // 3b. 確定して次の日へ（そろっていれば次の日、未入力があればその場所を開く）
-  await page.locator("#confirm").click();
-  assert.equal(await page.locator("#confirm").textContent(), "確定して次の日へ");
-  await page.locator("#confirm").click();
-  assert.equal(await page.locator(".tab").nth(1).getAttribute("aria-pressed"), "true");
-  assert.equal(await page.locator("#confirm").textContent(), "この日を確定");
-  await page.locator("#confirm").click(); // 家を出た時刻がまだ → その場所が開く
-  assert.equal(await page.locator("#card").isVisible(), true);
-  assert.equal(await page.locator("#t-to").evaluate((e) => e.classList.contains("field--need")), true);
-  await fillStay(page, { to: "08:00" });
-  await page.locator("#confirm").click();
+  // 5. 地震の後の日: 未入力があると、見直しの次へでそこへ移る。家に帰らない日
+  await next(page);
+  assert.equal(await title(page), "地震の後の日は、何月何日ですか？");
+  await page.locator("#day-date").fill("2026-07-29");
+  await next(page);
+  await setHM(page, "08:00");
+  await next(page);
   await placeAt(page, 60, -60);
-  await fillStay(page, { type: "shop", from: "08:30", dur: "30分" }); // ふだんも行くか、を入れない
-  await page.locator("#confirm").click(); // 確定して次の場所へ → ふだんも行くか、が未入力なので閉じずにそこへ動く
-  assert.equal(await page.locator("#card").isVisible(), true);
-  await page.waitForTimeout(800);
-  const inView = await page.locator("#need-usual").evaluate((el) => {
-    const f = el.closest(".field").getBoundingClientRect();
-    const panel = document.querySelector(".panel").getBoundingClientRect();
-    return f.top >= panel.top && f.bottom <= panel.bottom && document.activeElement === el.closest(".field");
-  });
-  assert.equal(inView, true);
-  await page.screenshot({ path: `${SHOTS}/03b-missing.png` });
-  ok("3b 確定で次の日へ進み、未入力があればその項目まで動く");
+  await fillPlace(page, { type: "water", usual: "false", from: "08:30", dur: "1時間" });
+  await placeAt(page, -60, 60);
+  await page.locator('#f-type [data-v="car_sleeping"]').click();
+  await page.locator('#f-usual [data-v="false"]').click();
+  await next(page);
+  await setTime(page, "#f-from-h", "#f-from-m", "20:00");
+  await page.locator("#f-dur button", { hasText: "それ以上" }).click();
+  await setTime(page, "#f-to-h", "#f-to-m", "06:00");
+  assert.match(await page.locator("#f-note").textContent(), /翌日の 06:00/);
+  await next(page);
+  await page.locator("#end-day").click(); // 家に帰らず、この日はここまで
+  assert.equal(await title(page), "この日の動きを確かめてください");
+  assert.equal(await page.locator("#list .row").count(), 3);
+  assert.equal(await page.locator(".row--need").count(), 0);
+  await next(page);
+  ok("5 地震の後の日: 家に帰らない日（車中泊で翌朝まで）も書ける");
 
-  // 4. 日を足す
-  await page.locator("#add-day").click();
-  assert.equal(await page.locator(".tab").count(), 3);
-  assert.equal(await page.locator(".pt").count(), 1); // 家から始まる
-  await setDate(page, "2026-07-30");
-  assert.equal(await page.locator(".tab").nth(2).textContent(), "地震後 7/30");
-  await page.route("https://photon.komoot.io/api/**", (r) => r.fulfill({ json: { features: [
-    { geometry: { coordinates: [130.6, 32.51] }, properties: { name: "○○公園", city: "八代市" } },
-  ] } }));
-  await page.locator("#q").fill("公園");
-  await page.locator("#results button").first().click();
-  await page.waitForTimeout(2500);
-  await page.locator("#place-btn").click(); // 検索で選んだ場所のまま登録すると、名前が入る
-  assert.equal(await page.locator("#f-detail").inputValue(), "○○公園");
-  ok("4 日を足すと家から始まり、日付がタブに出る。検索で選んだ場所は名前が入る");
-
-  // 5. 送る
-  await page.locator("#send").click();
+  // 6. ほかの日 → 送る
+  assert.equal(await title(page), "ほかの日も書きますか？");
+  await page.locator("#more-no").click();
+  assert.equal(await title(page), "送る");
   const json = await page.locator("#json").inputValue();
   const a = JSON.parse(json);
   assert.equal(a.v, 1);
   assert.equal(a.name, "テスト");
-  assert.equal(a.days.length, 3);
-  for (const x of a.home) assert.equal(x, Number(x.toFixed(3)));
+  assert.deepEqual(a.home, [32.506, 130.586]); // 検索で動かした真ん中のピンの位置（約100mに丸め）
+  assert.equal(a.days.length, 2);
   const [h, shop, water, back] = a.days[0].stays;
+  assert.deepEqual([h.type, shop.type, water.type, back.type], ["home", "shop", "water", "home"]);
   assert.deepEqual([h.lat, h.lon], a.home);
   assert.deepEqual([back.lat, back.lon], a.home);
-  assert.deepEqual([h.type, shop.type, water.type, back.type], ["home", "shop", "water", "home"]);
-  assert.equal(shop.mode, "car");
+  assert.deepEqual([h.to, shop.from, shop.to, water.from, water.to, back.from, back.to],
+    ["07:45", "08:00", "08:45", "09:30", "10:00", "10:15", "00:00"]);
   assert.equal(shop.detail, "○○スーパー");
-  assert.equal(h.detail, undefined); // 家には詳細を入れない
-  assert.deepEqual([shop.from, shop.to, water.from, water.to, back.to], ["08:00", "08:45", "09:30", "10:00", "00:00"]);
-  assert.equal(a.days[0].date, "2026-07-20");
-  assert.deepEqual(a.home, [32.506, 130.586]); // 検索で動かした真ん中のピンの位置（約100mに丸め）
+  assert.equal(shop.mode, "car");
   assert.equal(water.usual, false);
   assert.equal(water.heard, "neighbor");
   assert.equal(water.purpose, "水をもらいに");
-  assert.equal(a.days[2].date, "2026-07-30");
+  assert.equal(h.detail, undefined);
+  const d1 = a.days[1];
+  assert.equal(d1.date, "2026-07-29");
+  assert.deepEqual(d1.stays.map((s) => s.type), ["home", "water", "car_sleeping"]);
+  assert.deepEqual([d1.stays[2].from, d1.stays[2].to], ["20:00", "06:00"]);
   await page.locator("#copy").click();
   await page.locator("#copy-msg", { hasText: "コピーしました" }).waitFor();
   assert.equal(await page.evaluate(() => navigator.clipboard.readText()), json);
-  await page.screenshot({ path: `${SHOTS}/03-send.png` });
-  await page.locator("#send-close").click();
-  ok(`5 送る内容が設計の形で、家が小数3桁、コピーできる（${json.length}文字）`);
+  await page.screenshot({ path: `${SHOTS}/06-send.png` });
+  ok(`6 送る内容が設計の形で、家が小数3桁、コピーできる（${json.length}文字）`);
 
-  // 6. 書きかけの保存と消去
+  // 7. 日を足す・開き直すと続きから・消去
+  await page.locator("#back").click();
+  await page.locator("#more-yes").click();
+  assert.equal(await title(page), "地震の後の日は、何月何日ですか？");
+  assert.equal(await page.locator("#del-day").isVisible(), true);
   await page.reload();
-  await page.locator("#map canvas").waitFor();
-  assert.equal(await page.locator("#intro").evaluate((d) => d.open), false);
-  assert.equal(await page.locator("#guide").isHidden(), true); // 案内は2回目から出ない
-  assert.equal(await page.locator(".tab").count(), 3);
-  assert.equal(await page.locator(".pt").count(), 4);
-  await page.locator("#send").click();
+  await page.locator("#map canvas").waitFor({ state: "attached" });
+  assert.equal(await title(page), "地震の後の日は、何月何日ですか？");
+  await page.locator("#del-day").click();
+  assert.equal(await title(page), "この日の動きを確かめてください");
+  await next(page);
+  await page.locator("#more-no").click();
   await page.locator("#clear").click();
   await page.waitForLoadState("load");
-  await page.locator("#guide").waitFor(); // 最初に戻ると、案内からやり直し
-  ok("6 開き直すと復元され、この端末から消す で最初に戻る");
+  await page.locator("#name").waitFor();
+  assert.equal(await page.locator("#name").inputValue(), "");
+  ok("7 日を足せて消せる。開き直すと続きから。この端末から消す で最初に戻る");
   await ctx.close();
 
-  // ダークモードの見た目（目で確かめる用）
-  const dark = await open(browser, { colorScheme: "dark" });
-  await dark.page.locator("#guide-skip").click();
+  // 360px 幅・ダークモードの見た目（目で確かめる用）
+  const dark = await open(browser, { colorScheme: "dark", viewport: { width: 360, height: 740 } });
   await dark.page.locator("#name").fill("夜");
-  await dark.page.locator("#intro-form button").click();
+  await next(dark.page);
   await dark.page.waitForTimeout(1500);
-  await tapMap(dark.page, 0, 0);
-  await dark.page.waitForTimeout(1000);
-  await dark.page.screenshot({ path: `${SHOTS}/04-dark.png` });
+  await dark.page.screenshot({ path: `${SHOTS}/08-dark.png` });
+  assert.equal(await dark.page.evaluate(() => document.documentElement.scrollWidth), 360);
 
   await browser.close();
   assert.deepEqual(errors, []);
-  ok("7 Console にエラーなし");
+  ok("8 Console にエラーなし、360px で横にはみ出さない");
 })().catch((e) => {
   console.error("FAILED:", e.message);
   console.log("Console のエラー: " + (errors.length ? "\n" + errors.join("\n") : "なし"));

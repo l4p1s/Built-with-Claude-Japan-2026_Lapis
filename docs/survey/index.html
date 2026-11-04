@@ -4,14 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>1日の行動の記入</title>
-  <meta name="description" content="ふだんの日と地震の後の日に、どこへ行ったかを地図で記入するフォーム">
+  <meta name="description" content="ふだんの日と地震の後の日に、どこへ行ったかを1問ずつ地図で記入するフォーム">
   <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#11141c" media="(prefers-color-scheme: dark)">
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.css">
   <style>
     /* 色は本体の web/style.css と同じ値。文字と押す場所は、50代の人でも読みやすく押しやすい大きさにする。
-       設計: docs/survey-design.md */
+       1画面に1問（Google フォームのように順に進む）。設計: docs/survey-design.md */
     :root {
       color-scheme: light dark;
       --accent: #1e3a5f;
@@ -56,35 +56,38 @@
     [hidden] { display: none !important; }
     html, body { margin: 0; height: 100%; background: var(--surface); color: var(--fg); }
     body { font-size: 17px; line-height: 1.5; }
-    body { display: grid; grid-template-rows: auto minmax(200px, 1fr) auto; grid-template-columns: minmax(0, 1fr); height: 100dvh; }
+    body { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); height: 100dvh; }
     button, input, select { font: inherit; color: inherit; }
     button { cursor: pointer; }
-    button:disabled { opacity: 0.45; cursor: not-allowed; }
     :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-
-    /* 上: 日のタブ */
-    .days {
-      display: flex; gap: 8px; align-items: center;
-      padding: calc(8px + env(safe-area-inset-top)) 12px 8px; border-bottom: 1px solid var(--border);
-    }
-    .tabs { display: flex; gap: 8px; min-width: 0; overflow-x: auto; padding: 4px; margin: -4px; } /* 右上のボタンが増えても、タブだけ横に動かして見る */
-    .tab {
-      min-height: 48px; padding: 0 12px; border-radius: 24px; border: 1.5px solid var(--line);
-      background: var(--surface); font-size: 16px; font-weight: 600; white-space: nowrap;
-    }
-    .tab { display: inline-flex; align-items: center; gap: 6px; }
-    .tab svg { width: 18px; height: 18px; }
-    .tab[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
-    .tab--need { border-color: var(--danger); box-shadow: inset 0 0 0 1.5px var(--danger); } /* 日付がまだの日 */
-    .round {
-      flex: none; margin-left: auto; width: 48px; height: 48px; border-radius: 24px;
-      border: 1.5px solid var(--line); background: var(--surface); color: var(--fg);
-      display: flex; align-items: center; justify-content: center;
-    }
     .icon { display: block; width: 22px; height: 22px; }
 
-    /* 中: 地図 */
-    .map-wrap { position: relative; }
+    /* 上: 進み具合と、いまどの日のどこか */
+    .top { padding: calc(12px + env(safe-area-inset-top)) 16px 0; }
+    .bar { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+    .bar i { display: block; height: 100%; background: var(--accent); transition: width 250ms ease; }
+    @media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
+    .where { min-height: 24px; margin: 8px 0 0; font-size: 15px; font-weight: 600; color: var(--fg-2); }
+
+    /* 中: 問い */
+    main { display: flex; flex-direction: column; overflow-y: auto; padding: 4px 16px 24px; }
+    main h1 { margin: 0; font-size: 21px; font-weight: 600; line-height: 1.4; }
+    .help { margin: 4px 0 0; font-size: 15px; color: var(--fg-2); }
+    .help:empty { display: none; }
+    main > section { margin-top: 16px; }
+    main > section > p, main > section > ul { margin: 0 0 8px; }
+    main > section > ul { padding-left: 20px; color: var(--fg-2); }
+    li + li { margin-top: 4px; }
+
+    /* 地図の画面: 地図を残りの高さいっぱいに出す */
+    .main--map { overflow: hidden; padding-bottom: 0; }
+    .map-sec { display: flex; flex-direction: column; margin: 16px -16px 0; }
+    .main--map .map-sec { flex: 1; min-height: 0; }
+    .map-wrap { position: relative; flex: 1; min-height: 240px; }
+    .map-sec[data-mode="route"] .map-wrap { flex: none; height: 34dvh; }
+    .map-sec[data-mode="route"] :is(.search, .results, .center-pin) { display: none; }
+    .map-sec:not([data-mode="place"]) .map-acts { display: none; }
+    .map-sec:not([data-mode="route"]) .review { display: none; }
     #map { position: absolute; inset: 0; }
     /* 場所の検索（地図の上に浮かべる） */
     .search {
@@ -107,7 +110,7 @@
     .results button:hover, .results button:focus-visible { background: var(--surface-2); }
     .results small { display: block; color: var(--fg-2); font-size: 15px; }
     .results p { margin: 0; padding: 8px 16px; color: var(--fg-2); }
-    /* 地図の真ん中のピン。地図を動かして合わせ、下のボタンで登録する（ピンの先が地図の中心） */
+    /* 地図の真ん中のピン。地図を動かして合わせ、下のボタンで決める（ピンの先が地図の中心） */
     .center-pin {
       position: absolute; z-index: 2; left: 50%; top: 50%; width: 36px; height: 48px; margin: -48px 0 0 -18px;
       pointer-events: none; filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.35));
@@ -115,34 +118,16 @@
     .center-pin svg { display: block; width: 100%; height: 100%; }
     .center-pin path { fill: var(--accent); stroke: var(--surface); stroke-width: 2.5; }
     .center-pin circle { fill: var(--surface); }
-    /* 家を決めたあと、次にすることを登録ボタンの上の吹き出しで示す */
-    .tip {
-      position: absolute; z-index: 2; left: 50%; bottom: 116px; transform: translateX(-50%);
-      width: max-content; max-width: calc(100% - 32px); margin: 0; padding: 8px 14px; border-radius: 12px;
-      background: var(--surface); color: var(--fg); box-shadow: var(--shadow); font-size: 15px; font-weight: 600;
-      text-align: center; pointer-events: none;
-    }
-    .tip::after {
-      content: ""; position: absolute; left: 50%; bottom: -6px; width: 12px; height: 12px; margin-left: -6px;
-      background: var(--surface); transform: rotate(45deg);
-    }
-    .place-btn {
-      position: absolute; z-index: 2; left: 50%; bottom: 48px; transform: translateX(-50%);
-      min-height: 56px; padding: 0 24px; border-radius: 28px; box-shadow: var(--shadow);
-      font-size: 17px; white-space: nowrap;
-    }
     .pt {
-      width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--fg-2);
+      width: 36px; height: 36px; padding: 0; border-radius: 50%; border: 2px solid var(--fg-2);
       background: var(--surface); color: var(--fg); display: flex; align-items: center; justify-content: center;
-      font-size: 16px; font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / 0.3); cursor: grab;
+      font-size: 16px; font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
     }
-    .pt--sel { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+    .pt--need { border-color: var(--danger); box-shadow: 0 0 0 3px var(--need-bg), 0 1px 3px rgb(0 0 0 / 0.3); }
+    .map-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; padding: 12px 16px 4px; }
 
-    /* 下: 1日の帯とカード */
-    .panel {
-      max-height: 50dvh; overflow-y: auto; padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
-      border-top: 1px solid var(--border);
-    }
+    /* 見直し: 1日の帯と、場所の一覧 */
+    .review { padding: 12px 16px 0; }
     .ticks { display: flex; justify-content: space-between; font-size: 14px; color: var(--fg-2); }
     .band {
       position: relative; height: 36px; margin: 4px 0 16px; border-radius: 8px; overflow: hidden;
@@ -153,11 +138,24 @@
       position: absolute; top: 0; bottom: 0; padding: 0; border: 0; border-right: 1px solid var(--surface);
       background: var(--fg-2); color: var(--surface); font-size: 14px; font-weight: 600; overflow: hidden;
     }
-    .block--sel { background: var(--accent); color: var(--on-accent); }
-    .card h2 { margin: 0; font-size: 20px; font-weight: 600; }
+    .list { margin: 0; padding: 0; list-style: none; }
+    .row {
+      display: grid; grid-template-columns: 36px 1fr auto; gap: 12px; align-items: center; width: 100%;
+      min-height: 56px; padding: 8px 12px; margin-top: 8px; border-radius: 10px;
+      border: 1.5px solid var(--input-line); background: var(--input); text-align: left;
+    }
+    .row b {
+      width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--fg-2);
+      display: flex; align-items: center; justify-content: center; font-size: 15px;
+    }
+    .row small { font-size: 15px; color: var(--fg-2); white-space: nowrap; }
+    .row--need { border-color: var(--danger); background: var(--need-bg); }
+
+    /* 入力 */
     .field { display: block; margin-top: 20px; }
+    section > .field:first-child { margin-top: 0; }
     label, .q { display: block; font-size: 16px; font-weight: 600; color: var(--fg); }
-    .need { margin-left: 8px; font-style: normal; font-size: 15px; color: var(--danger); }
+    .need { display: none; margin-left: 8px; font-style: normal; font-size: 15px; color: var(--danger); }
     input, select {
       display: block; width: 100%; min-height: 52px; margin-top: 8px; padding: 8px 12px;
       border-radius: 10px; border: 1.5px solid var(--input-line); background: var(--input); font-size: 17px;
@@ -172,177 +170,143 @@
     }
     .opts button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 600; }
     .opts button[aria-pressed="true"]::before { content: "✓ "; }
-    /* 未入力の必須項目は、赤い地と左の赤い線で知らせる */
+    /* 未入力の必須項目は、「次へ」を押したときに赤い地と左の赤い線で知らせる */
     .field--need {
       margin-left: -12px; margin-right: -12px; padding: 8px 12px 12px; border-radius: 12px;
       background: var(--need-bg); box-shadow: inset 4px 0 0 var(--danger);
     }
-    .field--need > .q { color: var(--danger); }
-    .card-head { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
-    .pt--need { border-color: var(--danger); box-shadow: 0 0 0 3px var(--need-bg), 0 1px 3px rgb(0 0 0 / 0.3); }
+    .field--need > .q, .field--need { color: var(--danger); }
+    .field--need .need { display: inline; }
     .more { margin-top: 20px; border-top: 1px solid var(--border); }
     .more summary { display: flex; align-items: center; min-height: 52px; font-size: 16px; font-weight: 600; cursor: pointer; }
     .note { margin: 12px 0 0; font-size: 15px; color: var(--fg-2); }
     .warn { margin: 12px 0 0; font-size: 15px; font-weight: 600; color: var(--danger); }
     .note:empty, .warn:empty { display: none; }
-    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
-    /* 「次に行った場所」「送る」はカードを下まで見なくても押せるように、下に貼りつける */
-    .panel > .actions {
-      position: sticky; bottom: calc(-16px - env(safe-area-inset-bottom));
-      margin: 16px -16px calc(-16px - env(safe-area-inset-bottom));
-      padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
-      background: var(--surface); border-top: 1px solid var(--border);
-    }
+    .choices { display: grid; gap: 12px; }
+
     .btn {
       min-height: 52px; padding: 0 16px; border-radius: 10px; border: 1.5px solid var(--line);
       background: var(--surface); font-size: 16px; font-weight: 600;
     }
-    .btn--primary { margin-left: auto; background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+    .btn--primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+    .wide { width: 100%; }
     .link {
       min-height: 48px; padding: 0; border: 0; background: none; color: var(--fg-2);
       text-decoration: underline; font-size: 15px;
     }
-
-    /* ダイアログ */
-    dialog {
-      width: calc(100% - 32px); max-width: 480px; max-height: 90dvh; padding: 20px 16px;
-      border: 0; border-radius: 16px; background: var(--surface); color: var(--fg);
-    }
-    dialog::backdrop { background: rgb(0 0 0 / 0.36); }
-    .round + .round, .tabs .round { margin-left: 0; }
-    .send-top { flex: none; min-height: 48px; padding: 0 16px; border-radius: 24px; }
-
-    /* 使い方の案内: 説明する場所だけ明るく抜き、その近くに説明のカードを出す */
-    .guide-layer { position: fixed; inset: 0; z-index: 10; }
-    .spot {
-      position: fixed; border-radius: 12px; pointer-events: none;
-      box-shadow: 0 0 0 3px var(--accent), 0 0 0 9999px rgb(0 0 0 / 0.5);
-      transition: all 250ms cubic-bezier(0.22, 1, 0.36, 1);
-    }
-    .guide {
-      position: fixed; z-index: 11; left: 16px; right: 16px; max-width: 400px; margin: 0 auto;
-      padding: 16px; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow);
-    }
-    .guide h2 { margin: 0 0 8px; font-size: 18px; font-weight: 600; }
-    .guide p { margin: 0; color: var(--fg); line-height: 1.6; }
-    .guide .actions { align-items: center; margin-top: 12px; }
-    .guide .count { font-size: 13px; color: var(--muted); }
-    .spot--none { box-shadow: 0 0 0 9999px rgb(0 0 0 / 0.5); }
-    @media (prefers-reduced-motion: reduce) { .spot { transition: none; } }
-    dialog h1 { margin: 0 0 12px; font-size: 19px; font-weight: 600; line-height: 1.4; }
-    dialog p, dialog ul { margin: 0 0 8px; }
-    dialog ul { padding-left: 20px; color: var(--fg-2); }
-    dialog li + li { margin-top: 4px; }
-    dialog .btn--primary { width: 100%; margin: 16px 0 0; }
     textarea {
       width: 100%; height: 120px; margin-top: 8px; padding: 8px; border-radius: 10px;
       border: 1px solid var(--border); background: var(--surface-2); color: var(--fg); font: 12px/1.4 ui-monospace, monospace;
     }
+
+    /* 下: 戻る・次へ */
+    .nav {
+      display: flex; gap: 8px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+      border-top: 1px solid var(--border);
+    }
+    .nav .btn--primary { flex: 1; font-size: 17px; }
   </style>
 </head>
 <body>
-  <header class="days">
-    <div id="tabs" class="tabs" role="group" aria-label="記入する日"></div>
-    <button type="button" id="help" class="round" aria-label="使い方"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/></svg></button>
-    <button type="button" id="add-day" class="round" aria-label="日を足す"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
-    <button type="button" id="send" class="btn btn--primary send-top">送る</button>
+  <header class="top">
+    <div class="bar" aria-hidden="true"><i id="bar"></i></div>
+    <p id="where" class="where"></p>
   </header>
 
-  <div id="guide-layer" class="guide-layer" hidden>
-    <div id="spot" class="spot"></div>
-  </div>
-  <section id="guide" class="guide" role="dialog" aria-modal="true" aria-labelledby="guide-title" hidden>
-    <h2 id="guide-title"></h2>
-    <p id="guide-text"></p>
-    <div class="actions">
-      <span id="guide-count" class="count"></span>
-      <button type="button" id="guide-skip" class="link">とばす</button>
-      <button type="button" id="guide-next" class="btn btn--primary">次へ</button>
-    </div>
-  </section>
+  <main id="main">
+    <h1 id="qt"></h1>
+    <p id="qh" class="help"></p>
 
-  <div class="map-wrap">
-    <div id="map" aria-label="地図"></div>
-    <form id="search" class="search" role="search">
-      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-      <input id="q" type="search" placeholder="場所の名前や住所で探す" autocomplete="off" enterkeyhint="search" aria-label="場所を探す">
-    </form>
-    <div id="results" class="results" role="list" hidden></div>
-    <div id="center-pin" class="center-pin" aria-hidden="true">
-      <svg viewBox="0 0 36 48"><path d="M18 46S3 28 3 17a15 15 0 0 1 30 0c0 11-15 29-15 29z"/><circle cx="18" cy="17" r="5.5"/></svg>
-    </div>
-    <p id="next-tip" class="tip" role="status" hidden>次は、行った場所にピンを合わせましょう</p>
-    <button type="button" id="place-btn" class="btn btn--primary place-btn"></button>
-  </div>
+    <section id="s-intro" hidden>
+      <p>災害のときに、水や食べ物がもらえる場所を見つける仕組みを考えています。そのために、ふだんの日と地震の後の日の動きを集めています。</p>
+      <ul>
+        <li>1問ずつ聞いていきます。思い出せる範囲で、大まかで大丈夫です</li>
+        <li>書き終わったら、内容をコピーして LINE で送ってください。サーバーには何も保存しません</li>
+        <li>公開はしません。家の位置は約100mの細かさにぼかします</li>
+      </ul>
+      <label class="field" data-need="name">呼び名（ニックネームでよい）<em class="need">未入力</em>
+        <input id="name" maxlength="20" autocomplete="off" enterkeyhint="next"></label>
+    </section>
 
-  <section class="panel">
-    <div class="ticks" aria-hidden="true"><span>0</span><span>6</span><span>12</span><span>18</span><span>24時</span></div>
-    <div id="band" class="band" aria-label="1日の帯"></div>
+    <section id="s-map" class="map-sec" hidden>
+      <div class="map-wrap">
+        <div id="map" aria-label="地図"></div>
+        <form id="search" class="search" role="search">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="q" type="search" placeholder="場所の名前や住所で探す" autocomplete="off" enterkeyhint="search" aria-label="場所を探す">
+        </form>
+        <div id="results" class="results" role="list" hidden></div>
+        <div id="center-pin" class="center-pin" aria-hidden="true">
+          <svg viewBox="0 0 36 48"><path d="M18 46S3 28 3 17a15 15 0 0 1 30 0c0 11-15 29-15 29z"/><circle cx="18" cy="17" r="5.5"/></svg>
+        </div>
+      </div>
+      <div class="map-acts">
+        <button type="button" id="go-home" class="btn">家に帰った</button>
+        <button type="button" id="end-day" class="link">家に帰らず、この日はここまで</button>
+      </div>
+      <div class="review">
+        <div class="ticks" aria-hidden="true"><span>0</span><span>6</span><span>12</span><span>18</span><span>24時</span></div>
+        <div id="band" class="band" aria-label="1日の帯"></div>
+        <ol id="list" class="list"></ol>
+      </div>
+    </section>
 
-    <form id="card" class="card" hidden>
-      <div class="card-head"><h2 id="card-title"></h2><button type="button" id="card-close" class="btn">閉じる</button></div>
-      <div class="field"><span class="q">ここは何ですか？<em class="need" id="need-type">未入力</em></span>
+    <section id="s-date" hidden>
+      <label class="field" data-need="date">日付<em class="need">未入力</em><input type="date" id="day-date"></label>
+      <button type="button" id="del-day" class="link">この日を消す</button>
+    </section>
+
+    <section id="s-hm" hidden>
+      <div class="field" data-need="hm"><span class="q">時刻<em class="need">未入力</em></span>
+        <div class="hm"><select id="h-h" aria-label="時"></select><select id="h-m" aria-label="分"></select></div></div>
+    </section>
+
+    <section id="s-type" hidden>
+      <div class="field" data-need="type"><span class="q">種類<em class="need">未入力</em></span>
         <div class="opts" id="f-type" role="group" aria-label="種類"></div></div>
       <label class="field" id="fd-detail" hidden>場所の名前・くわしく（任意）<input id="f-detail" maxlength="50"></label>
-      <div class="field" id="t-from"><span class="q"><span id="t-from-q">何時ごろ着いた？</span><em class="need" id="need-from">未入力</em></span>
-        <div class="hm"><select id="f-from-h" aria-label="着いた時"></select><select id="f-from-m" aria-label="着いた分"></select></div></div>
-      <div class="field" id="t-dur"><span class="q">どのくらいいた？<em class="need" id="need-dur">未入力</em></span>
-        <div class="opts" id="f-dur" role="group" aria-label="いた長さ"></div></div>
-      <div class="field" id="t-to"><span class="q"><span id="t-to-q">何時ごろ出た？</span><em class="need" id="need-to">未入力</em></span>
-        <div class="hm"><select id="f-to-h" aria-label="出た時"></select><select id="f-to-m" aria-label="出た分"></select></div></div>
-      <div class="field"><span class="q">ふだんも行く場所ですか？<em class="need" id="need-usual">未入力</em></span>
+      <div class="field" data-need="usual"><span class="q">ふだんも行く場所ですか？<em class="need">未入力</em></span>
         <div class="opts opts--2" id="f-usual" role="group" aria-label="ふだんも行く"></div></div>
       <details class="more">
         <summary>くわしく（任意）</summary>
         <label class="field">何をしに行った？<input id="f-purpose" maxlength="50" placeholder="例: 水をもらいに"></label>
         <div class="field"><span class="q">どうやって知った？</span><div class="opts" id="f-heard" role="group" aria-label="知ったきっかけ"></div></div>
-        <div class="field" id="f-mode-wrap"><span class="q">そこまでの移動手段</span><div class="opts opts--2" id="f-mode" role="group" aria-label="移動手段"></div></div>
+        <div class="field"><span class="q">そこまでの移動手段</span><div class="opts opts--2" id="f-mode" role="group" aria-label="移動手段"></div></div>
       </details>
+      <button type="button" id="del-stay" class="link">この場所を消す</button>
+    </section>
+
+    <section id="s-time" hidden>
+      <div class="field" data-need="from"><span class="q">何時ごろ着いた？<em class="need">未入力</em></span>
+        <div class="hm"><select id="f-from-h" aria-label="着いた時"></select><select id="f-from-m" aria-label="着いた分"></select></div></div>
+      <div class="field" data-need="dur"><span class="q">どのくらいいた？<em class="need">未入力</em></span>
+        <div class="opts" id="f-dur" role="group" aria-label="いた長さ"></div></div>
+      <div class="field" id="t-to" data-need="to"><span class="q">何時ごろ出た？<em class="need">未入力</em></span>
+        <div class="hm"><select id="f-to-h" aria-label="出た時"></select><select id="f-to-m" aria-label="出た分"></select></div></div>
       <p id="f-note" class="note"></p>
       <p id="f-warn" class="warn"></p>
-      <button type="button" id="del-stay" class="link">この場所を消す</button>
-    </form>
+    </section>
 
-    <div class="actions">
-      <button type="button" id="go-home" class="btn">家に帰った</button>
-      <button type="button" id="confirm" class="btn btn--primary"></button>
-    </div>
-  </section>
+    <section id="s-more" hidden>
+      <div class="choices">
+        <button type="button" id="more-yes" class="btn wide">はい、もう1日書く</button>
+        <button type="button" id="more-no" class="btn btn--primary wide">いいえ、送る</button>
+      </div>
+    </section>
 
-  <dialog id="intro">
-    <form method="dialog" id="intro-form">
-      <h1>ある1日に、どこへ行ったかを教えてください</h1>
-      <p>災害のときに、水や食べ物がもらえる場所を見つける仕組みを考えています。そのために、ふだんの日と地震の後の日の動きを集めています。</p>
-      <ul>
-        <li>思い出せる範囲で大丈夫です。使い方は右上の ? でいつでも見られます</li>
-        <li>書き終わったら、内容をコピーして LINE で送ってください。サーバーには何も保存しません</li>
-        <li>公開はしません。家の位置は約100mの細かさに丸めます</li>
-      </ul>
-      <label>呼び名（ニックネームでよい）<input id="name" maxlength="20" required pattern=".*\S.*" autocomplete="off"></label>
-      <button class="btn btn--primary">はじめる</button>
-    </form>
-  </dialog>
-
-  <dialog id="date-dlg">
-    <form method="dialog">
-      <h1 id="date-title"></h1>
-      <label class="field">日付<input type="date" id="day-date"></label>
-      <button class="btn btn--primary">決定</button>
-      <button type="button" id="del-day" class="link">この日を消す</button>
-    </form>
-  </dialog>
-
-  <dialog id="send-dlg">
-    <h1>送る</h1>
-    <ul id="summary"></ul>
-    <button type="button" id="copy" class="btn btn--primary">コピーして LINE で送る</button>
-    <p id="copy-msg" class="note" role="status"></p>
-    <textarea id="json" readonly aria-label="送る内容"></textarea>
-    <div class="actions">
+    <section id="s-send" hidden>
+      <ul id="summary"></ul>
+      <button type="button" id="copy" class="btn btn--primary wide">コピーして LINE で送る</button>
+      <p id="copy-msg" class="note" role="status"></p>
+      <textarea id="json" readonly aria-label="送る内容"></textarea>
       <button type="button" id="clear" class="link">この端末から消す</button>
-      <button type="button" id="send-close" class="btn btn--primary" style="width:auto">閉じる</button>
-    </div>
-  </dialog>
+    </section>
+  </main>
+
+  <footer class="nav">
+    <button type="button" id="back" class="btn">戻る</button>
+    <button type="button" id="next" class="btn btn--primary"></button>
+  </footer>
 
   <script type="module">
     import * as maplibregl from "https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.mjs";
@@ -363,11 +327,19 @@
       passing: "通りがかり", usual: "いつも行く", other: "その他",
     };
     const MODE = { walk: "徒歩", car: "車", bicycle: "自転車", other: "その他" };
+    const USUAL = { true: "はい", false: "いいえ" };
+    const DETAIL_HINT = {
+      work: "例: 会社、○○小学校", shop: "例: ○○スーパー八代店", water: "例: 給水車、ペットボトルの配布",
+      food: "例: 店の前でおにぎり", shelter: "例: ○○小学校の体育館", car_sleeping: "例: ○○の駐車場",
+      friend: "例: 親戚の家", other: "例: 何があったか",
+    };
 
     const $ = (s) => document.querySelector(s);
     const round = (x, digits) => Number(x.toFixed(digits));
     const minutes = (t) => (t ? Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5)) : null);
     const incomplete = (s) => !s.from || !s.to || !s.type || s.usual == null;
+    // 「家に帰った」で足した、その日の最後の家（出た時刻は 24時）
+    const isEnd = (s, i) => i > 0 && s.type === "home" && s.to === "00:00";
 
     let state = load() ?? {
       v: 1, name: "", home: null,
@@ -376,11 +348,14 @@
         { label: "地震の後の日", date: null, stays: [] },
       ],
     };
-    let dayIdx = 0;
-    let sel = null; // 選んでいる場所の番号
+    // いまの画面 { s: 画面, d: 何日目, i: 何番目の場所, edit: 見直しから直している }。開き直すとここから
+    state.pos ??= { s: "intro" };
+    let tried = false; // この画面で「次へ」を押した（未入力を赤で知らせる）
     let markers = [];
+    let route = [];
 
-    const day = () => state.days[dayIdx];
+    const day = () => state.days[state.pos.d];
+    const stay = () => day().stays[state.pos.i];
 
     function load() {
       try { return JSON.parse(localStorage.getItem(KEY)); } catch { return null; }
@@ -388,7 +363,265 @@
     function save() {
       try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* 保存できなくても書ける */ }
     }
-    function changed() { save(); render(); }
+
+    const homeStay = (from, to) => ({ lat: state.home[0], lon: state.home[1], from, to, type: "home", usual: true });
+
+    // 家は約100mに丸めて、すべての日の「自宅」を同じ位置にする
+    function setHome(lat, lon) {
+      state.home = [round(lat, 3), round(lon, 3)];
+      for (const d of state.days) {
+        for (const s of d.stays) if (s.type === "home") [s.lat, s.lon] = state.home;
+      }
+    }
+
+    // ---- 画面（1画面に1問） ----
+    // title/help: 問いと補足 / sec: 出す部品 / map: 地図の出し方 / enter: 開いたとき / paint: 入力のたび
+    // missing: 未入力の項目 / done: 次へで進む先 / prev: 戻る先
+
+    const review = (d) => ({ s: "review", d });
+    const editPos = (d, i) => {
+      const s = state.days[d].stays[i];
+      return { s: i === 0 ? "leave" : isEnd(s, i) ? "back" : "type", d, i, edit: true };
+    };
+
+    const S = {
+      intro: {
+        sec: "#s-intro", next: "はじめる", title: "ある1日に、どこへ行ったかを教えてください",
+        enter: () => { $("#name").value = state.name; },
+        missing: () => (state.name ? [] : ["name"]),
+        done: () => ({ s: "home" }),
+      },
+      home: {
+        sec: "#s-map", map: "home", next: "ここが家", title: "家はどこですか？",
+        help: "名前で探すか、地図を動かして、真ん中のピンを家に合わせてください。約100mの細かさにぼかします",
+        enter: () => { if (state.home) map.jumpTo({ center: [state.home[1], state.home[0]], zoom: 15 }); },
+        done: () => {
+          const { lat, lng } = map.getCenter();
+          setHome(lat, lng);
+          return { s: "date", d: 0 };
+        },
+        prev: () => ({ s: "intro" }),
+      },
+      date: {
+        sec: "#s-date", title: () => `${day().label}は、何月何日ですか？`,
+        help: (p) => (p.d === 0 ? "地震の前の、いつもどおりの日を1日選んでください"
+          : "給水や炊き出しに行った日があれば、その日を選んでください"),
+        enter: (p) => { $("#day-date").value = day().date ?? ""; $("#del-day").hidden = p.d < 2; },
+        missing: () => (day().date ? [] : ["date"]),
+        done: (p) => {
+          if (!day().stays.length) day().stays.push(homeStay("00:00", "")); // 1日は家から始まる
+          return { s: "leave", d: p.d, i: 0 };
+        },
+        prev: (p) => (p.d === 0 ? { s: "home" } : review(p.d - 1)),
+      },
+      leave: {
+        sec: "#s-hm", hm: "to", title: "その日、何時ごろ家を出ましたか？", help: "大まかで大丈夫です",
+        enter: () => setHM(stay().to),
+        missing: () => (stay().to ? [] : ["hm"]),
+        done: (p) => (p.edit ? review(p.d) : { s: "place", d: p.d, i: 1 }),
+        prev: (p) => (p.edit ? review(p.d) : { s: "date", d: p.d }),
+      },
+      place: {
+        sec: "#s-map", map: "place", next: "ここに行った",
+        title: (p) => (p.i === 1 ? "最初に行った場所はどこですか？" : "次に行った場所はどこですか？"),
+        help: "名前で探すか、地図を動かして、真ん中のピンを合わせてください",
+        enter: (p) => {
+          const s = stay();
+          const at = s && !isEnd(s, p.i) ? s : day().stays[p.i - 1];
+          map.jumpTo({ center: [at.lon, at.lat] });
+        },
+        done: (p) => {
+          const { lat, lng } = map.getCenter();
+          const stays = day().stays;
+          let s = stays[p.i];
+          // まだない場所なら足す（最後の家の前に入れる）。戻ってきて置き直したなら、その場所を動かす
+          if (!s || isEnd(s, p.i)) {
+            s = { lat: 0, lon: 0, from: stays[p.i - 1].to ?? "", to: "", type: "", usual: null };
+            stays.splice(p.i, 0, s);
+          }
+          [s.lat, s.lon] = [round(lat, 5), round(lng, 5)];
+          // 検索で選んだ場所のまま決めたなら、その名前を「場所の名前」に入れておく
+          if (lastPick && map.getCenter().distanceTo(lastPick.at) < 30 && !s.detail) s.detail = lastPick.name.slice(0, 50);
+          return { s: "type", d: p.d, i: p.i };
+        },
+        prev: (p) => (p.i <= 1 ? { s: "leave", d: p.d, i: 0 } : { s: "time", d: p.d, i: p.i - 1 }),
+      },
+      type: {
+        sec: "#s-type", title: "そこは何ですか？",
+        enter: () => {
+          const s = stay();
+          $("#f-detail").value = s.detail ?? "";
+          $("#f-purpose").value = s.purpose ?? "";
+          $(".more").open = Boolean(s.purpose || s.heard || s.mode);
+        },
+        paint: () => {
+          const s = stay();
+          opts($("#f-type"), TYPE, s.type, (v) => setField("type", v));
+          // 種類を選ぶと、そのすぐ下に場所の名前やくわしい内容の欄を出す（家は出さない）
+          $("#fd-detail").hidden = !s.type || s.type === "home";
+          $("#f-detail").placeholder = DETAIL_HINT[s.type] ?? "";
+          opts($("#f-usual"), USUAL, s.usual == null ? null : String(s.usual), (v) => setField("usual", v === "true"));
+          opts($("#f-heard"), HEARD, s.heard, (v) => setField("heard", v), true);
+          opts($("#f-mode"), MODE, s.mode, (v) => setField("mode", v), true);
+        },
+        missing: () => [!stay().type && "type", stay().usual == null && "usual"].filter(Boolean),
+        done: (p) => ({ s: "time", d: p.d, i: p.i, edit: p.edit }),
+        prev: (p) => (p.edit ? review(p.d) : { s: "place", d: p.d, i: p.i }),
+      },
+      time: {
+        sec: "#s-time", title: "何時ごろ着いて、どのくらいいましたか？", help: "大まかで大丈夫です",
+        enter: () => {
+          moreOpen = false;
+          pendingDur = null;
+          setSel("#f-from-h", "#f-from-m", stay().from);
+          setSel("#f-to-h", "#f-to-m", stay().to);
+        },
+        paint: paintTime,
+        missing: () => {
+          const s = stay();
+          return [!s.from && "from", !s.to && !pendingDur && "dur", !s.to && "to"].filter(Boolean);
+        },
+        done: (p) => (p.edit ? review(p.d) : { s: "place", d: p.d, i: p.i + 1 }),
+        prev: (p) => ({ s: "type", d: p.d, i: p.i, edit: p.edit }),
+      },
+      back: {
+        sec: "#s-hm", hm: "from", title: "何時ごろ家に帰りましたか？", help: "大まかで大丈夫です",
+        enter: () => setHM(stay().from),
+        missing: () => (stay().from ? [] : ["hm"]),
+        done: (p) => review(p.d),
+        prev: (p) => (p.edit ? review(p.d) : { s: "place", d: p.d, i: p.i }),
+      },
+      review: {
+        sec: "#s-map", map: "route", title: "この日の動きを確かめてください", help: "直したい場所を押すと、直せます",
+        enter: () => {
+          const b = new maplibregl.LngLatBounds();
+          day().stays.forEach((s) => b.extend([s.lon, s.lat]));
+          map.fitBounds(b, { padding: 48, maxZoom: 15, duration: 0 });
+        },
+        paint: paintReview,
+        // 未入力の場所があればそこを開く。そろっていれば次の日へ
+        done: (p) => {
+          const i = day().stays.findIndex(incomplete);
+          if (i >= 0) return editPos(p.d, i);
+          return p.d < state.days.length - 1 ? { s: "date", d: p.d + 1 } : { s: "more" };
+        },
+        prev: (p) => {
+          const st = day().stays, last = st.length - 1;
+          return isEnd(st[last], last) ? { s: "back", d: p.d, i: last } : { s: "place", d: p.d, i: st.length };
+        },
+      },
+      more: {
+        sec: "#s-more", title: "ほかの日も書きますか？", help: "地震の後の別の日があれば、足せます",
+        prev: () => review(state.days.length - 1),
+      },
+      send: {
+        sec: "#s-send", title: "送る", help: "下のボタンでコピーして、LINE に貼り付けて送ってください",
+        enter: () => {
+          $("#summary").replaceChildren(...state.days.map((d) => {
+            const li = document.createElement("li");
+            const missing = d.stays.filter(incomplete).length;
+            li.textContent = `${d.label}${d.date ? ` ${d.date}` : "（日付なし）"}: ${Math.max(d.stays.length - 1, 0)}か所`
+              + (missing ? `（未入力がある場所 ${missing}）` : "");
+            return li;
+          }));
+          $("#json").value = answer();
+          $("#copy-msg").textContent = "";
+        },
+        prev: () => ({ s: "more" }),
+      },
+    };
+
+    const val = (v, p) => (typeof v === "function" ? v(p) : v ?? "");
+
+    function go(p) {
+      state.pos = p;
+      save();
+      show();
+    }
+
+    function show() {
+      const p = state.pos, sc = S[p.s];
+      for (const el of document.querySelectorAll("main > section")) el.hidden = el !== $(sc.sec);
+      $("#qt").textContent = val(sc.title, p);
+      $("#qh").textContent = val(sc.help, p);
+      $("#next").textContent = sc.next ?? "次へ";
+      $("#next").hidden = !sc.done;
+      $("#back").hidden = !sc.prev;
+      $("#main").classList.toggle("main--map", sc.map === "home" || sc.map === "place");
+      $("#main").scrollTop = 0;
+      if (sc.map) {
+        $("#s-map").dataset.mode = sc.map;
+        $("#q").value = "";
+        showResults(null);
+        map.resize(); // 隠れていた地図を、出したときの大きさに合わせる
+      }
+      tried = false;
+      sc.enter?.(p);
+      paint();
+    }
+
+    function paint() {
+      const p = state.pos, sc = S[p.s];
+      sc.paint?.(p);
+      const miss = sc.missing?.(p) ?? [];
+      for (const f of $(sc.sec).querySelectorAll("[data-need]")) {
+        f.classList.toggle("field--need", tried && miss.includes(f.dataset.need));
+      }
+      $("#bar").style.width = `${progress() * 100}%`;
+      $("#where").textContent = where();
+      renderMap();
+    }
+
+    // 進み具合: はじめに・家・（日付・家を出た・場所・見直し）×日数・ほかの日・送る
+    function progress() {
+      const p = state.pos, n = state.days.length;
+      const part = { date: 0, leave: 1, place: 2, type: 2, time: 2, back: 2, review: 3 }[p.s];
+      const k = p.s === "intro" ? 0 : p.s === "home" ? 1 : part != null ? 2 + p.d * 4 + part : p.s === "more" ? 2 + n * 4 : 3 + n * 4;
+      return k / (3 + n * 4);
+    }
+
+    function where() {
+      const p = state.pos;
+      if (p.d == null || !day()) return "";
+      const d = day();
+      let t = d.label + (d.date ? ` ${Number(d.date.slice(5, 7))}/${Number(d.date.slice(8, 10))}` : "");
+      if (["place", "type", "time"].includes(p.s)) t += ` ・ ${p.i}か所目`;
+      return t;
+    }
+
+    $("#next").addEventListener("click", () => {
+      const p = state.pos, sc = S[p.s];
+      if (sc.missing?.(p).length) { tried = true; paint(); return focusNeed(); }
+      go(sc.done(p));
+    });
+    $("#back").addEventListener("click", () => go(S[state.pos.s].prev(state.pos)));
+
+    // 最初の未入力の項目までスクロールする
+    function focusNeed() {
+      const field = [...document.querySelectorAll(".field--need")].find((el) => el.offsetParent);
+      if (!field) return;
+      const smooth = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+      field.scrollIntoView({ block: "center", behavior: smooth ? "smooth" : "auto" });
+      // 選択欄そのものにはフォーカスしない（スマホで選択の画面が勝手に開いたり閉じたりしないように）
+      field.tabIndex = -1;
+      field.focus({ preventScroll: true });
+    }
+
+    // ---- はじめに・日付 ----
+
+    $("#name").addEventListener("input", (e) => { state.name = e.target.value.trim(); save(); paint(); });
+    $("#name").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#next").click(); });
+    $("#day-date").addEventListener("change", (e) => { day().date = e.target.value || null; save(); paint(); });
+    $("#del-day").addEventListener("click", () => {
+      if (!confirm("この日の記入を消しますか？")) return;
+      state.days.splice(state.pos.d, 1);
+      go(review(state.pos.d - 1));
+    });
+    $("#more-yes").addEventListener("click", () => {
+      state.days.push({ label: "地震の後の日", date: null, stays: [] });
+      go({ s: "date", d: state.days.length - 1 });
+    });
+    $("#more-no").addEventListener("click", () => go({ s: "send" }));
 
     // ---- 地図 ----
 
@@ -402,6 +635,7 @@
       ...(state.home ? { center: [state.home[1], state.home[0]], zoom: 14 } : START),
     });
     darkMode.addEventListener("change", () => map.setStyle(mapStyle()));
+    const routeData = () => ({ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: route } });
     map.on("style.load", () => {
       // OpenFreeMap の地名は「ローマ字＋日本語」の2段なので、日本語だけにする（本体と同じ）
       for (const layer of map.getStyle().layers) {
@@ -419,151 +653,53 @@
         },
       });
     });
-    // 地図をタップすると、真ん中のピンがそこへ動く（入力欄は閉じる）。点のタップは点の選択
+    // 場所を聞く画面では、地図をタップすると真ん中のピンがそこへ動く
     map.on("click", (e) => {
-      if (e.originalEvent.target.closest?.(".pt")) return;
-      if (sel != null) { sel = null; render(); }
+      showResults(null);
+      if (S[state.pos.s].map === "route" || e.originalEvent.target.closest?.(".pt")) return;
       map.easeTo({ center: e.lngLat });
     });
 
-    const routeData = () => ({
-      type: "Feature", properties: {},
-      geometry: { type: "LineString", coordinates: day().stays.map((s) => [s.lon, s.lat]) },
-    });
-
-    // 真ん中のピンの位置を、家か次の場所として登録する
-    $("#place-btn").addEventListener("click", () => {
-      const { lat, lng } = map.getCenter();
-      const stays = day().stays;
-      justConfirmed = false;
-      if (!state.home) {
-        setHome(lat, lng);
-        stays.push(homeStay("00:00"));
-      } else {
-        // 検索で選んだ場所のまま登録したなら、その名前を「場所の名前」に入れておく
-        const near = lastPick && map.getCenter().distanceTo(lastPick.at) < 30;
-        stays.push({ lat: round(lat, 5), lon: round(lng, 5), from: stays.at(-1)?.to ?? "", to: "", type: "", usual: null,
-          ...(near ? { detail: lastPick.name.slice(0, 50) } : {}) });
-      }
-      sel = stays.length - 1;
-      changed();
-    });
-
-    const homeStay = (from) => ({ lat: state.home[0], lon: state.home[1], from, to: "", type: "home", usual: true });
-
-    // 家は約100mに丸めて、すべての日の「自宅」を同じ位置にする
-    function setHome(lat, lon) {
-      state.home = [round(lat, 3), round(lon, 3)];
-      for (const d of state.days) {
-        for (const s of d.stays) if (s.type === "home") [s.lat, s.lon] = state.home;
-      }
-    }
-
+    // それまでに決めた場所を点と線で出す（見直しでは全部。点を押すと直せる）
     function renderMap() {
       markers.forEach((m) => m.remove());
-      markers = day().stays.map((s, i) => {
-        const el = document.createElement("button");
-        el.type = "button";
-        el.className = "pt" + (i === sel ? " pt--sel" : "") + (incomplete(s) ? " pt--need" : "");
-        el.textContent = s.type === "home" ? "家" : String(i + 1);
-        el.setAttribute("aria-label", `${i + 1}番目 ${TYPE[s.type] ?? "種類未入力"}`);
-        el.addEventListener("click", (e) => { e.stopPropagation(); sel = i; render(); });
-        const m = new maplibregl.Marker({ element: el, draggable: true }).setLngLat([s.lon, s.lat]).addTo(map);
-        m.on("dragend", () => {
-          const { lat, lng } = m.getLngLat();
-          if (s.type === "home") setHome(lat, lng);
-          else [s.lat, s.lon] = [round(lat, 5), round(lng, 5)];
-          sel = i;
-          changed();
-        });
-        return m;
+      const p = state.pos, mode = S[p.s].map;
+      const stays = mode && p.d != null ? day().stays : [];
+      const shown = (mode === "route" ? stays : mode === "place" ? stays.slice(0, p.i) : []).map((s, i) => [s, i]);
+      markers = shown.map(([s, i]) => {
+        const el = document.createElement(mode === "route" ? "button" : "div");
+        el.className = "pt" + (mode === "route" && incomplete(s) ? " pt--need" : "");
+        el.textContent = s.type === "home" ? "家" : String(i);
+        if (mode === "route") {
+          el.type = "button";
+          el.setAttribute("aria-label", `${i}か所目を直す`);
+          el.addEventListener("click", (e) => { e.stopPropagation(); go(editPos(p.d, i)); });
+        }
+        return new maplibregl.Marker({ element: el }).setLngLat([s.lon, s.lat]).addTo(map);
       });
+      route = shown.map(([s]) => [s.lon, s.lat]);
       map.getSource("route")?.setData(routeData());
     }
 
-    // ---- 日のタブ ----
+    // ---- 場所: 家に帰った・この日はここまで ----
 
-    const addDay = $("#add-day"); // 日を足すボタンは、タブの並びの最後に置く
-    function renderTabs() {
-      $("#tabs").replaceChildren(addDay);
-      $("#tabs").prepend(...state.days.map((d, i) => {
-        const b = document.createElement("button");
-        b.type = "button";
-        b.className = "tab";
-        const short = d.label === "ふだんの日" ? "ふだん" : "地震後";
-        b.textContent = d.date ? `${short} ${Number(d.date.slice(5, 7))}/${Number(d.date.slice(8, 10))}` : short;
-        // 選んでいるタブには日付を選べる印。日付がまだの日は赤い枠
-        if (i === dayIdx) b.insertAdjacentHTML("beforeend", CALENDAR);
-        b.classList.toggle("tab--need", !d.date);
-        b.setAttribute("aria-pressed", String(i === dayIdx));
-        b.setAttribute("aria-label", `${b.textContent}${i === dayIdx ? "（押すと日付を選べます）" : ""}`);
-        b.addEventListener("click", () => (i === dayIdx ? openDate() : switchDay(i)));
-        return b;
-      }));
-    }
-
-    const CALENDAR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>';
-
-    function openDate() {
-      $("#date-title").textContent = day().label;
-      $("#day-date").value = day().date ?? "";
-      $("#del-day").hidden = dayIdx < 2; // 最初の2日は消さない
-      $("#date-dlg").showModal();
-    }
-
-    function switchDay(i) {
-      dayIdx = i;
-      sel = null;
-      justConfirmed = false;
+    // i 番目から先を消す。書いた場所があれば確かめる（キャンセルなら null）
+    function cutAfter(i) {
       const stays = day().stays;
-      changed();
-      if (stays.length > 1) {
-        const b = new maplibregl.LngLatBounds();
-        stays.forEach((s) => b.extend([s.lon, s.lat]));
-        map.fitBounds(b, { padding: 60, maxZoom: 15 });
-      } else if (stays.length) {
-        map.easeTo({ center: [stays[0].lon, stays[0].lat] });
-      }
+      const n = stays.slice(i).filter((s, k) => !isEnd(s, i + k)).length;
+      if (n && !confirm(`この先に書いた${n}か所は消えます。よろしいですか？`)) return null;
+      return stays.splice(i);
     }
-
-    $("#add-day").addEventListener("click", () => {
-      state.days.push({ label: "地震の後の日", date: null, stays: [] });
-      switchDay(state.days.length - 1);
+    $("#go-home").addEventListener("click", () => {
+      const p = state.pos, cut = cutAfter(p.i);
+      if (!cut) return;
+      day().stays.push(cut.find((s, k) => isEnd(s, p.i + k)) ?? homeStay("", "00:00"));
+      go({ s: "back", d: p.d, i: p.i });
     });
-    $("#day-date").addEventListener("change", (e) => { day().date = e.target.value || null; changed(); });
-    $("#del-day").addEventListener("click", () => {
-      if (!confirm("この日の記入を消しますか？")) return;
-      $("#date-dlg").close();
-      state.days.splice(dayIdx, 1);
-      switchDay(0);
-    });
+    // 車中泊や避難所に泊まった日など
+    $("#end-day").addEventListener("click", () => { if (cutAfter(state.pos.i)) go(review(state.pos.d)); });
 
-    // ---- 1日の帯 ----
-
-    // 夜をまたぐ滞在（出た時刻 < 着いた時刻）は、帯では24時まで
-    function span(s) {
-      const a = minutes(s.from), b = minutes(s.to);
-      if (a == null || b == null) return null;
-      return [a, b < a ? 1440 : b];
-    }
-
-    function renderBand() {
-      $("#band").replaceChildren(...day().stays.flatMap((s, i) => {
-        const sp = span(s);
-        if (!sp) return [];
-        const el = document.createElement("button");
-        el.type = "button";
-        el.className = "block" + (i === sel ? " block--sel" : "");
-        el.style.left = `${(sp[0] / 1440) * 100}%`;
-        el.style.width = `${((sp[1] - sp[0]) / 1440) * 100}%`;
-        el.textContent = s.type === "home" ? "家" : String(i + 1);
-        el.setAttribute("aria-label", `${i + 1}番目 ${s.from}〜${s.to}`);
-        el.addEventListener("click", () => { sel = i; render(); });
-        return [el];
-      }));
-    }
-
-    // ---- 場所のカード ----
+    // ---- 種類 ----
 
     // 選ぶ項目は大きなボタンを並べる。optional なら、選んでいるものをもう一度押すと外せる
     function opts(el, labels, value, onPick, optional = false) {
@@ -577,90 +713,62 @@
         return b;
       }));
     }
-    const USUAL = { true: "はい", false: "いいえ" };
-    const DETAIL_HINT = {
-      work: "例: 会社、○○小学校", shop: "例: ○○スーパー八代店", water: "例: 給水車、ペットボトルの配布",
-      food: "例: 店の前でおにぎり", shelter: "例: ○○小学校の体育館", car_sleeping: "例: ○○の駐車場",
-      friend: "例: 親戚の家", other: "例: 何があったか",
-    };
-    // 未入力の必須項目: 項目名の横に「未入力」、項目全体を赤い地にする
-    function need(key, on) {
-      const badge = $(`#need-${key}`);
-      badge.hidden = !on;
-      badge.closest(".field").classList.toggle("field--need", on);
-    }
-    const closeCard = () => { sel = null; render(); };
-    $("#card-close").addEventListener("click", closeCard);
     function setField(key, v) {
-      const s = day().stays[sel];
+      const s = stay();
       s[key] = v;
-      if (key === "type" && s.type === "home" && state.home) [s.lat, s.lon] = state.home;
-      changed();
+      if (key === "type" && s.type === "home") [s.lat, s.lon] = state.home;
+      save();
+      paint();
     }
-
-    function renderCard() {
-      const stays = day().stays;
-      const s = stays[sel];
-      $("#card").hidden = !s;
-      if (!s) return;
-      $("#card-title").textContent = `${sel + 1}か所目` + (TYPE[s.type] ? `: ${TYPE[s.type]}` : "");
-      renderTime(s);
-      opts($("#f-type"), TYPE, s.type, (v) => setField("type", v));
-      // 種類を選ぶと、そのすぐ下に場所の名前やくわしい内容の欄を出す（家は出さない）
-      $("#fd-detail").hidden = !s.type || s.type === "home";
-      $("#f-detail").value = s.detail ?? "";
-      $("#f-detail").placeholder = DETAIL_HINT[s.type] ?? "";
-      opts($("#f-usual"), USUAL, s.usual == null ? null : String(s.usual), (v) => setField("usual", v === "true"));
-      opts($("#f-heard"), HEARD, s.heard, (v) => setField("heard", v), true);
-      opts($("#f-mode"), MODE, s.mode, (v) => setField("mode", v), true);
-      $("#f-purpose").value = s.purpose ?? "";
-      need("type", !s.type);
-      need("usual", s.usual == null);
-      $("#f-mode-wrap").hidden = sel === 0;
-      $("#f-note").textContent = s.to === "00:00" && sel > 0 ? "その日の終わり（24時）まで"
-        : s.from && s.to && s.to < s.from ? `翌日の ${s.to} まで` : "";
-      const prev = stays[sel - 1];
-      const prevEnd = prev && span(prev)?.[1];
-      $("#f-warn").textContent = prevEnd != null && s.from && minutes(s.from) < prevEnd
-        ? "時刻が前の場所と重なっています" : "";
+    for (const [id, key] of [["#f-detail", "detail"], ["#f-purpose", "purpose"]]) {
+      $(id).addEventListener("change", (e) => { stay()[key] = e.target.value || undefined; save(); });
     }
-
-    const bind = (id, key, parse = (v) => v || undefined) => $(id).addEventListener("change", (e) => {
-      const s = day().stays[sel];
-      s[key] = parse(e.target.value);
-      if (key === "type" && s.type === "home" && state.home) [s.lat, s.lon] = state.home;
-      changed();
+    $("#del-stay").addEventListener("click", () => {
+      if (!confirm("この場所を消しますか？")) return;
+      const p = state.pos;
+      day().stays.splice(p.i, 1);
+      go(p.edit ? review(p.d) : { s: "place", d: p.d, i: p.i });
     });
-    bind("#f-purpose", "purpose");
-    bind("#f-detail", "detail");
 
-    // ---- 時刻: 「何時ごろ着いた？」＋「どのくらいいた？」。1件目（家）は「何時ごろ出た？」だけ ----
+    // ---- 時刻 ----
 
-    const DURATIONS = [[15, "15分"], [30, "30分"], [60, "1時間"], [120, "2時間"], [180, "3時間"]];
-    const hm = (m) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
-    const stayed = (s) => (s.from && s.to ? (minutes(s.to) - minutes(s.from) + 1440) % 1440 : null);
-    let moreOpen = false; // 「それ以上…」で出た時刻を直接選んでいる
-    let pendingDur = null; // 着いた時刻より先に選んだ、いた長さ
-    let cardKey = "";
-
-    for (const id of ["#f-from-h", "#f-to-h"]) {
+    for (const id of ["#h-h", "#f-from-h", "#f-to-h"]) {
       $(id).replaceChildren(new Option("—", ""),
         ...Array.from({ length: 24 }, (_, h) => new Option(`${h}時`, String(h).padStart(2, "0"))));
     }
-    for (const id of ["#f-from-m", "#f-to-m"]) {
+    for (const id of ["#h-m", "#f-from-m", "#f-to-m"]) {
       $(id).replaceChildren(...["00", "15", "30", "45"].map((m) => new Option(`${m}分`, m)));
     }
+    // 選択欄の値は画面を開いたときだけ入れる（選んでいる最中に入れ直すと、スマホで選べなくなる）
+    function setSel(h, m, t) {
+      const [hh, mm] = t ? t.split(":") : ["", "00"];
+      $(h).value = hh;
+      $(m).value = mm;
+    }
+    const setHM = (t) => setSel("#h-h", "#h-m", t);
+    const pickTime = (h, m) => ($(h).value ? `${$(h).value}:${$(m).value}` : "");
 
-    function renderTime(s) {
-      const fresh = cardKey !== `${dayIdx}:${sel}`;
-      if (fresh) { cardKey = `${dayIdx}:${sel}`; moreOpen = false; pendingDur = null; }
-      const first = sel === 0;
-      const home = s.type === "home";
-      const lastHome = home && !first;
-      const d = stayed(s);
-      const chip = lastHome && s.to === "00:00" ? "end" : DURATIONS.some(([m]) => m === d) ? String(d) : null;
-      const durs = [...DURATIONS.map(([m, label]) => [String(m), label]), ...(lastHome ? [["end", "朝まで"]] : []), ["more", "それ以上…"]];
-      $("#f-dur").replaceChildren(...durs.map(([k, label]) => {
+    // 家を出た時刻・家に帰った時刻
+    for (const id of ["#h-h", "#h-m"]) {
+      $(id).addEventListener("change", () => {
+        stay()[S[state.pos.s].hm] = pickTime("#h-h", "#h-m");
+        save();
+        paint();
+      });
+    }
+
+    // 場所の時刻: 「何時ごろ着いた？」＋「どのくらいいた？」（「それ以上…」で出た時刻を直接選ぶ）
+    const DURATIONS = [[15, "15分"], [30, "30分"], [60, "1時間"], [120, "2時間"], [180, "3時間"]];
+    const hm = (m) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+    const stayed = (s) => (s.from && s.to ? (minutes(s.to) - minutes(s.from) + 1440) % 1440 : null);
+    const endOf = (from, k) => hm(minutes(from) + Number(k));
+    let moreOpen = false; // 「それ以上…」で出た時刻を直接選んでいる
+    let pendingDur = null; // 着いた時刻より先に選んだ、いた長さ
+
+    function paintTime() {
+      const s = stay(), d = stayed(s);
+      const chip = DURATIONS.some(([m]) => m === d) ? String(d) : null;
+      $("#f-dur").replaceChildren(...[...DURATIONS.map(([m, label]) => [String(m), label]), ["more", "それ以上…"]].map(([k, label]) => {
         const b = document.createElement("button");
         b.type = "button";
         b.textContent = label;
@@ -670,119 +778,85 @@
         b.addEventListener("click", () => setDuration(k));
         return b;
       }));
-      $("#t-from").hidden = first;
-      $("#t-dur").hidden = first;
-      $("#t-to").hidden = !first && !moreOpen && (chip || !s.to);
-      $("#t-from-q").textContent = home ? "何時ごろ帰った？" : "何時ごろ着いた？";
-      $("#t-to-q").textContent = first ? "何時ごろ家を出た？" : "何時ごろ出た？";
-      need("from", !first && !s.from);
-      need("dur", !first && !s.to && !pendingDur);
-      need("to", !s.to);
-      // 「時」がまだのときは、先に選んだ「分」を消さない（別の場所に移ったときだけ 00 に戻す）
-      // 選んでいる最中の選択欄に値を入れ直さない（スマホで選択の画面が閉じたり戻ったりしないように）
-      const set = (id, v) => { if ($(id).value !== v) $(id).value = v; };
-      const show = (h, m, t) => {
-        if (t) { const [hh, mm] = t.split(":"); set(h, hh); set(m, mm); }
-        else { set(h, ""); if (fresh) set(m, "00"); }
-      };
-      show("#f-from-h", "#f-from-m", s.from);
-      show("#f-to-h", "#f-to-m", s.to);
+      $("#t-to").hidden = !moreOpen && (chip || !s.to);
+      // 長さのボタンで決まった出た時刻を、出た時刻の欄にも映す（同じ値なら入れ直さない）
+      if (s.to) {
+        const [h, m] = s.to.split(":");
+        if ($("#f-to-h").value !== h) $("#f-to-h").value = h;
+        if ($("#f-to-m").value !== m) $("#f-to-m").value = m;
+      }
+      $("#f-note").textContent = s.from && s.to && s.to < s.from ? `翌日の ${s.to} まで` : "";
+      const prev = day().stays[state.pos.i - 1];
+      const prevEnd = prev && span(prev)?.[1];
+      $("#f-warn").textContent = prevEnd != null && s.from && minutes(s.from) < prevEnd
+        ? "時刻が前の場所と重なっています" : "";
     }
 
     function setDuration(k) {
-      const s = day().stays[sel];
-      if (k === "more") { moreOpen = true; pendingDur = null; return render(); }
+      const s = stay();
+      if (k === "more") { moreOpen = true; pendingDur = null; return paint(); }
       moreOpen = false;
-      if (!s.from && k !== "end") { pendingDur = k; return render(); } // 着いた時刻を選んだら計算する
+      if (!s.from) { pendingDur = k; return paint(); } // 着いた時刻を選んだら計算する
       s.to = endOf(s.from, k);
-      changed();
+      save();
+      paint();
     }
-    const endOf = (from, k) => (k === "end" ? "00:00" : hm(minutes(from) + Number(k)));
 
-    const pickTime = (h, m) => ($(h).value ? `${$(h).value}:${$(m).value}` : "");
     for (const id of ["#f-from-h", "#f-from-m"]) {
       $(id).addEventListener("change", () => {
-        const s = day().stays[sel];
+        const s = stay();
         const d = stayed(s); // 着いた時刻を直しても、いた長さは保つ
         s.from = pickTime("#f-from-h", "#f-from-m");
         if (s.from && pendingDur) { s.to = endOf(s.from, pendingDur); pendingDur = null; }
-        else if (s.from && d != null && !moreOpen && s.to !== "00:00") s.to = hm(minutes(s.from) + d);
-        changed();
+        else if (s.from && d != null && !moreOpen) s.to = hm(minutes(s.from) + d);
+        save();
+        paint();
       });
     }
     for (const id of ["#f-to-h", "#f-to-m"]) {
-      $(id).addEventListener("change", () => {
-        day().stays[sel].to = pickTime("#f-to-h", "#f-to-m");
-        changed();
-      });
+      $(id).addEventListener("change", () => { stay().to = pickTime("#f-to-h", "#f-to-m"); save(); paint(); });
     }
 
-    $("#del-stay").addEventListener("click", () => {
-      day().stays.splice(sel, 1);
-      sel = null;
-      changed();
-    });
+    // ---- 見直し: 1日の帯と一覧 ----
 
-    // ---- 次の場所・家に帰る ----
-
-    $("#go-home").addEventListener("click", () => {
-      const stays = day().stays;
-      stays.push(homeStay(stays.at(-1)?.to ?? ""));
-      sel = stays.length - 1;
-      changed();
-    });
-
-    // 未入力の場所を開き、地図をその場所へ動かし、最初の未入力の項目までスクロールする
-    function goToMissing(i) {
-      sel = i;
-      render();
-      const s = day().stays[i];
-      map.resize(); // 入力欄が開いて地図が小さくなった大きさで、真ん中に合わせる
-      map.easeTo({ center: [s.lon, s.lat] });
-      const field = [...document.querySelectorAll("#card .field--need")].find((el) => el.offsetParent);
-      if (!field) return;
-      const smooth = !matchMedia("(prefers-reduced-motion: reduce)").matches;
-      field.scrollIntoView({ block: "center", behavior: smooth ? "smooth" : "auto" });
-      // 選択欄そのものにはフォーカスしない（スマホで選択の画面が勝手に開いたり閉じたりしないように）
-      field.tabIndex = -1;
-      field.focus({ preventScroll: true });
+    // 夜をまたぐ滞在（出た時刻 < 着いた時刻）は、帯では24時まで
+    function span(s) {
+      const a = minutes(s.from), b = minutes(s.to);
+      if (a == null || b == null) return null;
+      return [a, b < a ? 1440 : b];
     }
+    const clock = (t) => (t ? `${Number(t.slice(0, 2))}:${t.slice(3, 5)}` : "？");
 
-    // 入力欄を開いているとき: この場所を確定して、次の場所を置く地図に戻る（未入力があればそこへ）
-    // 閉じているとき: この日を確定。未入力の場所があればそこを開き、日付がなければ日付を聞く。
-    // そろっていれば次の日へ。最後の日なら送る画面を出す
-    let justConfirmed = false; // 場所を確定した直後（次の場所を置くよう吹き出しで示す）
-    $("#confirm").addEventListener("click", () => {
-      if (sel != null) {
-        if (incomplete(day().stays[sel])) return goToMissing(sel);
-        sel = null;
-        justConfirmed = true;
-        return render();
-      }
-      const i = day().stays.findIndex(incomplete);
-      if (i >= 0) return goToMissing(i);
-      if (!day().date) return openDate();
-      if (dayIdx < state.days.length - 1) switchDay(dayIdx + 1);
-      else $("#send").click();
-    });
-
-    function render() {
-      const stays = day().stays;
-      // 0件の日は家から始める（家がまだなら、真ん中のピンで家を置いてもらう）
-      if (!stays.length && state.home) { stays.push(homeStay("00:00")); save(); }
-      // 入力欄を開いている間は、真ん中のピンと登録ボタンを隠す
-      $("#center-pin").hidden = sel != null;
-      $("#place-btn").hidden = sel != null;
-      $("#place-btn").textContent = state.home ? "ここを次の場所にする" : "ここを家にする";
-      // 家だけ決まったときと、場所を確定した直後（家に帰ったあとは出さない）
-      $("#next-tip").hidden = sel != null || !(stays.length === 1 || (justConfirmed && stays.at(-1)?.type !== "home"));
-      $("#go-home").disabled = !stays.length || stays.at(-1).type === "home";
-      $("#confirm").textContent = sel != null ? "確定して次の場所へ"
-        : dayIdx < state.days.length - 1 ? "確定して次の日へ" : "この日を確定";
-      renderTabs();
-      renderMap();
-      renderBand();
-      renderCard();
+    function paintReview() {
+      const d = state.pos.d, stays = day().stays;
+      $("#band").replaceChildren(...stays.flatMap((s, i) => {
+        const sp = span(s);
+        if (!sp) return [];
+        const el = document.createElement("button");
+        el.type = "button";
+        el.className = "block";
+        el.style.left = `${(sp[0] / 1440) * 100}%`;
+        el.style.width = `${((sp[1] - sp[0]) / 1440) * 100}%`;
+        el.textContent = s.type === "home" ? "家" : String(i);
+        el.setAttribute("aria-label", `${s.type === "home" ? "家" : `${i}か所目`} ${clock(s.from)}〜${clock(s.to)}`);
+        el.addEventListener("click", () => go(editPos(d, i)));
+        return [el];
+      }));
+      $("#list").replaceChildren(...stays.map((s, i) => {
+        const li = document.createElement("li");
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "row" + (incomplete(s) ? " row--need" : "");
+        const [mark, name, time] = i === 0 ? ["家", "家を出た", clock(s.to)]
+          : isEnd(s, i) ? ["家", "家に帰った", clock(s.from)]
+          : [String(i), (TYPE[s.type] ?? "種類が未入力") + (s.detail ? `（${s.detail}）` : ""),
+            `${clock(s.from)}〜${s.to && s.to < s.from ? "翌" : ""}${clock(s.to)}`];
+        b.append(Object.assign(document.createElement("b"), { textContent: mark }), name,
+          Object.assign(document.createElement("small"), { textContent: time }));
+        b.addEventListener("click", () => go(editPos(d, i)));
+        li.append(b);
+        return li;
+      }));
     }
 
     // ---- 場所の検索 ----
@@ -796,7 +870,6 @@
 
     $("#q").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(search, 400); });
     $("#search").addEventListener("submit", (e) => { e.preventDefault(); clearTimeout(searchTimer); search(); });
-    map.on("click", () => showResults(null));
 
     async function search() {
       const q = $("#q").value.trim();
@@ -839,14 +912,12 @@
       }));
     }
 
-    // 選んだ場所へ地図を動かす。家や次の場所を置くところなら、そのまま置く
+    // 選んだ場所へ地図を動かす（真ん中のピンが選んだ場所に来る）
     function pick(f) {
       showResults(null);
       $("#q").value = "";
       $("#q").blur();
-      sel = null;
-      render();
-      map.flyTo({ center: [f.lon, f.lat], zoom: 16 }); // 真ん中のピンが選んだ場所に来る
+      map.flyTo({ center: [f.lon, f.lat], zoom: 16 });
       lastPick = { name: f.name, at: new maplibregl.LngLat(f.lon, f.lat) };
     }
 
@@ -869,17 +940,6 @@
       });
     }
 
-    $("#send").addEventListener("click", () => {
-      $("#summary").replaceChildren(...state.days.map((d) => {
-        const li = document.createElement("li");
-        const missing = d.stays.filter(incomplete).length;
-        li.textContent = `${d.label}${d.date ? ` ${d.date}` : "（日付なし）"}: ${d.stays.length}か所` + (missing ? `（未入力がある場所 ${missing}）` : "");
-        return li;
-      }));
-      $("#json").value = answer();
-      $("#copy-msg").textContent = "";
-      $("#send-dlg").showModal();
-    });
     $("#copy").addEventListener("click", async () => {
       try {
         await navigator.clipboard.writeText($("#json").value);
@@ -889,99 +949,14 @@
         $("#copy-msg").textContent = "コピーできませんでした。下の欄を長押ししてコピーしてください";
       }
     });
-    $("#send-close").addEventListener("click", () => $("#send-dlg").close());
     $("#clear").addEventListener("click", () => {
       if (!confirm("この端末に保存している記入を消しますか？送った内容は消えません")) return;
       try { localStorage.removeItem(KEY); } catch { /* 保存していない */ }
       location.reload();
     });
 
-    // ---- はじめに ----
-
-    $("#intro").addEventListener("cancel", (e) => e.preventDefault()); // 呼び名を入れるまで閉じない
-    $("#intro-form").addEventListener("submit", () => {
-      state.name = $("#name").value.trim();
-      changed();
-    });
-
-    // ---- 使い方の案内（初回だけ。右上の ? からいつでも見直せる） ----
-
-    const GUIDE = [
-      { target: null, title: "このページについて",
-        text: "災害のときに水や食べ物がもらえる場所を見つける仕組みを考えるために、ふだんの日と地震の後の日に、どこへ行ったかを地図で書いてもらうページです。画面の使い方を順に紹介します。" },
-      { target: "#tabs", title: "書く日を選ぶ",
-        text: "「ふだん」の日と「地震後」の日を書きます。選んでいるタブをもう一度押すと、日付を選べます（日付がまだの日は赤い枠）。タブの右の ＋ で日を足せます。給水や炊き出しに行った日があれば、その日を優先してください。" },
-      { target: "#search", title: "場所を探す",
-        text: "店や施設の名前、住所、町名を入れると、地図がその場所へ動きます。見つからないときは、近くの町名や目印で探してください。" },
-      { target: "#center-pin", title: "真ん中のピンを、家に合わせる",
-        text: "地図を指で動かして、真ん中のピンを家のだいたいの場所に合わせます。地図をタップすると、そこへピンが動きます。家の位置は約100mの細かさに丸めるので、ぴったりでなくて大丈夫です。" },
-      { target: "#place-btn", title: "ボタンで登録する",
-        text: "「ここを家にする」を押すと登録されます。次からは「ここを次の場所にする」に変わるので、行った順にピンを合わせて押していくと、線でつながります。" },
-      { target: ".panel", title: "時刻と、何をしに行ったか",
-        text: "場所を登録すると、ここに入力欄が出ます。種類、「何時ごろ着いた？」と「どのくらいいた？」、ふだんも行く場所かを選びます。まだ入れていない項目は赤で知らせます。時刻は大まかで大丈夫です。" },
-      { target: "#band", title: "1日の帯で見直す",
-        text: "どこに何時いたかが、0時から24時の帯に並びます。しま模様のところは、まだ書いていない時間です。帯や地図の点をタップすると、その場所を直せます。赤い点は、まだ入れていない項目がある場所です。" },
-      { target: "#go-home, #confirm", title: "家に帰って、確定",
-        text: "場所を入れ終わったら「確定して次の場所へ」で地図に戻り、次の場所を登録します。最後は「家に帰った」で1日を閉じ、「確定して次の日へ」を押します。まだ入れていない項目があれば、そこへ移ります。" },
-      { target: "#send", title: "右上の「送る」で送る",
-        text: "全部書けたら、右上の「送る」から内容をコピーして、LINE に貼り付けて送ってください。" },
-    ];
-    let guideStep = 0;
-
-    function showGuide(i) {
-      guideStep = i;
-      const step = GUIDE[i];
-      const els = step.target ? [...document.querySelectorAll(step.target)] : [];
-      els[0]?.scrollIntoView({ block: "nearest" });
-      // 説明する場所（複数ならまとめた範囲）を明るく抜く。場所がない段は画面の中央に出す
-      const rs = els.length ? els.map((el) => el.getBoundingClientRect())
-        : [{ top: innerHeight / 2, bottom: innerHeight / 2, left: innerWidth / 2, right: innerWidth / 2 }];
-      $("#spot").classList.toggle("spot--none", !els.length);
-      const r = {
-        top: Math.min(...rs.map((x) => x.top)) - 4, left: Math.min(...rs.map((x) => x.left)) - 4,
-        bottom: Math.max(...rs.map((x) => x.bottom)) + 4, right: Math.max(...rs.map((x) => x.right)) + 4,
-      };
-      Object.assign($("#spot").style, {
-        top: `${r.top}px`, left: `${r.left}px`, width: `${r.right - r.left}px`, height: `${r.bottom - r.top}px`,
-      });
-      const card = $("#guide");
-      $("#guide-title").textContent = step.title;
-      $("#guide-text").textContent = step.text;
-      $("#guide-count").textContent = `${i + 1} / ${GUIDE.length}`;
-      $("#guide-next").textContent = i === GUIDE.length - 1 ? "はじめる" : "次へ";
-      $("#guide-layer").hidden = false;
-      card.hidden = false;
-      // カードは、抜いた場所の下に入れば下、上に入れば上、どちらも無理なら（地図など大きい場所）その中の下の方に出す
-      const h = card.offsetHeight + 12;
-      const top = !els.length ? (innerHeight - h) / 2
-        : r.bottom + h < innerHeight ? r.bottom + 12
-        : r.top - h > 0 ? r.top - h
-        : r.bottom - h - 4;
-      card.style.top = `${top}px`;
-      $("#guide-next").focus();
-    }
-
-    function endGuide() {
-      $("#guide-layer").hidden = true;
-      $("#guide").hidden = true;
-      state.guided = true; // 送る内容（answer）には入らない
-      changed();
-      if (!state.name) $("#intro").showModal(); // 案内のあとに、説明と呼び名
-    }
-
-    $("#guide-next").addEventListener("click", () => {
-      if (guideStep < GUIDE.length - 1) showGuide(guideStep + 1);
-      else endGuide();
-    });
-    $("#guide-skip").addEventListener("click", endGuide);
-    $("#help").addEventListener("click", () => { sel = null; render(); showGuide(0); });
-    addEventListener("resize", () => { if (!$("#guide").hidden) showGuide(guideStep); });
-    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#guide").hidden) endGuide(); });
-
-    render();
-    // 開いてすぐ、画面の使い方を順に紹介する。見終わっていれば、呼び名がまだのときだけ説明を出す
-    if (!state.guided) showGuide(0);
-    else if (!state.name) $("#intro").showModal();
+    if (!S[state.pos.s] || (state.pos.d != null && !day())) state.pos = { s: "intro" }; // 壊れた保存は最初から
+    show();
   </script>
 </body>
 </html>
