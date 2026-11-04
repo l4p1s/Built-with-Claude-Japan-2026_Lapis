@@ -9,6 +9,7 @@ import argparse
 import csv
 import glob
 import gzip
+import json
 import os
 import sys
 from collections import Counter, defaultdict
@@ -30,6 +31,9 @@ MATCH_M = 300  # 候補の中心が集まりからこの距離なら当たり
 OFFICIAL_M = 150  # 公式の拠点からこの距離の候補は「公式」として分ける
 
 
+KEEP = None  # --sample で間引いたとき、残す uid の集合（None なら全員）
+
+
 def read_day(path):
     """points_*.csv.gz → uid → (lats, lons)。1 分おき 1440 点の前提"""
     lats, lons = defaultdict(list), defaultdict(list)
@@ -37,6 +41,8 @@ def read_day(path):
         r = csv.reader(f)
         next(r)
         for uid, _, la, lo in r:
+            if KEEP is not None and uid not in KEEP:
+                continue
             lats[uid].append(float(la))
             lons[uid].append(float(lo))
     return {u: (lats[u], lons[u]) for u in lats}
@@ -57,8 +63,22 @@ def main():
     ap.add_argument(
         "--quake-at", default="16:27", help="地震の時刻。誤報は地震より後のものだけ数える"
     )
+    ap.add_argument(
+        "--sample",
+        type=float,
+        default=1.0,
+        help="参加率の見立て: この割合の人だけを残して検知する（0.05 = 5%%）。残す人は --sample-seed で決める",
+    )
+    ap.add_argument("--sample-seed", type=int, default=1)
     a = ap.parse_args()
     tag = "当日だけ" if a.no_baseline else f"平常期で学習（{a.learn_days or '全'}日）"
+    if a.sample < 1:
+        import random
+
+        global KEEP
+        uids = [r["uid"] for r in csv.DictReader(open(f"{a.out}/people.csv", encoding="utf-8"))]
+        KEEP = set(random.Random(a.sample_seed).sample(uids, max(1, round(len(uids) * a.sample))))
+        tag += f"、参加率 {a.sample:.0%}（{len(KEEP)} 人）"
     events = list(csv.DictReader(open(f"{a.out}/events.csv", encoding="utf-8")))
     places = list(csv.DictReader(open(f"{a.out}/places.csv", encoding="utf-8")))
     official = [(float(p["lat"]), float(p["lon"])) for p in places if p["official_shelter"] == "1"]
@@ -160,6 +180,8 @@ def main():
     official_cands = [c for c in cands if c.official and id(c) not in matched]
 
     suffix = "_nobase" if a.no_baseline else (f"_{a.learn_days}d" if a.learn_days else "")
+    if a.sample < 1:
+        suffix += f"_s{round(a.sample * 100)}"
     with open(f"{a.out}/detect_candidates{suffix}.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(
@@ -216,6 +238,25 @@ def main():
             f.write(
                 f"- {c.date} {c.window_start // 60:02d}:{c.window_start % 60:02d} マス {c.cell} 人数 {c.observed:.0f}\n"
             )
+    json.dump(
+        {
+            "tag": tag,
+            "sample": a.sample,
+            "targets": [
+                {
+                    "place": e["place"],
+                    "kind": e["kind"],
+                    "date": e["date"],
+                    "visitors": int(e["visitors"]),
+                    "hit": not r.startswith("未検知"),
+                }
+                for e, r in rows
+            ],
+            "false_alarms": len(false_alarms),
+        },
+        open(f"{a.out}/detect_result{suffix}.json", "w", encoding="utf-8"),
+        ensure_ascii=False,
+    )
     print(
         f"[{tag}] 検知 {hit}/{len(targets)} 誤報 {len(false_alarms)} → {a.out}/detect_result{suffix}.md"
     )

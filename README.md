@@ -53,7 +53,7 @@ docker compose exec api python -m app.detect_job                # 今の時刻�
 ## 合成データと検知の答え合わせ
 
 - 合成データの作り方・仮定・2026年熊本地震の事実: [docs/demo-data-design.md](docs/demo-data-design.md)。入力の出典: [data/README.md](data/README.md)
-- 検知アルゴリズムの説明と結果: [docs/algorithm.md](docs/algorithm.md)。答え合わせ: `python scripts/detect_demo.py --out data/out`（`--no-baseline` で平常期を使わない版、`--learn-days N` で学習日数を変える）
+- 検知アルゴリズムの説明と結果: [docs/algorithm.md](docs/algorithm.md)。答え合わせ: `python scripts/detect_demo.py --out data/out`（`--no-baseline` で平常期を使わない版、`--learn-days N` で学習日数、`--sample 0.1` で参加率 10% の見立て）。参加率 × 集まりの人数の表: `python scripts/participation.py`
 - 人の動きを見る: `python scripts/make_heatmap.py` → `python3 -m http.server 18091 -d data/out` → http://localhost:18091/heatmap.html （1 日を 43 秒で再生し、人が集まった 30 分後に「？」のピンが立つ）
 
 ## 文書
