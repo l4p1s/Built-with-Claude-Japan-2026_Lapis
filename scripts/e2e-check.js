@@ -16,9 +16,21 @@ const [lat, lon, shots] = [Number(process.argv[2]), Number(process.argv[3]), pro
   const errors = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.goto(demo ? `http://localhost:18080/?demo=1&at=${lat},${lon}` : "http://localhost:18080/");
-  await page.locator("#consent-ok").click();
-  await page.locator(".me").waitFor();
+  if (demo) {
+    // 最初（8:00）は何も出ていない
+    await page.goto(`http://localhost:18080/?demo=1&at=${lat},${lon}&from=08:00`);
+    await page.locator("#consent-ok").click();
+    await page.locator(".me").waitFor();
+    await page.locator("#replay-play").click(); // 止める
+    await page.waitForTimeout(1500);
+    console.log("pins at 08:00:", await page.locator(".pin").count());
+    await page.screenshot({ path: `${shots}/e2e-demo-start.png` });
+    await page.locator("#replay-play").click(); // 再生（1 秒 = 5 分）
+  } else {
+    await page.goto("http://localhost:18080/");
+    await page.locator("#consent-ok").click();
+    await page.locator(".me").waitFor();
+  }
   await page.waitForFunction(() => !document.querySelector("#question").hidden, null, { timeout: 90000 });
   await page.waitForTimeout(2500);
   console.log("question:", await page.textContent("#question-title"));

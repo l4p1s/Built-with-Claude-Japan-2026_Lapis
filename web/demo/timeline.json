@@ -1,0 +1,178 @@
+{
+"date": "2026-07-29",
+"label": "地震の翌日",
+"origin": [
+32.4,
+130.5
+],
+"scale": 10000,
+"step": 5,
+"people": 1000,
+"candidates": [
+{
+"id": 1,
+"lat": 32.49263,
+"lon": 130.62631,
+"detect": 30,
+"end": 460,
+"observed": 17,
+"official": false,
+"kind": "car_sleeping",
+"name": "球磨川河川緑地"
+},
+{
+"id": 2,
+"lat": 32.50576,
+"lon": 130.5857,
+"detect": 30,
+"end": 450,
+"observed": 14,
+"official": false,
+"kind": "car_sleeping",
+"name": "ゆめタウン八代"
+},
+{
+"id": 3,
+"lat": 32.50769,
+"lon": 130.59979,
+"detect": 30,
+"end": 470,
+"observed": 18,
+"official": true,
+"kind": "shelter",
+"name": "八代城跡公園"
+},
+{
+"id": 4,
+"lat": 32.5071,
+"lon": 130.59726,
+"detect": 540,
+"end": 740,
+"observed": 14,
+"official": true,
+"kind": "water",
+"name": "代陽コミュニティセンター"
+},
+{
+"id": 5,
+"lat": 32.49936,
+"lon": 130.59744,
+"detect": 590,
+"end": 750,
+"observed": 12,
+"official": false,
+"kind": "water",
+"name": "古城町団地"
+},
+{
+"id": 6,
+"lat": 32.51739,
+"lon": 130.6371,
+"detect": 630,
+"end": 1050,
+"observed": 18,
+"official": false,
+"kind": "food",
+"name": "八代よかとこ物産館"
+},
+{
+"id": 7,
+"lat": 32.5028,
+"lon": 130.60376,
+"detect": 710,
+"end": 1100,
+"observed": 22,
+"official": false,
+"kind": "food",
+"name": "うなぎ処 鰻新"
+},
+{
+"id": 8,
+"lat": 32.50292,
+"lon": 130.63073,
+"detect": 740,
+"end": 920,
+"observed": 31,
+"official": false,
+"kind": "food",
+"name": "西宮、上日置集会所"
+},
+{
+"id": 9,
+"lat": 32.50763,
+"lon": 130.59954,
+"detect": 780,
+"end": 1440,
+"observed": 18,
+"official": true,
+"kind": "shelter",
+"name": "八代城跡公園"
+},
+{
+"id": 10,
+"lat": 32.51035,
+"lon": 130.61387,
+"detect": 810,
+"end": 1040,
+"observed": 13,
+"official": false,
+"kind": "water",
+"name": "毘舎丸団地"
+},
+{
+"id": 11,
+"lat": 32.51324,
+"lon": 130.58744,
+"detect": 930,
+"end": 1040,
+"observed": 14,
+"official": false,
+"kind": "water",
+"name": "松崎公園"
+},
+{
+"id": 12,
+"lat": 32.50291,
+"lon": 130.63094,
+"detect": 960,
+"end": 990,
+"observed": 4,
+"official": false,
+"kind": null,
+"name": "西宮、上日置集会所"
+},
+{
+"id": 13,
+"lat": 32.50482,
+"lon": 130.60408,
+"detect": 1040,
+"end": 1130,
+"observed": 15,
+"official": false,
+"kind": "food",
+"name": "なわや"
+},
+{
+"id": 14,
+"lat": 32.49263,
+"lon": 130.62632,
+"detect": 1230,
+"end": 1440,
+"observed": 17,
+"official": false,
+"kind": "car_sleeping",
+"name": "球磨川河川緑地"
+},
+{
+"id": 15,
+"lat": 32.50576,
+"lon": 130.5857,
+"detect": 1260,
+"end": 1440,
+"observed": 14,
+"official": false,
+"kind": "car_sleeping",
+"name": "ゆめタウン八代"
+}
+]
+}

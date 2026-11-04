@@ -40,6 +40,16 @@
   <nav class="dock" aria-label="知らせる">
     <h2>ここにあるものを知らせる</h2>
     <div id="dock-kinds"></div>
+    <div id="replay" class="replay" hidden>
+      <button type="button" id="replay-play" class="btn btn--primary">再生</button>
+      <span id="replay-clock" class="replay__clock" aria-live="off">08:00</span>
+      <input id="replay-slider" type="range" min="0" max="1439" value="480" aria-label="時刻">
+      <select id="replay-speed" aria-label="速さ">
+        <option value="1">1秒=1分</option>
+        <option value="5" selected>1秒=5分</option>
+        <option value="15">1秒=15分</option>
+      </select>
+    </div>
     <p id="location-hint" class="hint" hidden></p>
   </nav>
 
@@ -47,7 +57,7 @@
     <div class="sheet-body">
       <h1>支援拠点マップ</h1>
       <p>災害のとき、人の集まりから、公式に載らない給水や炊き出しの場所を見つけて地図に載せます。</p>
-      <p id="consent-demo" class="demo-hint" hidden>デモです。八代市の合成データ（2026年熊本地震の翌日の人の動き）を再生しています。あなたの位置は使わず、地図の中心を「自分の位置」として扱います。</p>
+      <p id="consent-demo" class="demo-hint" hidden>デモです。八代市の合成データ（2026年熊本地震の翌日、1,000人の動き）を早回しで再生します。人が集まるとピンが立ち、公式の拠点なら聞かずに確認済みになります。あなたの位置は使わず、地図の中心を「自分の位置」として扱うので、「？」のピンに地図を合わせて答えてください。</p>
       <ul>
         <li>画面を開いている間、位置を送ります。位置は参加ごとの番号に結びつけてサーバーに保存し、名前や連絡先は受け取りません。</li>
         <li>地図に載るのは、利用者が知らせた場所と、確認された拠点です。一人ひとりの位置や移動は表示しません。</li>

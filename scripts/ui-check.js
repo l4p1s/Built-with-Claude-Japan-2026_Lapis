@@ -67,8 +67,11 @@ async function nudgeMap(page) {
   await A.page.screenshot({ path: `${SHOTS}/03-report.png` });
   await A.page.locator("#report-form button[type=submit]").click();
   await A.page.waitForFunction(() => !document.querySelector("#report").open);
-  const pending = A.page.locator(".pin--pending", { hasText: "水?" });
+  const pending = A.page.locator(".pin--pending", { hasText: "水?" }).first();
   await pending.waitFor();
+  // 以後は、この報告でできた候補のピンだけを追う（近くに検知の候補の「水」があっても混ざらない）
+  const cid = await pending.getAttribute("data-candidate-id");
+  const mine = (page) => page.locator(`.pin--confirmed[data-candidate-id="${cid}"]`);
   await A.page.screenshot({ path: `${SHOTS}/04-pending-pin.png` });
   ok("3 給水を報告するとオレンジの「水?」のピンが立つ");
 
@@ -89,17 +92,17 @@ async function nudgeMap(page) {
   await B.page.screenshot({ path: `${SHOTS}/06-question.png` });
   await B.page.locator("#question-kinds .kind[data-kind=water]").click();
   await B.page.locator("#question").waitFor({ state: "hidden" });
-  await B.page.locator(".pin--confirmed", { hasText: "水" }).waitFor();
+  await mine(B.page).waitFor();
   await nudgeMap(A.page);
-  await A.page.locator(".pin--confirmed", { hasText: "水" }).waitFor();
+  await mine(A.page).waitFor();
   await A.page.screenshot({ path: `${SHOTS}/07-confirmed.png` });
   ok("6 別のセッションに質問が出て、回答すると両方で紺の「水」になる");
 
   // 7. もう終わっていた → 消える
-  await A.page.locator(".pin--confirmed", { hasText: "水" }).click();
+  await mine(A.page).click();
   await A.page.locator("#detail button", { hasText: "もう終わっていた" }).click();
   await A.page.waitForFunction(() => !document.querySelector("#detail").open);
-  await A.page.locator(".pin--confirmed", { hasText: "水" }).waitFor({ state: "detached" });
+  await mine(A.page).waitFor({ state: "detached" });
   ok("7 「もう終わっていた」で1対1になり、ピンが消える");
 
   // 8. 絞り込み（公式の避難所で確かめる）

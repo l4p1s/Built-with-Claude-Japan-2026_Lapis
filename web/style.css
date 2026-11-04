@@ -129,6 +129,14 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .pin--pending .pin__shape { background: var(--pending); color: var(--on-pending); }
 .pin--official .pin__shape { background: var(--surface); color: var(--official); border: 2px solid var(--official); }
 .pin--faded { opacity: 0.45; }
+.pin--new .pin__shape { animation: pop 600ms var(--ease); }
+@keyframes pop { from { transform: rotate(-45deg) scale(0.2); opacity: 0; } }
+
+/* デモの再生バー（ドックの中。知らせるボタンの代わりに出す） */
+.replay { display: flex; gap: 8px; align-items: center; }
+.replay__clock { min-width: 5ch; font-size: 20px; font-weight: 600; }
+.replay input[type="range"] { flex: 1; min-width: 60px; accent-color: var(--accent); }
+.replay select { min-height: 44px; padding: 0 8px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2); color: var(--fg); font: inherit; }
 .me {
   width: 16px; height: 16px; border-radius: 50%; background: #2563eb; border: 3px solid #fff;
   box-shadow: 0 0 0 8px rgb(37 99 235 / 0.22);
