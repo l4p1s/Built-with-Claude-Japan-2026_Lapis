@@ -184,7 +184,19 @@ python scripts/detect_demo.py --no-baseline       # 平常期を使わない「�
 pytest tests/test_detect.py                       # 純関数のテスト
 ```
 
-`app/detect.py` の関数はデータの置き場所を知らない（`Stay` の列と平常期の集計を渡すだけ）ので、DB（`location_points`）から読む定期処理も同じ関数で書ける。API への組み込みは未実装（`docs/architecture.md` §6）。
+`app/detect.py` の関数はデータの置き場所を知らない（`Stay` の列と平常期の集計を渡すだけ）。DB（`location_points`）から読んで `candidates` に書く定期処理は `app/detect_job.py`（API の中で 5 分ごと。`docs/architecture.md` §6）。
+
+API で通して動かす（検知 → 地図 → 質問 → 確認）:
+
+```sh
+docker compose up -d --build --wait
+python scripts/simulate.py --people 300 --days 8        # 合成データを API 経由で投入（地震の翌日 = 今日にずらす。数分）
+docker compose exec api python -m app.detect_job        # 今の時刻で検知（5 分ごとにも自動で回る）
+curl -s "localhost:18080/v1/spots" -H "Authorization: Bearer <token>" | jq '.features[] | select(.properties.source=="detected")'
+```
+
+地図（http://localhost:18080）では検知の候補が `?` のピンで出て、近くにいる人に「近くで人が集まっています」と聞く。1 人が種類を答えると確認済みになる。
+定期処理の学習期間は 7 日・調べる幅は 3 時間で、平常の滞在がまだ 1 件もないときは期待値の下限（0.3）だけになり、5 人以上の「いつもと違う滞在」の集まりはそのまま候補になる（確認で消す前提）。
 
 ## 8. これからの課題
 
@@ -192,5 +204,5 @@ pytest tests/test_detect.py                       # 純関数のテスト
 2. 参加率（5%、10%、20%）で間引いて、「何 % なら何人の集まりが見えるか」の表を作る
 3. 平常期が短い人（アプリを入れたばかり）は「当日だけ」版（§4.1）で扱う。平常期が溜まった人から「いつもの場所」の除外に切り替える
 4. 集まりが 2 つのマスにまたがるとき、半分ずつに割れて見逃すことがある（マスをずらした集計を重ねる、または滞在の位置でクラスタリングする）
-5. DB からの定期処理と、候補を地図に載せる API（`candidates` テーブルの `cell_code, window_start, observed, expected, p_value`）への接続
+5. 定期処理は 5 分ごとに直近 7 日の点を全部読み直す。利用者が増えたら、学習（自宅・いつもの場所・マスの割合）を 1 日 1 回にして保存する
 6. 「いつもの場所」から店を外すかどうか。休日の大型店がいつもの場所になると、再開した店の行列（開いている店の情報）を見逃す。職場（平日の昼に長くいる場所）だけを除く案を試す

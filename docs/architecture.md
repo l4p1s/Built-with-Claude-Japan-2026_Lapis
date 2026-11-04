@@ -56,7 +56,7 @@ DB 接続は **psycopg 3 + 生 SQL**（PostGIS の関数は SQL で書く方が�
 | flags | answer_id, session_id, created_at | 備考の「不適切」通報。1人1備考1回 |
 | official_spots | id, source, source_key, name, address, kind(shelter/water), geom, opened_at, closed_at | 公式の拠点。`scripts/import_bodik.py` で取り込む |
 
-マス目（検知は未実装）: **1/2 地域メッシュ（500m）の番号**で集計。検証（YJMob100K の 500m）と国勢調査・経済センサスのメッシュと揃う。メッシュ番号の計算は純関数でテストを付ける。
+マス目: **1/2 地域メッシュ（500m）の番号**（`app/mesh.py`）で集計。検証（YJMob100K の 500m）と国勢調査・経済センサスのメッシュと揃う。メッシュ番号の計算は純関数でテストを付ける。
 
 ## 4. REST API（`/v1` 付きで版管理。ネイティブは強制更新できないため）
 
@@ -79,18 +79,22 @@ DB 接続は **psycopg 3 + 生 SQL**（PostGIS の関数は SQL で書く方が�
 - 発行: サーバーが `secrets.token_urlsafe(32)` で生成し、**DB には SHA-256 ハッシュだけ**保存（DB が漏れてもなりすませない）
 - 送り方: `Authorization: Bearer <token>` ヘッダー。Cookie にしない理由 = ネイティブでもそのまま使え、CSRF 対策が不要
 - 保存先: Web は localStorage、ネイティブは Keychain / Keystore
-- 有効期限: 最終利用から30日でセッションが使えなくなる。期限切れデータの自動削除は未実装（利用者は「参加をやめる」で消す。実装は検知の定期処理と一緒に）
+- 有効期限: 最終利用から30日でセッションが使えなくなる。失効したセッションと 14 日より古い位置は検知の定期処理（`app/detect_job.py`）が消す
 - 参加をやめると、位置・回答・通報に加え、自分の報告だけでできたピンも消える（他の人の回答があるピンは残り、状態を決め直す）
 - `/v1/sessions` と `/healthz` 以外はすべてセッション必須（閲覧も書き込みも）
 - 正直に書く点: 今の構成では「いつもの場所」の判定のため、位置の点はセッション単位でサーバーに保存する（仮名化）。スライド8の「端末で判定し集計だけ送る」は今後（スライド15）の扱いと揃える
 
 ## 6. 検知処理と画面
 
-- 検知: 純関数は `app/detect.py` に実装済み（滞在 → いつもの場所 → 500m メッシュ × 30 分 → ポアソン）。合成データでの答え合わせは `scripts/detect_demo.py`（docs/demo-data-design.md §7）。**API への組み込み（DB の location_points を読んで candidates に書く定期処理）は未実装**
+- 検知: 純関数は `app/detect.py`（滞在 → いつもの場所 → 500m メッシュ × 30 分 → ポアソン。説明は docs/algorithm.md）。DB との出し入れは `app/detect_job.py`
+  - `api` の起動時に別スレッドで `DETECT_EVERY_S` 秒ごと（既定 300、0 で止める）に回る。手動は `docker compose exec api python -m app.detect_job [--at 時刻]`
+  - 直近 7 日で人ごとの自宅・いつもの場所・マス別の滞在の割合を学習し、直近 3 時間を調べる。近く（150m）に生きている候補があれば更新、報告の候補に重なれば 1 人ぶんの裏付けとして確認済みにする
+  - 同じ処理で、14 日より古い位置と 30 日使われていないセッションを消す
+  - 合成データでの答え合わせ（CSV）は `scripts/detect_demo.py`（docs/demo-data-design.md §7）
   - 点 → 10分以上の滞在 → その人のいつもの場所（自宅周り200mは対象外）か判定 → マス・時間帯ごとに件数 → その日の街全体の量から期待値 → ポアソンで大きく超えたら候補
   - ポアソンの上側確率は標準ライブラリ `math` で計算（scipy は検証の再現で必要になったら追加）
 - Web 画面: ビルド不要の素の HTML/JS + MapLibre GL 6（CDN）+ OpenFreeMap。API から配信
-- デモ用 `scripts/simulate.py`（**未実装・次の段階**）: 八代市で「普段の動き＋公園の給水の集まり」を作り、**REST API 経由で**投入（API の動作確認も兼ねる）
+- デモ用 `scripts/simulate.py`: 合成データ（`scripts/make_demo_data.py`、docs/demo-data-design.md）を **REST API 経由で**投入する。日付は「地震の翌日 = 今日」にずらすので、時間が進むと検知が「今」の集まりを見つける（再生）
 
 ## 7. ファイル構成（最小）
 
@@ -103,24 +107,27 @@ app/auth.py               # セッション発行・検証
 app/db.py                 # DB 接続
 app/rules.py              # 確定・終了などの数値ルール
 app/spots.py              # 候補・回答・公式拠点の読み書き
-app/detect.py             # 滞在判定・ポアソン検知（純関数。API への組み込みは未実装）
+app/detect.py             # 滞在判定・ポアソン検知（純関数）
+app/detect_job.py         # DB から検知して candidates に書く定期処理・古いデータの削除
 app/mesh.py               # 地域メッシュ番号
 web/index.html, app.js, style.css, manifest.webmanifest, icon*.svg/png
 scripts/import_bodik.py   # 避難所データの取り込み
-scripts/simulate.py       # （未実装）
-tests/test_api.py, test_rules.py, test_import_bodik.py
-.github/workflows/ci.yml  # （未実装）
+scripts/make_demo_data.py, demo_scenario.json, make_heatmap.py, heatmap.html, detect_demo.py  # 合成データ・ヒートマップ・答え合わせ
+scripts/simulate.py       # 合成データを API 経由で投入
+tests/test_api.py, test_rules.py, test_import_bodik.py, test_detect.py, test_detect_job.py, test_make_demo_data.py
+.github/workflows/ci.yml  # PostGIS をサービスに立てて ruff と pytest
 ```
 
 ライセンス: MIT。YJMob100K は CC BY 4.0 なのでデータ自体はリポジトリに入れず、取得手順だけ書く。
 
 ## 8. 入れないもの（必要になったら追加）
-ORM・移行ツール・キュー/スケジューラー・プッシュ通知・レート制限・管理画面・フロントのビルド環境。
+ORM・移行ツール・キュー/スケジューラー（検知は api の中のスレッド。プロセスを複数にしたら外に出す）・プッシュ通知・レート制限・管理画面・フロントのビルド環境。
 
 ## 検証（構築後の確認手順）
 1. `docker compose up` → `curl localhost:18080/healthz`
 2. `curl -X POST localhost:18080/v1/sessions -d '{"consent":true}'` でトークン取得、トークンなしで `/v1/spots` が 401 になること
-3. 報告 `POST /v1/reports` → 別セッションで回答 → `/v1/spots` の GeoJSON で `confirmed` になる（検知経由の `simulate.py` → `python -m app.detect` は未実装）
+3. 報告 `POST /v1/reports` → 別セッションで回答 → `/v1/spots` の GeoJSON で `confirmed` になる
+3'. `python scripts/simulate.py` → `docker compose exec api python -m app.detect_job` → `/v1/spots` に `source: detected` の候補が出る → 近くで `/v1/questions` に出て、回答すると `confirmed`
 4. ブラウザで localhost:18080 を開き、地図にピンが出ること
 5. `DELETE /v1/sessions/me` で location_points・回答・自分だけの報告のピンが消えること
-6. `docker compose run --rm api pytest -q`（API・ルール・取り込み）が通ること（メッシュ番号・ポアソン判定のテストと GitHub Actions は未実装）
+6. `docker compose run --rm api pytest -q`（API・ルール・取り込み・検知・定期処理・合成データ）と GitHub Actions（`.github/workflows/ci.yml`）が通ること

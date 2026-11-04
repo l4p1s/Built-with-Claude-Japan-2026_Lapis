@@ -13,6 +13,7 @@ docker compose run --rm api pytest    # テスト
 - Web 画面: http://localhost:18080 （スマホ実機は HTTPS が必要なので `ngrok http 18080` で公開する）
 - API 仕様書: http://localhost:18080/docs （OpenAPI: `/openapi.json`）
 - 公式の避難所データ（BODIK 令和8年熊本地震）の取り込み: `docker compose run --rm api python scripts/import_bodik.py`
+- 検知を通して見る: `python scripts/simulate.py`（合成データを API 経由で投入、数分）→ `docker compose exec api python -m app.detect_job`（検知。5 分ごとにも自動で回る）→ 地図に `?` のピンが出る
 - 検知アルゴリズムの説明: [docs/algorithm.md](docs/algorithm.md)
 - 構成と設計の理由: [docs/architecture.md](docs/architecture.md) / 画面: [docs/web-ui-design.md](docs/web-ui-design.md)
 - DB を初期化し直す: `docker compose down -v`（取り込んだデータも消えるので、取り込みをやり直す）
