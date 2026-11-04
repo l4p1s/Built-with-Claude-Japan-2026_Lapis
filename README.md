@@ -1,5 +1,13 @@
 # Built-with-Claude-Japan-2026_Lapis
 
+## これは何
+
+災害時にアプリ利用者の匿名の GPS から「いつもと違う人の集まり」を見つけ、公式リストに載らない支援拠点（お店や個人の炊き出し・物資配布、給水車、車中泊の集まり）を、現地の人に聞いて確定し、地図に載せる仕組み。企画の背景と検証の数字は [CLAUDE.md](CLAUDE.md)。
+
+```
+スマホ（位置を送る）→ API（FastAPI + PostGIS）→ 検知（app/detect.py、5 分ごと）→ 候補「？」→ 近くの人に「ここに何がある？」→ 確認済みとして地図に
+```
+
 ## 起動方法
 
 Docker（Compose）だけあれば動きます。
@@ -7,24 +15,59 @@ Docker（Compose）だけあれば動きます。
 ```sh
 docker compose up -d --build --wait   # API と PostgreSQL + PostGIS を起動
 curl localhost:18080/healthz           # {"ok":true}
-docker compose run --rm api pytest    # テスト
+docker compose exec api pytest -q     # テスト（実 DB を使う。49 件）
+docker compose exec api ruff check .
 ```
 
-- Web 画面: http://localhost:18080 （スマホ実機は HTTPS が必要なので `ngrok http 18080` で公開する）
+- Web 画面: http://localhost:18080 （スマホ実機で GPS を使うには HTTPS が要るので `ngrok http 18080` で公開する）
 - API 仕様書: http://localhost:18080/docs （OpenAPI: `/openapi.json`）
-- 公式の避難所データ（BODIK 令和8年熊本地震）の取り込み: `docker compose run --rm api python scripts/import_bodik.py`
-- 検知を通して見る: `python scripts/simulate.py`（合成データを API 経由で投入、数分）→ `docker compose exec api python -m app.detect_job`（検知。5 分ごとにも自動で回る）→ 地図に `?` のピンが出る
-- スマホで見せるデモ: サーバーを `DEMO=1 docker compose up -d` で起動し（DEMO=1 なしだと `?demo=1` でもふだんの画面になる）、`ngrok http 18080` で公開して、`https://<ngrok の URL>/?demo=1` を開く。見た目は通常と同じで、合成データの「地震の翌日」を早回しで再生する（API は使わない）。人（青い点）が集まった場所に `?` のピンが立ち、公式の拠点なら聞かずに確認済み（緑）になる。位置は使わず**地図の中心が自分の位置**。操作はキー（スペース = 再生/停止、← → = 10 分、[ ] = 速さ、c = 再生バー）。詳しくは docs/web-ui-design.md §7
-- デモ動画用のデータ（八代市役所の周りに集まりが次々にできる）を作り直す:
+- 公式の避難所データ（BODIK 令和8年熊本地震）の取り込み: `docker compose exec api python scripts/import_bodik.py`
+- 環境変数: `DETECT_EVERY_S`（検知の間隔、既定 300 秒、0 で止める）、`DEMO=1`（デモ画面を有効にする。下記）
+- DB を初期化し直す: `docker compose down -v`（取り込んだデータも消えるので、取り込みをやり直す）
+
+## 検知を通して動かす（合成データを API に入れる）
+
+```sh
+python scripts/make_demo_data.py --out data/out                 # 八代市 1000 人 × 1 分 × 17 日の合成データ（numpy が要る。約 3 分）
+python scripts/simulate.py --people 300 --days 8                # API 経由で投入。「地震の翌日 = 今日」に日付をずらす（約 3 分）
+docker compose exec api python -m app.detect_job                # 今の時刻で検知（5 分ごとにも自動で回る）
+```
+
+地図（http://localhost:18080）に `?` のピンが出て、その近くで画面を開くと「近くで人が集まっています」と聞かれる。答えると確認済みになる。通しの自動確認は `scripts/e2e-check.js`、画面の自動確認は `scripts/ui-check.js`（どちらも Playwright、使い方はファイル冒頭）。
+
+## デモ（発表・審査・動画）
+
+サーバーを **`DEMO=1 docker compose up -d`** で起動し、`http://localhost:18080/?demo=1`（公開するなら `ngrok http 18080`）を開く。
+見た目は通常の画面と同じで、合成データの「地震の翌日」を早回しで再生する（API・DB は使わない）。人（青い点）が集まった場所に `?` のピンが立ち、公式の拠点なら聞かずに確認済み（緑）になる。位置は使わず、**地図の中心が自分の位置**。
+
+- 操作はキー: スペース = 再生/停止、← → = 10 分、[ ] = 速さ（1 秒 = 1/5/15 分）、c = 再生バー
+- URL: `from=08:00`（開始時刻）、`speed=5`、`paused=1`、`at=lat,lon`、`controls=1`。動画を撮るなら `/?demo=1&from=08:00&speed=5&paused=1` → 同意 → スペース
+- デモ動画用のデータ（八代市役所の周り: 北は臨港線・西はゆめタウン・南は植柳・東は国道 3 号の先）を作り直す:
   ```sh
-  python scripts/make_demo_data.py --scenario scripts/demo_scenario_video.json --out data/demo   # 家もこの範囲だけに置く（約 3 分）
+  python scripts/make_demo_data.py --scenario scripts/demo_scenario_video.json --out data/demo   # 家もこの範囲だけに置く
   python scripts/make_heatmap.py --out data/demo && python scripts/detect_demo.py --out data/demo
   python scripts/make_demo_assets.py --out data/demo --scenario scripts/demo_scenario_video.json  # → web/demo/
   ```
-- 検知アルゴリズムの説明: [docs/algorithm.md](docs/algorithm.md)
-- 構成と設計の理由: [docs/architecture.md](docs/architecture.md) / 画面: [docs/web-ui-design.md](docs/web-ui-design.md)
-- DB を初期化し直す: `docker compose down -v`（取り込んだデータも消えるので、取り込みをやり直す）
-- デモ・実験用の人流データ（八代市 1000人 × 1分刻み × 17日）: `python scripts/make_demo_data.py --out data/out`（numpy が要る）。作り方と仮定は [docs/demo-data-design.md](docs/demo-data-design.md)、入力の出典は [data/README.md](data/README.md)。検知の答え合わせ: `python scripts/detect_demo.py`（検知は `app/detect.py`）。早送りで見る: `python scripts/make_heatmap.py` → `python3 -m http.server 18091 -d data/out` → http://localhost:18091/heatmap.html （1 日を 43 秒で再生し、人が集まった 30 分後に「？」のピンが立つ）
+- 詳しくは [docs/web-ui-design.md](docs/web-ui-design.md) §5
+
+## 合成データと検知の答え合わせ
+
+- 合成データの作り方・仮定・2026年熊本地震の事実: [docs/demo-data-design.md](docs/demo-data-design.md)。入力の出典: [data/README.md](data/README.md)
+- 検知アルゴリズムの説明と結果: [docs/algorithm.md](docs/algorithm.md)。答え合わせ: `python scripts/detect_demo.py --out data/out`（`--no-baseline` で平常期を使わない版、`--learn-days N` で学習日数を変える）
+- 人の動きを見る: `python scripts/make_heatmap.py` → `python3 -m http.server 18091 -d data/out` → http://localhost:18091/heatmap.html （1 日を 43 秒で再生し、人が集まった 30 分後に「？」のピンが立つ）
+
+## 文書
+
+| 文書 | 内容 |
+|---|---|
+| [CLAUDE.md](CLAUDE.md) | 企画の芯・検証の数字・出典・発表の構成（数字はここのとおりに使う） |
+| [docs/architecture.md](docs/architecture.md) | システム構成（実行基盤・DB・API・セッション・検知の定期処理）と選定理由 |
+| [docs/algorithm.md](docs/algorithm.md) | 検知アルゴリズム: 考え方・手順・判定の基準・合成データでの結果・限界 |
+| [docs/web-ui-design.md](docs/web-ui-design.md) | 画面の設計（地図・質問・報告・公式拠点・デモモード） |
+| [docs/web-ui-implementation.md](docs/web-ui-implementation.md) | 画面を作ったときの実装手順書（履歴。現在の仕様は web-ui-design.md） |
+| [docs/demo-data-design.md](docs/demo-data-design.md) | 合成の人流データ: 作り方・仮定値・2026年熊本地震の事実・答え合わせ |
+| [docs/survey-design.md](docs/survey-design.md) | 友人の行動を集める記入フォーム（GitHub Pages の `docs/survey/`） |
+| [data/README.md](data/README.md) | 入力データの出典とライセンス |
 
 ## 参考文献
 

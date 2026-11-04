@@ -1,5 +1,7 @@
 # Web 画面 実装手順書
 
+> **これは画面を最初に作ったとき（2026-11-02〜03）の手順書で、履歴として残している。** 現在の仕様は [web-ui-design.md](web-ui-design.md)。その後の変更（検知の組み込み `app/detect_job.py`、デモ再生 `/?demo=1`、地図を Google / Apple マップ風にした改善、画面の自動確認 `scripts/ui-check.js`）はここには反映していない。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** `docs/web-ui-design.md` の Web 画面（地図・質問・報告・公式の避難所）と、それに必要な API・DB の変更を作る。
@@ -2111,7 +2113,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - Web 画面: http://localhost:18080 （スマホ実機は HTTPS が必要なので `ngrok http 18080` で公開する）
 - API 仕様書: http://localhost:18080/docs （OpenAPI: `/openapi.json`）
 - 公式の避難所データ（BODIK 令和8年熊本地震）の取り込み: `docker compose run --rm api python scripts/import_bodik.py`
-- 構成と設計の理由: [docs/architecture.md](docs/architecture.md) / 画面: [docs/web-ui-design.md](docs/web-ui-design.md)
+- 構成と設計の理由: [docs/architecture.md](architecture.md) / 画面: [docs/web-ui-design.md](web-ui-design.md)
 - DB を初期化し直す: `docker compose down -v`（取り込んだデータも消えるので、取り込みをやり直す）
 ```
 

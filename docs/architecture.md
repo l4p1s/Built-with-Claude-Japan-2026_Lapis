@@ -1,9 +1,10 @@
 # システム構成（実行基盤・言語・DB・API・セッション）
 
-> 画面と API・DB の詳細は [web-ui-design.md](web-ui-design.md) が最新。この文書は全体の構成と選定理由をまとめる。
+> 画面と API・DB の詳細は [web-ui-design.md](web-ui-design.md)、検知の中身は [algorithm.md](algorithm.md)、合成データは [demo-data-design.md](demo-data-design.md) が最新。この文書は全体の構成と選定理由をまとめる。
+> 2026-11-04 時点で、ここに書いた構成はすべて実装済み（API・画面・検知の定期処理・CI・デモ）。
 
-## Context
-リポジトリにはまだ CLAUDE.md と README.md しかない。ハッカソン提出（GitHub 必須）かつ OSS として公開する前提で、
+## Context（この文書を書いた時点）
+リポジトリにはまだ CLAUDE.md と README.md しかなかった。ハッカソン提出（GitHub 必須）かつ OSS として公開する前提で、
 「GPS → いつもと違う滞在を数える → ポアソンで候補検知 → 近くの人に質問 → 地図に掲載」を動かす土台を決める。
 今は Web アプリ、将来ネイティブ / LINE ミニアプリへ移るため、**REST API を唯一の契約**にし、Web はその1クライアントに過ぎない形にする。
 アカウントは作らず、匿名のセッション ID で読み書きを管理する。
@@ -40,7 +41,8 @@ DB 接続は **psycopg 3 + 生 SQL**（PostGIS の関数は SQL で書く方が�
 - **Docker Compose** で `db`（公式 `postgis/postgis` イメージ）と `api`（python-slim + uv）の2コンテナ。`docker compose up` 1発で起動し、審査員・OSS 利用者も同じ手順で再現できる
 - 開発は localhost:18080。`api` はソースをマウントして自動リロード（ホスト側は 18080。8000 は同じマシンの別サーバーが使っているため。コンテナ内は 8000）
 - Web 画面は API と同じオリジンから配信 → CORS 設定不要、`ngrok http 18080` 1本で公開できる
-- 注意（先に伝える制約）: スマホで GPS を取るには HTTPS が必須。localhost では PC ブラウザでしか位置が取れないので、スマホ実機は ngrok 公開時に確認する。デモ本体はシミュレーター（後述）で動かす
+- 注意（先に伝える制約）: スマホで GPS を取るには HTTPS が必須。localhost では PC ブラウザでしか位置が取れないので、スマホ実機は ngrok 公開時に確認する。発表のデモは位置を使わない再生（`DEMO=1` で起動、web-ui-design.md §5）で見せる
+- 環境変数（compose.yaml）: `DATABASE_URL`、`DETECT_EVERY_S`（検知の間隔。既定 300 秒、0 で止める。テストでは 0）、`DEMO`（1 で `web/demo/` を配信し `/?demo=1` が動く。本番では付けない）
 - Web アプリは画面を閉じると位置が取れない（CLAUDE.md §3 のとおり）。これはネイティブ化で解決する前提
 
 ## 3. DB（PostgreSQL + PostGIS）
@@ -111,9 +113,15 @@ app/detect.py             # 滞在判定・ポアソン検知（純関数）
 app/detect_job.py         # DB から検知して candidates に書く定期処理・古いデータの削除
 app/mesh.py               # 地域メッシュ番号
 web/index.html, app.js, style.css, manifest.webmanifest, icon*.svg/png
+web/demo/                 # デモ再生の素材（timeline.json, people.bin。DEMO=1 のときだけ配信）
 scripts/import_bodik.py   # 避難所データの取り込み
-scripts/make_demo_data.py, demo_scenario.json, make_heatmap.py, heatmap.html, detect_demo.py  # 合成データ・ヒートマップ・答え合わせ
+scripts/make_demo_data.py, demo_scenario.json, demo_scenario_video.json  # 合成データ（通常の台本・デモ動画用の台本）
+scripts/make_heatmap.py, heatmap.html, detect_demo.py, make_demo_assets.py  # ヒートマップ・答え合わせ・デモの素材
 scripts/simulate.py       # 合成データを API 経由で投入
+scripts/ui-check.js, e2e-check.js  # 画面と通しの自動確認（Playwright）
+scripts/extract_osm_poi.py, survey-*.js, survey-collect.gs  # 店の位置の抽出、記入フォームの確認と回答の集約
+docs/survey/              # 友人の行動の記入フォーム（GitHub Pages）
+data/                     # 入力データ（bodik, osm, addresses）。out/, demo/, estat/ はコミットしない
 tests/test_api.py, test_rules.py, test_import_bodik.py, test_detect.py, test_detect_job.py, test_make_demo_data.py
 .github/workflows/ci.yml  # PostGIS をサービスに立てて ruff と pytest
 ```

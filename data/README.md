@@ -10,4 +10,5 @@
 | `osm/poi_yatsushiro.csv` | 八代市中心部の店・職場（スーパー・コンビニ・飲食店・工場など 509件）。`scripts/extract_osm_poi.py` で抽出 | © OpenStreetMap contributors, [ODbL](https://www.openstreetmap.org/copyright) |
 | `addresses/yatsushiro.json` | 八代市の小字の代表点。e-Stat のメッシュ人口が無いときに家を置く代用 | デジタル庁 アドレス・ベース・レジストリ由来（別プロジェクトで整形したもの） |
 | `estat/tblT0011*.txt`（例 `tblT001102Q4830.txt`）（**各自で取得・コミットしない**） | 国勢調査2020 250m メッシュ人口（1次メッシュ 4830）。家の重みに使う | [e-Stat 統計地理情報システム](https://www.e-stat.go.jp/gis) → 統計データダウンロード → 国勢調査 2020年 → 5次メッシュ（250m）→ 人口及び世帯（JGD2000）→ 第1次地域区画 4830 |
-| `out/`（**コミットしない**） | 生成した人流データ | — |
+| `out/`（**コミットしない**） | 生成した人流データ（実験用の台本） | — |
+| `demo/`（**コミットしない**） | デモ動画用の台本（`scripts/demo_scenario_video.json`）で生成した人流データ。画面の素材は `web/demo/` に入れる | — |

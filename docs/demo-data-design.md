@@ -1,7 +1,7 @@
 # デモ・実験用の人流データ（八代市 1000人 × 1分刻み）
 
 > 生成: `python scripts/make_demo_data.py --people 1000 --out data/out`（numpy が要る。数分）
-> 台本: `scripts/demo_scenario.json` / テスト: `tests/test_make_demo_data.py` / 入力の出典: `data/README.md`
+> 台本: `scripts/demo_scenario.json`（実験用）と `scripts/demo_scenario_video.json`（デモ動画用、§3 末尾）/ テスト: `tests/test_make_demo_data.py` / 入力の出典: `data/README.md`
 
 ## 1. 目的
 
@@ -74,6 +74,15 @@
 滞在は給水 10〜30 分（列）、炊き出し 15〜35 分、物産館 20〜45 分。
 来る人は、家が距離内で、その日に避難所にいない人から、近いほど高い確率（exp(-d/700m)）で選ぶ。時間が重ならなければ 1 日 2 件まで。**給水に行くのは断水区域（市役所から 3.5km 以内。断水した校区の近似）の人だけ**。
 人数は「距離内の人数」が上限で、実際に選べた人数を `events.csv` の `visitors` に書く。団地の 600m 以内に住む人が少ないと 50 人に届かない（1000 人の縮図なのでそれが自然）。
+
+### 台本は 2 つ
+
+| 台本 | 出力先 | 使いどころ |
+|---|---|---|
+| `scripts/demo_scenario.json`（既定） | `data/out/` | 検知の実験・答え合わせ（§7）。家は市全体、集まりは市内に散らばる |
+| `scripts/demo_scenario_video.json` | `data/demo/`（`--scenario` と `--out` で指定） | 発表のデモ・動画。家も集まりも八代市役所の周り（北は臨港線・西はゆめタウン・南は植柳・東は国道 3 号の先 = 北緯 32.485–32.516、東経 130.583–130.628。台本の `bbox`）に置き、朝から夜まで次々に集まりができる。場所は 500m メッシュが重ならず、避難所から 300m 以上離れたものを選ぶ（同じマスだと 1 つのピンにまとまり、避難所の近くだと公式として扱われるため）。`scripts/make_demo_assets.py` で `web/demo/` の素材にする（web-ui-design.md §5） |
+
+どちらも `data/out/`・`data/demo/` はコミットしない（`data/.gitignore`）。
 
 ## 4. 2026年熊本地震の事実（出典つき）と、そこから置いた値
 
