@@ -566,12 +566,21 @@ async function startDemo() {
     SIM.t = Number(e.target.value);
     render();
   });
-  setInterval(() => {
-    if (!SIM.playing) return;
-    SIM.t = Math.min(1439, SIM.t + SIM.speed / 2);
-    if (SIM.t >= 1439) setPlaying(false);
-    render();
-  }, 500);
+  // 毎フレーム時刻を進めて点を動かす。ピンや時計は分が変わったときだけ描き直す
+  let prev = performance.now();
+  const tick = (now) => {
+    const dt = Math.min(now - prev, 250) / 1000; // 裏のタブから戻ったときに一気に進めない
+    prev = now;
+    if (SIM.playing) {
+      const m = Math.floor(SIM.t);
+      SIM.t = Math.min(1439, SIM.t + SIM.speed * dt);
+      if (SIM.t >= 1439) setPlaying(false);
+      if (Math.floor(SIM.t) !== m) render();
+      else drawPeople();
+    }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
   render();
   setPlaying(!PARAMS.has("paused"));
 }
@@ -674,11 +683,19 @@ function drawPeople() {
   const src = map.getSource("people");
   if (!src || !SIM.frames) return;
   const { origin, scale, step, people } = SIM.tl;
-  const fi = Math.min(Math.floor(SIM.t / step), 1440 / step - 1);
+  // 前後のコマの間を直線でつなぐ（つながないと点が 5 分ごとに飛ぶ）
+  const last = 1440 / step - 1;
+  const fi = Math.min(Math.floor(SIM.t / step), last);
+  const fj = Math.min(fi + 1, last);
+  const w = Math.min(SIM.t / step - fi, 1);
+  const f = SIM.frames;
   const features = [];
   for (let i = 0; i < people; i++) {
-    const o = (fi * people + i) * 2;
-    features.push({ type: "Feature", geometry: { type: "Point", coordinates: [origin[1] + SIM.frames[o + 1] / scale, origin[0] + SIM.frames[o] / scale] } });
+    const a = (fi * people + i) * 2;
+    const b = (fj * people + i) * 2;
+    const lat = f[a] + (f[b] - f[a]) * w;
+    const lon = f[a + 1] + (f[b + 1] - f[a + 1]) * w;
+    features.push({ type: "Feature", geometry: { type: "Point", coordinates: [origin[1] + lon / scale, origin[0] + lat / scale] } });
   }
   src.setData({ type: "FeatureCollection", features });
 }
