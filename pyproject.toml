@@ -13,6 +13,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "httpx2",
+    "numpy",  # scripts/make_demo_data.py（合成の人流データ）
     "pytest",
     "ruff",
 ]

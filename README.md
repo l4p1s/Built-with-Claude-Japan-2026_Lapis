@@ -15,6 +15,7 @@ docker compose run --rm api pytest    # テスト
 - 公式の避難所データ（BODIK 令和8年熊本地震）の取り込み: `docker compose run --rm api python scripts/import_bodik.py`
 - 構成と設計の理由: [docs/architecture.md](docs/architecture.md) / 画面: [docs/web-ui-design.md](docs/web-ui-design.md)
 - DB を初期化し直す: `docker compose down -v`（取り込んだデータも消えるので、取り込みをやり直す）
+- デモ・実験用の人流データ（八代市 1000人 × 1分刻み × 17日）: `python scripts/make_demo_data.py --out data/out`（numpy が要る）。作り方と仮定は [docs/demo-data-design.md](docs/demo-data-design.md)、入力の出典は [data/README.md](data/README.md)
 
 ## 参考文献
 

@@ -1,0 +1,14 @@
+{
+  "_comment": "地震後に埋め込む集まり。day は D0=地震当日, D1, D2。場所は places の名前で指定（公式避難所でない場所を選んでいる）。visitors は来る人の数、stay_min は滞在の長さの範囲。",
+  "events": [
+    {"day": "D1", "place": "麦島東公園", "kind": "water", "start": "09:00", "end": "11:30", "visitors": 90, "stay_min": [15, 45], "radius_m": 1500},
+    {"day": "D1", "place": "金剛コミュニティセンター", "kind": "food", "start": "11:30", "end": "13:30", "visitors": 110, "stay_min": [20, 40], "radius_m": 2000},
+    {"day": "D1", "place": "八代よかとこ物産館", "kind": "water", "start": "10:00", "end": "15:00", "visitors": 150, "stay_min": [15, 45], "radius_m": 3000},
+    {"day": "D2", "place": "八代よかとこ物産館", "kind": "food", "start": "10:00", "end": "15:00", "visitors": 180, "stay_min": [20, 45], "radius_m": 3000},
+    {"day": "D2", "place": "うなぎ処 鰻新", "kind": "goods", "start": "10:00", "end": "12:00", "visitors": 50, "stay_min": [10, 25], "radius_m": 1500},
+    {"day": "D2", "place": "より藤", "kind": "goods", "start": "10:00", "end": "12:00", "visitors": 60, "stay_min": [10, 25], "radius_m": 1500},
+    {"day": "D2", "place": "北部中央公園", "kind": "water", "start": "14:00", "end": "16:30", "visitors": 100, "stay_min": [15, 45], "radius_m": 1500}
+  ],
+  "car_sleeping": ["八代城跡公園", "ゆめタウン八代", "球磨川河川緑地"],
+  "reopen_D2": ["マックスバリュ", "ゆめタウン八代"]
+}
