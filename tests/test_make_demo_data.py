@@ -113,8 +113,9 @@ def test_events_are_visible_only_after_quake(out):
             s, t = h0 * 60 + m0, h1 * 60 + m1 + 30
             got = stayed(pts, float(e["lat"]), float(e["lon"]), s, t)
             assert abs(got - n) <= max(5, n * 0.2), (e["place"], got, n)
-            # 平常日の同じ場所・同じ時間帯にはその集まりがない
-            assert stayed(normal, float(e["lat"]), float(e["lon"]), s, t) < max(2, n * 0.3)
+            # 平常日の同じ場所・同じ時間帯にはその集まりがない（店の行列は店なので平常日にも人がいる）
+            if e["kind"] != "shop":
+                assert stayed(normal, float(e["lat"]), float(e["lon"]), s, t) < max(2, n * 0.3)
 
 
 def weekday_file(out):
@@ -153,11 +154,8 @@ def test_evacuation_rate_and_water_zone(out):
     from make_demo_data import CENTER
 
     events = list(csv.DictReader(open(out / "events.csv", encoding="utf-8")))
-    d0 = min(e["date"] for e in events)  # D1 の日付
-    files = {p.name: p for p in out.glob("points_*.csv.gz")}
-    pts = read_points(
-        min(files.values(), key=lambda p: abs((p.stem[7:17] < d0) - 1))
-    )  # D0 = D1 の前の日
+    d0 = min(e["date"] for e in events if e["day"] == "D0")  # 地震当日
+    pts = read_points(out / f"points_{d0}.csv.gz")
     people = {r["uid"]: r for r in csv.DictReader(open(out / "people.csv", encoding="utf-8"))}
     away = sum(
         dist_m(rows[-1][1], rows[-1][2], float(people[u]["home_lat"]), float(people[u]["home_lon"]))

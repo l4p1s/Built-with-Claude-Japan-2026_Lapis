@@ -1,0 +1,183 @@
+"""合成データ（data/out）に検知（app/detect.py）を流し、events.csv と答え合わせする。
+
+    python scripts/detect_demo.py --out data/out
+
+出力: data/out/detect_result.md（検知率・検知までの時間・誤報）と detect_candidates.csv
+"""
+
+import argparse
+import csv
+import glob
+import gzip
+import os
+import sys
+from collections import Counter, defaultdict
+from datetime import date
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from app.detect import (  # noqa: E402
+    baseline_share,
+    detect,
+    dist_m,
+    learn_person,
+    stays_from_track,
+)
+from app.mesh import mesh_code  # noqa: E402
+
+NIGHT = 3 * 60  # 自宅を決める時刻（3:00）
+MATCH_M = 300  # 候補の中心が集まりからこの距離なら当たり
+OFFICIAL_M = 150  # 公式の拠点からこの距離の候補は「公式」として分ける
+
+
+def read_day(path):
+    """points_*.csv.gz → uid → (lats, lons)。1 分おき 1440 点の前提"""
+    lats, lons = defaultdict(list), defaultdict(list)
+    with gzip.open(path, "rt", encoding="utf-8") as f:
+        r = csv.reader(f)
+        next(r)
+        for uid, _, la, lo in r:
+            lats[uid].append(float(la))
+            lons[uid].append(float(lo))
+    return {u: (lats[u], lons[u]) for u in lats}
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--out", default="data/out")
+    a = ap.parse_args()
+    events = list(csv.DictReader(open(f"{a.out}/events.csv", encoding="utf-8")))
+    places = list(csv.DictReader(open(f"{a.out}/places.csv", encoding="utf-8")))
+    official = [(float(p["lat"]), float(p["lon"])) for p in places if p["official_shelter"] == "1"]
+    d0 = date.fromisoformat(min(e["date"] for e in events if e["day"] == "D0")).toordinal()
+    files = sorted(glob.glob(f"{a.out}/points_*.csv.gz"))
+    normal = [f for f in files if date.fromisoformat(f[-17:-7]).toordinal() < d0]
+    after = [f for f in files if date.fromisoformat(f[-17:-7]).toordinal() >= d0]
+
+    # 1. 平常期: 人ごとの滞在と深夜の位置 → いつもの場所・自宅・探索型。マス別の滞在件数 → 期待値の配分
+    stays_by = defaultdict(list)
+    nights = defaultdict(list)
+    cell_counts = Counter()
+    for f in normal:
+        for uid, (la, lo) in read_day(f).items():
+            st = stays_from_track(la, lo)
+            stays_by[uid].append(st)
+            nights[uid].append((la[NIGHT], lo[NIGHT]))
+            cell_counts.update(mesh_code(s.lat, s.lon) for s in st)
+        print("learned", f[-17:-7])
+    people = {u: learn_person(stays_by[u], nights[u]) for u in stays_by}
+    share = baseline_share(cell_counts)
+    explorers = sum(p.explorer for p in people.values())
+
+    # 2. 地震後: いつもと違う滞在 → 検知
+    cands = []
+    for f in after:
+        d = f[-17:-7]
+        unusual = []
+        for uid, (la, lo) in read_day(f).items():
+            p = people[uid]
+            for s in stays_from_track(la, lo):
+                if not p.is_usual(s.lat, s.lon):
+                    unusual.append((uid, s, p.weight))
+        found = detect(unusual, share)
+        for c in found:
+            c.date = d
+            c.official = any(dist_m(c.lat, c.lon, *o) <= OFFICIAL_M for o in official)
+        cands += found
+        print("detected", d, "unusual stays", len(unusual))
+
+    # 3. 答え合わせ（公式の集まりは除外: 当たっても外れても数えない）
+    targets = [e for e in events if e["official"] == "0"]
+    hm = lambda s: int(s[:2]) * 60 + int(s[3:5])  # noqa: E731
+    rows, hit = [], 0
+    matched = set()
+    for e in targets:
+        found = [
+            c
+            for c in cands
+            if c.date == e["date"]
+            and dist_m(c.lat, c.lon, float(e["lat"]), float(e["lon"])) <= MATCH_M
+            and c.window_start < hm(e["end"]) + 30
+            and c.window_end > hm(e["start"])
+        ]
+        if found:
+            hit += 1
+            # 集まりが始まってから、最初に候補になった時間帯の終わりまで
+            ends = [w1 for c in found for w0, w1 in c.windows if w1 > hm(e["start"])]
+            delay = min(ends) - hm(e["start"])
+            matched |= {id(c) for c in found}
+            rows.append((e, f"検知（{delay} 分後、人数 {max(c.observed for c in found):.0f}）"))
+        else:
+            rows.append((e, "未検知"))
+    official_ev = [e for e in events if e["official"] == "1"]
+    for e in official_ev:
+        for c in cands:
+            if (
+                c.date == e["date"]
+                and dist_m(c.lat, c.lon, float(e["lat"]), float(e["lon"])) <= MATCH_M
+            ):
+                matched.add(id(c))
+                c.official = True
+    false_alarms = [c for c in cands if id(c) not in matched and not c.official]
+    official_cands = [c for c in cands if c.official and id(c) not in matched]
+
+    with open(f"{a.out}/detect_candidates.csv", "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(
+            [
+                "date",
+                "cell",
+                "lat",
+                "lon",
+                "start",
+                "end",
+                "observed",
+                "expected",
+                "p_value",
+                "official",
+                "matched",
+            ]
+        )
+        for c in sorted(cands, key=lambda c: (c.date, c.window_start)):
+            w.writerow(
+                [
+                    c.date,
+                    c.cell,
+                    f"{c.lat:.5f}",
+                    f"{c.lon:.5f}",
+                    f"{c.window_start // 60:02d}:{c.window_start % 60:02d}",
+                    f"{c.window_end // 60:02d}:{c.window_end % 60:02d}",
+                    f"{c.observed:.1f}",
+                    f"{c.expected:.2f}",
+                    f"{c.p_value:.2e}",
+                    int(c.official),
+                    int(id(c) in matched),
+                ]
+            )
+    with open(f"{a.out}/detect_result.md", "w", encoding="utf-8") as f:
+        f.write("# 検知の答え合わせ（合成データ）\n\n")
+        f.write(
+            f"人数 {len(people)} / 平常 {len(normal)} 日で学習 / 探索型と判定 {explorers} 人 / 地震後 {len(after)} 日に検知\n\n"
+        )
+        f.write(
+            f"**検知率 {hit}/{len(targets)}**（公式の {len(official_ev)} 件は除外）、誤報 {len(false_alarms)} 件、公式の拠点に当たった候補 {len(official_cands)} 件\n\n"
+        )
+        f.write("| 日 | 場所 | 種類 | 時間 | 人数 | 結果 |\n|---|---|---|---|---|---|\n")
+        for e, r in rows:
+            f.write(
+                f"| {e['date']} | {e['place']} | {e['kind']} | {e['start']}–{e['end']} | {e['visitors']} | {r} |\n"
+            )
+        f.write("\n## 誤報（集まりでない候補）\n\n")
+        for c in false_alarms:
+            f.write(
+                f"- {c.date} {c.window_start // 60:02d}:{c.window_start % 60:02d}–{c.window_end // 60:02d}:{c.window_end % 60:02d} マス {c.cell} 人数 {c.observed:.0f}（期待 {c.expected:.2f}）\n"
+            )
+        f.write("\n## 公式の拠点に当たった候補\n\n")
+        for c in official_cands:
+            f.write(
+                f"- {c.date} {c.window_start // 60:02d}:{c.window_start % 60:02d} マス {c.cell} 人数 {c.observed:.0f}\n"
+            )
+    print(f"検知 {hit}/{len(targets)} 誤報 {len(false_alarms)} → {a.out}/detect_result.md")
+
+
+if __name__ == "__main__":
+    main()

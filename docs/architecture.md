@@ -86,7 +86,7 @@ DB 接続は **psycopg 3 + 生 SQL**（PostGIS の関数は SQL で書く方が�
 
 ## 6. 検知処理と画面
 
-- 検知（**未実装・次の段階**）: `api` プロセス内で数分おきに回すバックグラウンドタスク（キューやスケジューラーは入れない）。手動実行用に `python -m app.detect` も用意
+- 検知: 純関数は `app/detect.py` に実装済み（滞在 → いつもの場所 → 500m メッシュ × 30 分 → ポアソン）。合成データでの答え合わせは `scripts/detect_demo.py`（docs/demo-data-design.md §7）。**API への組み込み（DB の location_points を読んで candidates に書く定期処理）は未実装**
   - 点 → 10分以上の滞在 → その人のいつもの場所（自宅周り200mは対象外）か判定 → マス・時間帯ごとに件数 → その日の街全体の量から期待値 → ポアソンで大きく超えたら候補
   - ポアソンの上側確率は標準ライブラリ `math` で計算（scipy は検証の再現で必要になったら追加）
 - Web 画面: ビルド不要の素の HTML/JS + MapLibre GL 6（CDN）+ OpenFreeMap。API から配信
@@ -103,8 +103,8 @@ app/auth.py               # セッション発行・検証
 app/db.py                 # DB 接続
 app/rules.py              # 確定・終了などの数値ルール
 app/spots.py              # 候補・回答・公式拠点の読み書き
-app/detect.py             # 滞在判定・ポアソン検知（未実装）
-app/mesh.py               # 地域メッシュ番号（未実装）
+app/detect.py             # 滞在判定・ポアソン検知（純関数。API への組み込みは未実装）
+app/mesh.py               # 地域メッシュ番号
 web/index.html, app.js, style.css, manifest.webmanifest, icon*.svg/png
 scripts/import_bodik.py   # 避難所データの取り込み
 scripts/simulate.py       # （未実装）

@@ -505,6 +505,9 @@ def main():
     noise_lat = PARAMS["gps_noise_m"] / LAT_M
     noise_lon = PARAMS["gps_noise_m"] / LON_M
     stay_count = []  # (day, place, uid) 10分以上の滞在
+    extra = []  # 台本にない集まり（車中泊・店の行列）。events.csv に足す
+    car_names = {p["name"] for p in scen["car_spots"]}
+    reopen_names = {p["name"] for p in scen["reopen"]}
     start_pos = {p["uid"]: (p["lat"], p["lon"]) for p in people}
     for d, kind in days:
         tag = kind if kind.startswith("D") else d.strftime("%a")
@@ -523,6 +526,9 @@ def main():
                 )
         times = [f"{d.isoformat()}T{m // 60:02d}:{m % 60:02d}+09:00" for m in range(MINUTES)]
         after = kind.startswith("D")
+        day_stays = []
+        # 朝まで車中泊している人（その日の予定を決める前の状態）
+        morning = Counter(p["car_spot"]["name"] for p in people if p["car_spot"])
         with gzip.open(
             f"{a.out}/points_{d.isoformat()}.csv.gz", "wt", newline="", encoding="utf-8"
         ) as f:
@@ -552,6 +558,37 @@ def main():
                     for s in stays
                     if s[2] - s[1] >= 10 and s[0] != "home"
                 ]
+                day_stays += stays
+        if after:
+            # 台本にない集まりも正解に足す: 車中泊（夜と翌朝）と、再開した店の行列
+            night = Counter(
+                s[0]
+                for s in day_stays
+                if s[0] in car_names and s[1] >= 18 * 60 and s[2] - s[1] >= 60
+            )
+            queue = (
+                Counter(s[0] for s in day_stays if s[0] in reopen_names and s[2] - s[1] >= 30)
+                if kind == "D2"
+                else Counter()
+            )
+            for cnt, kd, st, en in (
+                (night, "car_sleeping", "20:00", "23:59"),
+                (morning, "car_sleeping", "00:00", "07:00"),
+                (queue, "shop", "09:00", "12:30"),
+            ):
+                for name, n in cnt.items():
+                    if n >= 3:
+                        extra.append(
+                            {
+                                "day": kind,
+                                "date": d,
+                                "place": name,
+                                "kind": kd,
+                                "start": st,
+                                "end": en,
+                                "n": n,
+                            }
+                        )
         print(d, kind, "done")
 
     with open(f"{a.out}/people.csv", "w", newline="", encoding="utf-8") as f:
@@ -635,6 +672,24 @@ def main():
                     ]
                 )
 
+        for k, x in enumerate(extra):
+            pl = byname[x["place"]]
+            w.writerow(
+                [
+                    f"x{k + 1:02d}",
+                    x["day"],
+                    x["date"].isoformat(),
+                    pl["id"],
+                    x["place"],
+                    x["kind"],
+                    f"{pl['lat']:.6f}",
+                    f"{pl['lon']:.6f}",
+                    x["start"],
+                    x["end"],
+                    x["n"],
+                    pl["official"],
+                ]
+            )
     # まとめ
     per_day = defaultdict(Counter)
     for d, kind, name in stay_count:

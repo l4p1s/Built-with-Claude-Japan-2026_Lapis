@@ -80,7 +80,7 @@ async function loadDay() {
   Q("#events").textContent = evs.length ? "集まり: " + evs.map((e) => `${e.place} ${kindJa(e.kind)} ${e.start}–${e.end} ${e.visitors}人`).join(" / ") : "集まりなし";
   show(+Q("#slider").value);
 }
-const kindJa = (k) => ({ water: "給水", food: "炊き出し", goods: "配布" })[k] || k;
+const kindJa = (k) => ({ water: "給水", food: "炊き出し", goods: "配布", car_sleeping: "車中泊", shop: "店の行列" })[k] || k;
 function show(fi) {
   const m = fi * idx.step;
   Q("#clock").textContent = `${String(m / 60 | 0).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
