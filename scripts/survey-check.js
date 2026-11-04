@@ -121,14 +121,14 @@ async function fillPlace(page, { type, usual, from, dur, to }) {
   await next(page);
   ok(`2 家: 名前で探して真ん中のピンで決める（地図の高さ ${Math.round(mapH)}px）`);
 
-  // 3. ふだんの日: 日付 → 家を出た → 2か所 → 家に帰った
-  assert.equal(await title(page), "ふだんの日は、何月何日ですか？");
+  // 3. 地震前の平日: 日付 → 家を出た → 2か所 → 家に帰った
+  assert.equal(await title(page), "地震前の平日は、何月何日ですか？");
   await next(page);
   assert.deepEqual(await needs(page), ["date"]);
   await page.locator("#day-date").fill("2026-07-20");
   await next(page);
   assert.equal(await title(page), "その日、何時ごろ家を出ましたか？");
-  assert.equal(await page.locator("#where").textContent(), "ふだんの日 7/20");
+  assert.equal(await page.locator("#where").textContent(), "地震前の平日 7/20");
   await setHM(page, "07:45");
   await next(page);
 
@@ -173,7 +173,7 @@ async function fillPlace(page, { type, usual, from, dur, to }) {
   assert.equal(await title(page), "何時ごろ家に帰りましたか？");
   await setHM(page, "10:15");
   await next(page);
-  ok("3 ふだんの日: 日付 → 家を出た → 2か所（種類・時刻）→ 家に帰った");
+  ok("3 地震前の平日: 日付 → 家を出た → 2か所（種類・時刻）→ 家に帰った");
 
   // 4. 見直し: 帯と一覧、押すと直せる。戻るで戻れる
   assert.equal(await title(page), "この日の動きを確かめてください");
@@ -198,7 +198,19 @@ async function fillPlace(page, { type, usual, from, dur, to }) {
   await next(page);
   ok("4 見直し: 帯と一覧が出て、押すと直せ、戻るで1問ずつ戻れる");
 
-  // 5. 地震の後の日: 未入力があると、見直しの次へでそこへ移る。家に帰らない日
+  // 5. 地震前の休日・地震の日は家を出て帰っただけ。地震の後の日は家に帰らない日（車中泊）
+  for (const [label, date] of [["地震前の休日", "2026-07-19"], ["地震の日", "2026-07-27"]]) {
+    await next(page);
+    assert.equal(await title(page), `${label}は、何月何日ですか？`);
+    assert.equal(await page.locator("#del-day").isHidden(), true); // 最初の4日は消せない
+    await page.locator("#day-date").fill(date);
+    await next(page);
+    await setHM(page, "09:00");
+    await next(page);
+    await press(page, "#go-home");
+    await setHM(page, "11:00");
+    await next(page);
+  }
   await next(page);
   assert.equal(await title(page), "地震の後の日は、何月何日ですか？");
   await page.locator("#day-date").fill("2026-07-29");
@@ -222,7 +234,7 @@ async function fillPlace(page, { type, usual, from, dur, to }) {
   assert.equal(await page.locator(".row--need").count(), 0);
   await next(page);
   assert.equal(guided, 9); // 画面の種類ごとに1回だけ（家・日付・家を出た・場所・種類・時刻・帰った・見直し・ほかの日）。2日目は出ない
-  ok("5 地震の後の日: 家に帰らない日（車中泊で翌朝まで）も書ける");
+  ok("5 地震前の休日・地震の日・地震の後の日。家に帰らない日（車中泊で翌朝まで）も書ける");
 
   // 6. ほかの日 → 送る
   assert.equal(await title(page), "ほかの日も書きますか？");
@@ -233,7 +245,7 @@ async function fillPlace(page, { type, usual, from, dur, to }) {
   assert.equal(a.v, 1);
   assert.equal(a.name, "テスト");
   assert.deepEqual(a.home, [32.506, 130.586]); // 検索で動かした真ん中のピンの位置（約100mに丸め）
-  assert.equal(a.days.length, 2);
+  assert.deepEqual(a.days.map((d) => d.label), ["地震前の平日", "地震前の休日", "地震の日", "地震の後の日"]);
   const [h, shop, water, back] = a.days[0].stays;
   assert.deepEqual([h.type, shop.type, water.type, back.type], ["home", "shop", "water", "home"]);
   assert.deepEqual([h.lat, h.lon], a.home);
@@ -246,7 +258,7 @@ async function fillPlace(page, { type, usual, from, dur, to }) {
   assert.equal(water.heard, "neighbor");
   assert.equal(water.purpose, "水をもらいに");
   assert.equal(h.detail, undefined);
-  const d1 = a.days[1];
+  const d1 = a.days[3];
   assert.equal(d1.date, "2026-07-29");
   assert.deepEqual(d1.stays.map((s) => s.type), ["home", "water", "car_sleeping"]);
   assert.deepEqual([d1.stays[2].from, d1.stays[2].to], ["20:00", "06:00"]);
@@ -259,11 +271,11 @@ async function fillPlace(page, { type, usual, from, dur, to }) {
   // 7. 日を足す・開き直すと続きから・消去
   await press(page, "#back");
   await press(page, "#more-yes");
-  assert.equal(await title(page), "地震の後の日は、何月何日ですか？");
+  assert.equal(await title(page), "追加の日は、何月何日ですか？");
   assert.equal(await page.locator("#del-day").isVisible(), true);
   await page.reload();
   await page.locator("#map canvas").waitFor({ state: "attached" });
-  assert.equal(await title(page), "地震の後の日は、何月何日ですか？");
+  assert.equal(await title(page), "追加の日は、何月何日ですか？");
   await press(page, "#del-day");
   assert.equal(await title(page), "この日の動きを確かめてください");
   await next(page);

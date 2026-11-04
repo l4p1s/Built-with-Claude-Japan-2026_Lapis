@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>1日の行動の記入</title>
-  <meta name="description" content="ふだんの日と地震の後の日に、どこへ行ったかを1問ずつ地図で記入するフォーム">
+  <meta name="description" content="地震の前（平日・休日）、地震の日、地震の後の日に、どこへ行ったかを1問ずつ地図で記入するフォーム">
   <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#11141c" media="(prefers-color-scheme: dark)">
   <link rel="icon" href="data:,">
@@ -256,7 +256,7 @@
     <p id="qh" class="help"></p>
 
     <section id="s-intro" hidden>
-      <p>災害のときに、水や食べ物がもらえる場所を見つける仕組みを考えています。そのために、ふだんの日と地震の後の日の動きを集めています。</p>
+      <p>災害のときに、水や食べ物がもらえる場所を見つける仕組みを考えています。そのために、地震の前の平日と休日、地震の日、地震の後の日の、4日分の動きを集めています。</p>
       <ul>
         <li>1問ずつ聞いていきます。思い出せる範囲で、大まかで大丈夫です</li>
         <li>書き終わったら、内容をコピーして LINE で送ってください。サーバーには何も保存しません</li>
@@ -372,6 +372,13 @@
       friend: "例: 親戚の家", other: "例: 何があったか",
     };
 
+    const DATE_HELP = {
+      地震前の平日: "地震の前の、いつもどおりの平日を1日選んでください。いつでも大丈夫です",
+      地震前の休日: "地震の前の、いつもどおりの休日を1日選んでください。いつでも大丈夫です",
+      地震の日: "地震が起きた日を選んでください",
+      地震の後の日: "地震の後で、給水や炊き出しに行った日があれば、その日を選んでください",
+    };
+
     const $ = (s) => document.querySelector(s);
     const round = (x, digits) => Number(x.toFixed(digits));
     const minutes = (t) => (t ? Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5)) : null);
@@ -382,7 +389,9 @@
     let state = load() ?? {
       v: 1, name: "", home: null,
       days: [
-        { label: "ふだんの日", date: null, stays: [] },
+        { label: "地震前の平日", date: null, stays: [] },
+        { label: "地震前の休日", date: null, stays: [] },
+        { label: "地震の日", date: null, stays: [] },
         { label: "地震の後の日", date: null, stays: [] },
       ],
     };
@@ -442,9 +451,8 @@
       },
       date: {
         sec: "#s-date", title: () => `${day().label}は、何月何日ですか？`,
-        help: (p) => (p.d === 0 ? "地震の前の、いつもどおりの日を1日選んでください"
-          : "給水や炊き出しに行った日があれば、その日を選んでください"),
-        enter: (p) => { $("#day-date").value = day().date ?? ""; $("#del-day").hidden = p.d < 2; },
+        help: () => DATE_HELP[day().label] ?? "書いておきたい日を選んでください",
+        enter: (p) => { $("#day-date").value = day().date ?? ""; $("#del-day").hidden = p.d < 4; }, // 最初の4日は消さない
         missing: () => (day().date ? [] : ["date"]),
         done: (p) => {
           if (!day().stays.length) day().stays.push(homeStay("00:00", "")); // 1日は家から始まる
@@ -549,7 +557,7 @@
         },
       },
       more: {
-        sec: "#s-more", title: "ほかの日も書きますか？", help: "地震の後の別の日があれば、足せます",
+        sec: "#s-more", title: "ほかの日も書きますか？", help: "ほかにも書いておきたい日があれば、足せます",
         prev: () => review(state.days.length - 1),
       },
       send: {
@@ -657,7 +665,7 @@
       go(review(state.pos.d - 1));
     });
     $("#more-yes").addEventListener("click", () => {
-      state.days.push({ label: "地震の後の日", date: null, stays: [] });
+      state.days.push({ label: "追加の日", date: null, stays: [] });
       go({ s: "date", d: state.days.length - 1 });
     });
     $("#more-no").addEventListener("click", () => go({ s: "send" }));
@@ -999,7 +1007,7 @@
     const GUIDE = {
       intro: [
         { target: null, title: "このページについて",
-          text: "ふだんの日と地震の後の日に、どこへ行ったかを1問ずつ聞いていきます。画面ごとに、使い方を順に紹介します。" },
+          text: "地震の前の平日と休日、地震の日、地震の後の日の4日分、どこへ行ったかを1問ずつ聞いていきます。画面ごとに、使い方を順に紹介します。" },
         { target: "#bar", title: "進み具合", text: "上の線で、どこまで進んだかが分かります。その下に、いま書いている日と何か所目かが出ます。" },
         { target: "#help", title: "使い方を見直す", text: "この ? を押すと、いま出ている画面の使い方をもう一度見られます。" },
         { target: "#next", title: "次へ進む", text: "答えたら、下のボタンで次の問いへ進みます。次の画面からは、左に「戻る」も出ます。" },
@@ -1039,10 +1047,10 @@
         { target: ".map-wrap", title: "地図で確かめる", text: "この日に行った場所が、点と点線で出ます。点を押すと、その場所を直せます。" },
         { target: "#band", title: "1日の帯", text: "どこに何時いたかが、0時から24時の帯に並びます。しま模様のところは、まだ書いていない時間です。" },
         { target: "#list", title: "場所の一覧", text: "押すと、その場所を直せます。赤いものは、まだ入れていない項目がある場所です。" },
-        { target: "#next", title: "次へ", text: "よければ次へ進みます。ふだんの日のあとは、地震の後の日を書きます。" },
+        { target: "#next", title: "次へ", text: "よければ次へ進み、次の日を書きます。" },
       ],
       more: [
-        { target: ".choices", title: "ほかの日", text: "給水や炊き出しに行った日がほかにもあれば、もう1日書けます。なければ「いいえ、送る」を押します。" },
+        { target: ".choices", title: "ほかの日", text: "給水や炊き出しに行った日など、ほかにも書いておきたい日があれば、何日でも足せます。なければ「いいえ、送る」を押します。" },
       ],
       send: [
         { target: "#copy", title: "コピーして LINE で送る", text: "押すと、書いた内容がコピーされます。お願いされた LINE のトークに貼り付けて送ってください。" },
