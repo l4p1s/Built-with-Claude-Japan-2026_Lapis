@@ -43,7 +43,7 @@ function hm(s) {
   return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : 8 * 60;
 }
 const MAP_STYLE = {
-  light: "https://tiles.openfreemap.org/styles/liberty", // 公園・建物・施設名まで載っている
+  light: "https://tiles.openfreemap.org/styles/liberty", // 公園・建物まで載っている（施設名は places に一本化）
   dark: "https://tiles.openfreemap.org/styles/dark",
 };
 // 地図の塗り直し。[レイヤー ID に合う正規表現, 色] で、先に合ったものを使う。
@@ -63,7 +63,6 @@ const MAP_PAINT = {
     [/casing/, "#e2ddd3"],
     [/^label_|^airport$/, "#3a3a3c"],
     [/^highway-name/, "#6e6e73"],
-    [/^poi_r/, "#7c7c80"],
   ],
   // 真っ黒ではなく、少し明るい灰色の地面に、紺の水と深い緑の公園
   dark: [
@@ -220,6 +219,7 @@ map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-lef
 darkMode.addEventListener("change", () => map.setStyle(MAP_STYLE[theme()]));
 map.on("style.load", useJapaneseLabels);
 map.on("style.load", paintMap);
+map.on("style.load", addPlaces);
 map.on("moveend", refreshSpots);
 map.on("zoomend", declutterNames);
 // 地図を押すと詳細を閉じる（ピンを押したときは閉じない）
@@ -232,9 +232,47 @@ function paintMap() {
     // 立体の建物は柔らかい見た目に合わず、古いスマホでは重いので出さない。平らな建物も、街全体を見る縮尺では出さない
     if (layer.type === "fill-extrusion") map.setLayoutProperty(layer.id, "visibility", "none");
     if (layer.id === "building") map.setLayerZoomRange(layer.id, 15, 24);
+    if (/^poi_r/.test(layer.id)) map.setLayoutProperty(layer.id, "visibility", "none"); // 施設は places に一本化（二重に出さない）
     const rule = MAP_PAINT[theme()].find(([re]) => re.test(layer.id));
     if (rule) map.setPaintProperty(layer.id, layer.type === "symbol" ? "text-color" : `${layer.type}-color`, rule[1]);
   }
+}
+
+// 八代市の施設（web/places.geojson、scripts/make_places.py）。ピンが主役なので、小さな色の丸と灰色の名前で背景に置く。
+// 名前が重なると丸ごと出さない。z = 出し始めるズーム（店・病院・役所・給油は 14、それ以外は 15）
+const PLACE_COLOR = { shop: "#e0a43a", food: "#ec8a5e", medical: "#e0585f", public: "#7b8798", fuel: "#5b8fd6", school: "#a5835f", park: "#5aa864", sight: "#9b7bc8" };
+function addPlaces() {
+  if (map.getSource("places")) return;
+  const dark = theme() === "dark";
+  for (const [kind, color] of Object.entries(PLACE_COLOR)) {
+    const g = Object.assign(document.createElement("canvas"), { width: 24, height: 24 }).getContext("2d");
+    g.arc(12, 12, 8, 0, 2 * Math.PI);
+    g.fillStyle = color;
+    g.fill();
+    g.lineWidth = 3;
+    g.strokeStyle = dark ? "#1f2023" : "#fff";
+    g.stroke();
+    map.addImage(`place-${kind}`, g.getImageData(0, 0, 24, 24), { pixelRatio: 2 });
+  }
+  map.addSource("places", { type: "geojson", data: "places.geojson", attribution: "施設: © OpenStreetMap / 八代市 CC BY 4.0" });
+  map.addLayer({
+    id: "places",
+    type: "symbol",
+    source: "places",
+    minzoom: 14,
+    filter: [">=", ["zoom"], ["get", "z"]],
+    layout: {
+      "icon-image": ["concat", "place-", ["get", "kind"]],
+      "text-field": ["get", "name"],
+      "text-font": ["Noto Sans Regular"],
+      "text-size": 11,
+      "text-max-width": 8,
+      "text-variable-anchor": ["left", "right", "top", "bottom"],
+      "text-radial-offset": 0.8,
+      "text-justify": "auto",
+    },
+    paint: { "text-color": dark ? "#aeaeb2" : "#6e6e73", "text-halo-color": dark ? "#1f2023" : "#f5f2eb", "text-halo-width": 1.2 },
+  });
 }
 
 // OpenFreeMap の地名は「ローマ字＋日本語」の2段なので、日本語だけにする

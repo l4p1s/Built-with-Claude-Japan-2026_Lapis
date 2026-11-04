@@ -22,6 +22,7 @@ docker compose exec api ruff check .
 - Web 画面: http://localhost:18080 （スマホ実機で GPS を使うには HTTPS が要るので `ngrok http 18080` で公開する）
 - API 仕様書: http://localhost:18080/docs （OpenAPI: `/openapi.json`）
 - 公式の避難所データ（BODIK 令和8年熊本地震）の取り込み: `docker compose exec api python scripts/import_bodik.py`
+- 地図の背景の施設（八代市の店・病院・役所・学校・公園など）を作り直す: `python scripts/make_places.py`（→ `web/places.geojson`。docs/web-ui-design.md §1.7）
 - 環境変数: `DETECT_EVERY_S`（検知の間隔、既定 300 秒、0 で止める）、`DEMO=1`（デモ画面を有効にする。下記）
 - DB を初期化し直す: `docker compose down -v`（取り込んだデータも消えるので、取り込みをやり直す）
 
