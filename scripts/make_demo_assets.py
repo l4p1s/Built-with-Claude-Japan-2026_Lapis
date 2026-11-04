@@ -29,6 +29,9 @@ def main():
     ap.add_argument("--out", default="data/out")
     ap.add_argument("--day", default="D1")
     ap.add_argument("--dest", default="web/demo")
+    ap.add_argument(
+        "--scenario", help="台本（bbox を timeline.json に入れて、デモの最初の表示範囲にする）"
+    )
     a = ap.parse_args()
     events = list(csv.DictReader(open(f"{a.out}/events.csv", encoding="utf-8")))
     date = next(e["date"] for e in events if e["day"] == a.day)
@@ -69,6 +72,7 @@ def main():
                 "name": hit[0]["place"] if hit else near["name"],
             }
         )
+    bbox = json.load(open(a.scenario, encoding="utf-8")).get("bbox") if a.scenario else None
     heat = f"{a.out}/heatmap/{date}.bin"
     idx = json.load(open(f"{a.out}/heatmap/index.json", encoding="utf-8"))
     os.makedirs(a.dest, exist_ok=True)
@@ -76,18 +80,25 @@ def main():
     json.dump(
         {
             "date": date,
-            "label": {"D0": "地震当日", "D1": "地震の翌日", "D2": "地震の 2 日後"}.get(a.day, a.day),
+            "label": {"D0": "地震当日", "D1": "地震の翌日", "D2": "地震の 2 日後"}.get(
+                a.day, a.day
+            ),
             "origin": idx["origin"],
             "scale": idx["scale"],
             "step": idx["step"],
             "people": next(d["people"] for d in idx["days"] if d["date"] == date),
+            "bounds": [[bbox[2], bbox[0]], [bbox[3], bbox[1]]]
+            if bbox
+            else None,  # [[西, 南], [東, 北]]
             "candidates": out,
         },
         open(f"{a.dest}/timeline.json", "w", encoding="utf-8"),
         ensure_ascii=False,
         indent=0,
     )
-    print(f"{len(out)} 候補（公式 {sum(c['official'] for c in out)}）→ {a.dest}/timeline.json, people.bin")
+    print(
+        f"{len(out)} 候補（公式 {sum(c['official'] for c in out)}）→ {a.dest}/timeline.json, people.bin"
+    )
 
 
 if __name__ == "__main__":

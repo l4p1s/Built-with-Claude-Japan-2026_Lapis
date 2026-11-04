@@ -25,7 +25,8 @@ if (AT?.length === 2 && AT.every(Number.isFinite)) START.center = [AT[1], AT[0]]
 const SIM = {
   t: hm(PARAMS.get("from") ?? "08:00"), // 再生中の時刻（その日の 0:00 からの分）
   start: hm(PARAMS.get("from") ?? "08:00"), // 再生の始まり。これより前に見つかった候補は出さない（最初は何もない状態から始める）
-  speed: 5, // 1 秒に進む分
+  speed: Number(PARAMS.get("speed")) || 5, // 1 秒に進む分
+  reports: [], // デモ中に「知らせる」で立てたピン
   playing: false,
   tl: null, // timeline.json
   frames: null, // people.bin（5 分おきの全員の位置）
@@ -204,15 +205,9 @@ function start() {
   refreshSpots();
 }
 
-if (DEMO) {
-  $("#locate").hidden = true; // 地図の中心が自分の位置
-  $("#demo-note").hidden = false;
-  $("#consent-demo").hidden = false;
-  $("#consent-ok").textContent = "デモを始める";
-  $(".dock h2").hidden = true;
-  $("#dock-kinds").hidden = true;
-  $("#replay").hidden = false;
-}
+// デモの見た目は通常と同じにする（動画を撮るため）。再生バーは controls=1 のときだけ出し、ふだんはキーで操作する:
+// スペース = 再生/一時停止、← → = 10 分戻す/進める、[ ] = 遅く/速く、c = 再生バーを出す/隠す
+if (DEMO) $("#replay").hidden = !PARAMS.has("controls");
 
 // ---- 地図とピン ----
 
@@ -481,7 +476,7 @@ async function startDemo() {
   ]);
   SIM.tl = tl;
   SIM.frames = new Int16Array(bin);
-  $("#demo-note").textContent = `デモ: ${tl.label}を早回し中。中心が自分の位置`;
+  if (!AT && tl.bounds) map.fitBounds(tl.bounds, { padding: 24, animate: false }); // 台本の範囲を最初に見せる
   const c = map.getCenter();
   placeMe(c.lat, c.lng);
   map.on("move", () => meMarker.setLngLat(map.getCenter()));
@@ -495,6 +490,23 @@ async function startDemo() {
   else map.once("load", addPeopleLayer);
   $("#replay-play").addEventListener("click", () => setPlaying(!SIM.playing));
   $("#replay-speed").addEventListener("change", (e) => (SIM.speed = Number(e.target.value)));
+  $("#replay-speed").value = String([1, 5, 15].includes(SIM.speed) ? SIM.speed : 5);
+  addEventListener("keydown", (e) => {
+    if (e.target.closest("input, select, textarea, dialog[open]")) return;
+    const speeds = [1, 5, 15];
+    const i = speeds.indexOf(SIM.speed);
+    if (e.key === " ") setPlaying(!SIM.playing);
+    else if (e.key === "ArrowRight") SIM.t = Math.min(1439, SIM.t + 10);
+    else if (e.key === "ArrowLeft") SIM.t = Math.max(0, SIM.t - 10);
+    else if (e.key === "]") SIM.speed = speeds[Math.min(2, i + 1)];
+    else if (e.key === "[") SIM.speed = speeds[Math.max(0, i - 1)];
+    else if (e.key === "c") $("#replay").hidden = !$("#replay").hidden;
+    else return;
+    e.preventDefault();
+    $("#replay-speed").value = String(SIM.speed);
+    updateDockHeight();
+    render();
+  });
   $("#replay-slider").addEventListener("input", (e) => {
     SIM.t = Number(e.target.value);
     render();
@@ -506,7 +518,7 @@ async function startDemo() {
     render();
   }, 500);
   render();
-  setPlaying(true);
+  setPlaying(!PARAMS.has("paused"));
 }
 
 function setPlaying(on) {
@@ -523,8 +535,21 @@ const simIso = (minutes) => new Date(Date.parse(`${SIM.tl.date}T00:00:00+09:00`)
 // 再生中の時刻に地図に出す候補。公式の拠点に当たったものは聞かずに確認済み（公式のピン）にする
 function demoFeatures() {
   const t = SIM.t;
-  return SIM.tl.candidates
-    .filter((c) => c.detect >= SIM.start && c.detect <= t && t < c.end + SIM_HIDE_AFTER && !SIM.ended.has(c.id))
+  const reports = SIM.reports.map((r) =>
+    feature(r, {
+      source: "report",
+      status: "pending",
+      candidate_id: r.id,
+      kinds: { [r.kind]: 1 },
+      top_kind: r.kind,
+      last_activity_at: simIso(r.t),
+      faded: false,
+      notes: r.note ? [{ answer_id: r.id, kind: r.kind, note: r.note, answered_at: simIso(r.t) }] : [],
+      name: "",
+    }),
+  );
+  return reports.concat(SIM.tl.candidates
+    .filter((c) => c.detect > SIM.start && c.detect <= t && t < c.end + SIM_HIDE_AFTER && !SIM.ended.has(c.id))
     .map((c) => {
       const base = { fresh: t - c.detect < 20, observed: c.observed, name: c.name, faded: t > c.end };
       if (c.official) {
@@ -541,7 +566,7 @@ function demoFeatures() {
         last_activity_at: simIso(Math.min(t, c.end)),
         notes: [],
       });
-    });
+    }));
 }
 
 function feature(c, properties) {
@@ -703,13 +728,23 @@ $("#report-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const note = $("#report-note").value.trim() || null;
   const body = { lat: here.lat, lon: here.lon, kind: reportKind, note };
+  if (DEMO) {
+    SIM.reports.push({ id: 1000 + SIM.reports.length, ...body, t: SIM.t });
+    $("#report").close();
+    SIM.drawn = "";
+    render();
+    return;
+  }
   if (await run(() => api("/reports", { method: "POST", body }), "#report-error")) {
     $("#report").close();
     refreshSpots();
   }
 });
 
-$("#locate").addEventListener("click", () => map.easeTo({ center: [here.lon, here.lat] }));
+$("#locate").addEventListener("click", () => {
+  if (DEMO && SIM.tl?.bounds) return map.fitBounds(SIM.tl.bounds, { padding: 24 }); // デモは台本の範囲へ
+  map.easeTo({ center: [here.lon, here.lat] });
+});
 
 // ---- メニュー ----
 

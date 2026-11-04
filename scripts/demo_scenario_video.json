@@ -1,0 +1,306 @@
+{
+  "_comment": "デモ動画用の台本。八代市役所の周り（北は臨港線、西はゆめタウン、南は植柳、東は国道3号の少し先: 北緯 32.485–32.516、東経 130.583–130.628）に、地震の翌日（D1）の朝から夜まで、給水車・炊き出し・物資配布・公式給水・車中泊が次々にできる。家もこの範囲に置く（make_demo_data.py --bbox）。場所は 500m メッシュが重ならず、避難所から 300m 以上離れたものを選んでいる（同じマスだと 1 つのピンにまとまり、避難所の近くだと公式として扱われるため）。人数は 1000 人の縮図での値。",
+  "bbox": [
+    32.485,
+    32.516,
+    130.583,
+    130.628
+  ],
+  "events": [
+    {
+      "day": "D1",
+      "place": "古城町団地",
+      "kind": "water",
+      "start": "08:30",
+      "end": "10:30",
+      "visitors": 50,
+      "stay_min": [
+        10,
+        30
+      ],
+      "radius_m": 700
+    },
+    {
+      "day": "D1",
+      "place": "川の交流広場",
+      "kind": "water",
+      "start": "09:00",
+      "end": "11:00",
+      "visitors": 45,
+      "stay_min": [
+        10,
+        30
+      ],
+      "radius_m": 900
+    },
+    {
+      "day": "D1",
+      "place": "本町緑地",
+      "kind": "water",
+      "start": "09:30",
+      "end": "11:30",
+      "visitors": 50,
+      "stay_min": [
+        10,
+        30
+      ],
+      "radius_m": 900
+    },
+    {
+      "day": "D1",
+      "place": "毘舎丸団地",
+      "kind": "water",
+      "start": "10:00",
+      "end": "12:00",
+      "visitors": 45,
+      "stay_min": [
+        10,
+        30
+      ],
+      "radius_m": 700
+    },
+    {
+      "day": "D1",
+      "place": "うなぎ処 鰻新",
+      "kind": "food",
+      "start": "11:00",
+      "end": "13:00",
+      "visitors": 40,
+      "stay_min": [
+        15,
+        35
+      ],
+      "radius_m": 1200
+    },
+    {
+      "day": "D1",
+      "place": "八代市働く婦人の家",
+      "kind": "food",
+      "start": "11:30",
+      "end": "13:30",
+      "visitors": 70,
+      "stay_min": [
+        15,
+        35
+      ],
+      "radius_m": 1500
+    },
+    {
+      "day": "D1",
+      "place": "うちだニコニコ堂",
+      "kind": "goods",
+      "start": "13:00",
+      "end": "15:00",
+      "visitors": 40,
+      "stay_min": [
+        10,
+        25
+      ],
+      "radius_m": 1200
+    },
+    {
+      "day": "D1",
+      "place": "内膳児童公園",
+      "kind": "water",
+      "start": "13:30",
+      "end": "15:30",
+      "visitors": 40,
+      "stay_min": [
+        10,
+        30
+      ],
+      "radius_m": 900
+    },
+    {
+      "day": "D1",
+      "place": "麦島東公園",
+      "kind": "water",
+      "start": "14:00",
+      "end": "16:00",
+      "visitors": 45,
+      "stay_min": [
+        10,
+        30
+      ],
+      "radius_m": 900
+    },
+    {
+      "day": "D1",
+      "place": "ドラッグストア モリ",
+      "kind": "goods",
+      "start": "15:00",
+      "end": "17:00",
+      "visitors": 50,
+      "stay_min": [
+        10,
+        25
+      ],
+      "radius_m": 1500
+    },
+    {
+      "day": "D1",
+      "place": "松崎公園",
+      "kind": "water",
+      "start": "15:30",
+      "end": "17:30",
+      "visitors": 40,
+      "stay_min": [
+        10,
+        30
+      ],
+      "radius_m": 900
+    },
+    {
+      "day": "D1",
+      "place": "植柳新町北児童公園",
+      "kind": "water",
+      "start": "16:30",
+      "end": "18:30",
+      "visitors": 35,
+      "stay_min": [
+        10,
+        30
+      ],
+      "radius_m": 900
+    },
+    {
+      "day": "D1",
+      "place": "なわや",
+      "kind": "food",
+      "start": "17:00",
+      "end": "18:30",
+      "visitors": 35,
+      "stay_min": [
+        15,
+        35
+      ],
+      "radius_m": 1200
+    },
+    {
+      "day": "D1",
+      "place": "あじつぼ",
+      "kind": "food",
+      "start": "17:30",
+      "end": "19:00",
+      "visitors": 35,
+      "stay_min": [
+        15,
+        35
+      ],
+      "radius_m": 1200
+    },
+    {
+      "day": "D1",
+      "place": "西中洲児童公園",
+      "kind": "food",
+      "start": "18:00",
+      "end": "19:30",
+      "visitors": 60,
+      "stay_min": [
+        15,
+        35
+      ],
+      "radius_m": 1200
+    },
+    {
+      "day": "D1",
+      "place": "代陽コミュニティセンター",
+      "kind": "water",
+      "start": "08:30",
+      "end": "19:00",
+      "visitors": 120,
+      "stay_min": [
+        10,
+        30
+      ],
+      "radius_m": 2000
+    },
+    {
+      "day": "D1",
+      "place": "八代コミュニティセンター",
+      "kind": "water",
+      "start": "08:30",
+      "end": "19:00",
+      "visitors": 100,
+      "stay_min": [
+        10,
+        30
+      ],
+      "radius_m": 2000
+    },
+    {
+      "day": "D2",
+      "place": "本町緑地",
+      "kind": "water",
+      "start": "09:30",
+      "end": "12:00",
+      "visitors": 50,
+      "stay_min": [
+        10,
+        30
+      ],
+      "radius_m": 900
+    },
+    {
+      "day": "D2",
+      "place": "うなぎ処 鰻新",
+      "kind": "food",
+      "start": "11:00",
+      "end": "13:00",
+      "visitors": 40,
+      "stay_min": [
+        15,
+        35
+      ],
+      "radius_m": 1200
+    },
+    {
+      "day": "D2",
+      "place": "八代市働く婦人の家",
+      "kind": "food",
+      "start": "11:30",
+      "end": "13:30",
+      "visitors": 70,
+      "stay_min": [
+        15,
+        35
+      ],
+      "radius_m": 1500
+    },
+    {
+      "day": "D2",
+      "place": "麦島東公園",
+      "kind": "water",
+      "start": "14:00",
+      "end": "16:00",
+      "visitors": 45,
+      "stay_min": [
+        10,
+        30
+      ],
+      "radius_m": 900
+    },
+    {
+      "day": "D2",
+      "place": "代陽コミュニティセンター",
+      "kind": "water",
+      "start": "08:30",
+      "end": "19:00",
+      "visitors": 120,
+      "stay_min": [
+        10,
+        30
+      ],
+      "radius_m": 2000
+    }
+  ],
+  "car_sleeping": [
+    "八代城跡公園",
+    "ゆめタウン八代",
+    "球磨川河川緑地"
+  ],
+  "reopen_D2": [
+    "マックスバリュ",
+    "ゆめタウン八代"
+  ]
+}

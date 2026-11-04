@@ -90,8 +90,6 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   max-width: 520px; margin: 0 auto; box-shadow: var(--shadow);
 }
 .banner { padding: 8px 12px; border-radius: 12px; background: var(--danger); color: var(--surface); font-size: 14px; }
-.banner--demo { background: var(--accent); color: var(--on-accent); }
-.demo-hint { padding: 8px 12px; border-radius: 10px; background: var(--surface-2); color: var(--fg); font-size: 14px; }
 .card { padding: 16px; border-radius: 16px; background: var(--surface); border: 1px solid var(--border); }
 .banner:not([hidden]) ~ .card { top: calc(112px + env(safe-area-inset-top)); }
 .card h2 { display: flex; align-items: center; gap: 8px; margin: 0 48px 4px 0; font-size: 16px; font-weight: 600; }

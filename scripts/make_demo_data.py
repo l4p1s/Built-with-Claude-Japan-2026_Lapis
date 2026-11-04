@@ -452,6 +452,15 @@ def main():
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--data", default="data")
     ap.add_argument("--out", default="data/out")
+    ap.add_argument(
+        "--scenario",
+        default=os.path.join(os.path.dirname(__file__), "demo_scenario.json"),
+        help="集まりの台本（例: scripts/demo_scenario_video.json）",
+    )
+    ap.add_argument(
+        "--bbox",
+        help="家を置く範囲 lat0,lat1,lon0,lon1（省略すると台本の bbox、なければ市全体）",
+    )
     a = ap.parse_args()
     rng = np.random.default_rng(a.seed)
     os.makedirs(a.out, exist_ok=True)
@@ -460,11 +469,14 @@ def main():
     quake_min = quake.hour * 60 + quake.minute
     places = load_places(a.data)
     cells, home_source = load_home_weights(a.data)
+    scen_json = json.load(open(a.scenario, encoding="utf-8"))
+    bbox = [float(x) for x in a.bbox.split(",")] if a.bbox else scen_json.get("bbox")
+    if bbox:
+        lat0, lat1, lon0, lon1 = bbox
+        cells = [c for c in cells if lat0 <= c[0] <= lat1 and lon0 <= c[1] <= lon1]
+        home_source += f"、家は {bbox} の範囲だけ"
     people, by = make_people(a.people, rng, places, cells)
     byname = {p["name"]: p for p in places}
-    scen_json = json.load(
-        open(os.path.join(os.path.dirname(__file__), "demo_scenario.json"), encoding="utf-8")
-    )
     missing = [
         n
         for n in [e["place"] for e in scen_json["events"]]

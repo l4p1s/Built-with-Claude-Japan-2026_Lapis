@@ -14,7 +14,13 @@ docker compose run --rm api pytest    # テスト
 - API 仕様書: http://localhost:18080/docs （OpenAPI: `/openapi.json`）
 - 公式の避難所データ（BODIK 令和8年熊本地震）の取り込み: `docker compose run --rm api python scripts/import_bodik.py`
 - 検知を通して見る: `python scripts/simulate.py`（合成データを API 経由で投入、数分）→ `docker compose exec api python -m app.detect_job`（検知。5 分ごとにも自動で回る）→ 地図に `?` のピンが出る
-- スマホで見せるデモ: `ngrok http 18080` で公開し、スマホで `https://<ngrok の URL>/?demo=1` を開く。合成データの「地震の翌日」を早回しで再生し（API は使わない）、人（青い点）が集まった場所に `?` のピンが立つ。公式の拠点なら聞かずに確認済み（緑）になる。位置は使わず**地図の中心が自分の位置**なので、`?` に地図を合わせて答えるとピンが確認済みになる。素材は `python scripts/make_demo_assets.py` で作り直せる（docs/web-ui-design.md §7）
+- スマホで見せるデモ: `ngrok http 18080` で公開し、`https://<ngrok の URL>/?demo=1` を開く。見た目は通常と同じで、合成データの「地震の翌日」を早回しで再生する（API は使わない）。人（青い点）が集まった場所に `?` のピンが立ち、公式の拠点なら聞かずに確認済み（緑）になる。位置は使わず**地図の中心が自分の位置**。操作はキー（スペース = 再生/停止、← → = 10 分、[ ] = 速さ、c = 再生バー）。詳しくは docs/web-ui-design.md §7
+- デモ動画用のデータ（八代市役所の周りに集まりが次々にできる）を作り直す:
+  ```sh
+  python scripts/make_demo_data.py --scenario scripts/demo_scenario_video.json --out data/demo   # 家もこの範囲だけに置く（約 3 分）
+  python scripts/make_heatmap.py --out data/demo && python scripts/detect_demo.py --out data/demo
+  python scripts/make_demo_assets.py --out data/demo --scenario scripts/demo_scenario_video.json  # → web/demo/
+  ```
 - 検知アルゴリズムの説明: [docs/algorithm.md](docs/algorithm.md)
 - 構成と設計の理由: [docs/architecture.md](docs/architecture.md) / 画面: [docs/web-ui-design.md](docs/web-ui-design.md)
 - DB を初期化し直す: `docker compose down -v`（取り込んだデータも消えるので、取り込みをやり直す）

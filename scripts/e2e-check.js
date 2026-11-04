@@ -18,7 +18,7 @@ const [lat, lon, shots] = [Number(process.argv[2]), Number(process.argv[3]), pro
   page.on("pageerror", (e) => errors.push(e.message));
   if (demo) {
     // 最初（8:00）は何も出ていない
-    await page.goto(`http://localhost:18080/?demo=1&at=${lat},${lon}&from=08:00`);
+    await page.goto(`http://localhost:18080/?demo=1&at=${lat},${lon}&from=08:00&controls=1`);
     await page.locator("#consent-ok").click();
     await page.locator(".me").waitFor();
     await page.locator("#replay-play").click(); // 止める
