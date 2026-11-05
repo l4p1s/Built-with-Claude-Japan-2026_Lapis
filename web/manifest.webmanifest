@@ -1,6 +1,6 @@
 {
-  "name": "支援拠点マップ",
-  "short_name": "支援マップ",
+  "name": "あるばい",
+  "short_name": "あるばい",
   "start_url": "/",
   "display": "standalone",
   "lang": "ja",

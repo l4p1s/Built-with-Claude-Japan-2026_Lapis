@@ -1213,7 +1213,7 @@ Expected: FAIL（`assert 404 == 200`）
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>支援拠点マップ</title>
+  <title>あるばい</title>
   <meta name="description" content="災害時、人の集まりから公式に載らない給水・炊き出しの場所を見つけて地図に載せます">
   <meta name="theme-color" content="#1e3a5f">
   <link rel="manifest" href="manifest.webmanifest">
@@ -1253,7 +1253,7 @@ Expected: FAIL（`assert 404 == 200`）
 
   <dialog id="consent" class="center">
     <div class="sheet-body">
-      <h1>支援拠点マップ</h1>
+      <h1>あるばい</h1>
       <p>災害のとき、人の集まりから、公式に載らない給水や炊き出しの場所を見つけて地図に載せます。</p>
       <ul>
         <li>送るのは位置だけです。名前や連絡先は送りません（匿名）。</li>
@@ -1471,8 +1471,8 @@ summary { display: flex; align-items: center; min-height: 44px; font-weight: 600
 
 ```json
 {
-  "name": "支援拠点マップ",
-  "short_name": "支援マップ",
+  "name": "あるばい",
+  "short_name": "あるばい",
   "start_url": "/",
   "display": "standalone",
   "lang": "ja",
@@ -1567,7 +1567,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - [ ] **Step 1: `web/app.js` を書く**
 
 ```js
-// 支援拠点マップ（Web 版）。REST API（/v1）のクライアント。設計: docs/web-ui-design.md
+// あるばい（支援拠点マップの Web 版）。REST API（/v1）のクライアント。設計: docs/web-ui-design.md
 import * as maplibregl from "https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.mjs";
 
 const KIND_LABEL = {

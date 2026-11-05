@@ -1,4 +1,4 @@
-// 支援拠点マップ（Web 版）。REST API（/v1）のクライアント。設計: docs/web-ui-design.md
+// あるばい（支援拠点マップの Web 版）。REST API（/v1）のクライアント。設計: docs/web-ui-design.md
 import * as maplibregl from "https://unpkg.com/maplibre-gl@6.16.0/dist/maplibre-gl.mjs";
 
 const KIND_LABEL = {
