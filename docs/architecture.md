@@ -42,7 +42,7 @@ DB 接続は **psycopg 3 + 生 SQL**（PostGIS の関数は SQL で書く方が�
 - 開発は localhost:18080。`api` はソースをマウントして自動リロード（ホスト側は 18080。8000 は同じマシンの別サーバーが使っているため。コンテナ内は 8000）
 - Web 画面は API と同じオリジンから配信 → CORS 設定不要、`ngrok http 18080` 1本で公開できる
 - 注意（先に伝える制約）: スマホで GPS を取るには HTTPS が必須。localhost では PC ブラウザでしか位置が取れないので、スマホ実機は ngrok 公開時に確認する。発表のデモは `demo` ブランチの再生機能で見せる
-- 環境変数（compose.yaml）: `DATABASE_URL`、`DETECT_EVERY_S`（検知の間隔。既定 300 秒、0 で止める。テストでは 0）
+- 環境変数（compose.yaml）: `DATABASE_URL`、`AREA`（対象地域 `lat,lon,半径m`。既定は八代市役所から 25km、空で制限なし）、`DETECT_EVERY_S`（検知の間隔。既定 300 秒、0 で止める。テストでは 0）、`RATE_LIMIT=off`（回数制限を止める。テスト用）
 - Web アプリは画面を閉じると位置が取れない（CLAUDE.md §3 のとおり）。これはネイティブ化で解決する前提
 
 ## 3. DB（PostgreSQL + PostGIS）
@@ -129,7 +129,8 @@ db/init.sql
 app/main.py               # ルーティング・Web 画面の配信
 app/auth.py               # セッション発行・検証
 app/db.py                 # DB 接続
-app/rules.py              # 確定・終了などの数値ルール
+app/rules.py              # 確定・終了などの数値ルール・備考の検査・対象地域
+app/ratelimit.py          # 書き込みの回数制限（プロセス内）
 app/spots.py              # 候補・回答・公式拠点の読み書き
 app/detect.py             # 滞在判定・ポアソン検知（純関数）
 app/detect_job.py         # DB から検知して candidates に書く定期処理・古いデータの削除
@@ -141,15 +142,15 @@ scripts/synth/make_demo_data.py, demo_scenario.json  # 合成データ（台本�
 scripts/synth/make_heatmap.py, heatmap.html, detect_demo.py, participation.py  # ヒートマップ・答え合わせ・参加率の表
 scripts/check/ui-check.js, e2e-check.js  # 画面と通しの自動確認（Playwright）
 scripts/synth/extract_osm_poi.py, scripts/synth/simulate.py  # 店の位置の抽出、合成データの API への投入
-data/                     # 入力データ（bodik, osm, addresses）。out/, demo/, estat/ はコミットしない
-tests/test_api.py, test_rules.py, test_import_bodik.py, test_detect.py, test_detect_job.py, test_make_demo_data.py
+data/                     # 入力データ（bodik, osm, addresses, official/ の CSV のひな型）。out/, demo/, estat/ はコミットしない
+tests/test_api.py, test_rules.py, test_import_bodik.py, test_import_official.py, test_detect.py, test_detect_job.py, test_make_demo_data.py
 .github/workflows/ci.yml  # PostGIS をサービスに立てて ruff と pytest
 ```
 
 ライセンス: MIT。YJMob100K は CC BY 4.0 なのでデータ自体はリポジトリに入れず、取得手順だけ書く。
 
 ## 8. 入れないもの（必要になったら追加）
-ORM・移行ツール・キュー/スケジューラー（検知は api の中のスレッド。プロセスを複数にしたら外に出す）・プッシュ通知・レート制限・管理画面・フロントのビルド環境。
+ORM・移行ツール・キュー/スケジューラー（検知は api の中のスレッド。プロセスを複数にしたら外に出す）・プッシュ通知・管理画面・フロントのビルド環境。回数制限はプロセス内（`app/ratelimit.py`）で入れた。ワーカーを増やすなら Redis 等に移す。
 
 ## 検証（構築後の確認手順）
 1. `docker compose up` → `curl localhost:18080/healthz`
