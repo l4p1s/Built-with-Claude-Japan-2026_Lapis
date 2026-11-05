@@ -90,7 +90,7 @@ P(X ≥ k) = 1 − Σ_{i<k} e^{−λ} λ^i / i!
 候補の中心が公式の避難所・給水所から 150m 以内なら `official` を付けて分ける。公式の拠点は公式の一覧で分かるので、地図に「非公式」として載せない。
 検知自体は公式でも同じように起こる（避難所に人が集まるのは「いつもと違う滞在」なので）。
 
-注: この差し引きは今、答え合わせ（`scripts/synth/detect_demo.py` の `OFFICIAL_M`）にだけ入っている。API の定期処理（`app/detect_job.py`）は公式の拠点の近くの候補もそのまま `candidates` に書く。
+API の定期処理（`app/detect_job.py` の `_at_official`、`OFFICIAL_M` = 150m）では、その時間帯に開設中の公式の拠点（`official_spots`）から 150m 以内の候補は `candidates` に書かない。公式の緑のピンがもう出ているので、近くの人に聞く必要がないため。答え合わせ（`scripts/synth/detect_demo.py` の `OFFICIAL_M`）では、同じ候補を「公式」として数えずに分ける。
 
 ## 3. 判定の基準（`app/detect.py` の定数）
 

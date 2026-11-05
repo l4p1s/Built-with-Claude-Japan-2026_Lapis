@@ -29,6 +29,7 @@ LEARN_EVERY = timedelta(
 )  # 学習（自宅・いつもの場所・マスの割合）を回し直す間隔。それまでは覚えたものを使う
 RETENTION = timedelta(days=14)  # 位置を残す期間（学習に使う分より長く）
 MERGE_M = 150  # この距離にある候補（検知・報告）にまとめる
+OFFICIAL_M = 150  # 開設中の公式の拠点からこの距離の集まりは候補にしない（公式のピンがもう出ているので聞く必要がない）
 JST = timezone(timedelta(hours=9))
 
 
@@ -103,9 +104,27 @@ def run(conn, now=None, use_cache=False):
     t_start = int(WARMUP.total_seconds() // 60)
     t_end = int((now - base).total_seconds() // 60)
     cands = detect(unusual, share, t_start=t_start, t_end=t_end)
-    written = [_write(conn, c, base) for c in cands]
+    written = [_write(conn, c, base) for c in cands if not _at_official(conn, c, base)]
     _cleanup(conn, now)
     return written
+
+
+def _at_official(conn, c, base):
+    """候補の中心が、その時間帯に開いていた公式の拠点（避難所・給水所）から OFFICIAL_M 以内か"""
+    ws = base + timedelta(minutes=c.window_start)
+    we = base + timedelta(minutes=c.window_end)
+    return (
+        conn.execute(
+            """
+            SELECT 1 FROM official_spots
+            WHERE opened_at <= %(we)s AND (closed_at IS NULL OR closed_at > %(ws)s)
+              AND ST_DWithin(geom, ST_MakePoint(%(lon)s, %(lat)s)::geography, %(r)s)
+            LIMIT 1
+            """,
+            {"ws": ws, "we": we, "lat": c.lat, "lon": c.lon, "r": OFFICIAL_M},
+        ).fetchone()
+        is not None
+    )
 
 
 def _write(conn, c, base):
