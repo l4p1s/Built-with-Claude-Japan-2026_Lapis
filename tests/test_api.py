@@ -326,3 +326,11 @@ def test_web_is_served():
     r = client.get("/manifest.webmanifest")
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("application/manifest+json")
+
+
+def test_demo_assets_only_with_demo_env(monkeypatch):
+    monkeypatch.delenv("DEMO", raising=False)
+    assert client.get("/demo/timeline.json").status_code == 404
+    assert client.head("/demo/timeline.json").status_code == 404
+    monkeypatch.setenv("DEMO", "1")
+    assert client.get("/demo/timeline.json").status_code == 200

@@ -194,6 +194,7 @@ web/app.js
 web/style.css
 web/manifest.webmanifest
 web/icon.svg, web/icon-180.png, web/icon-192.png, web/icon-512.png   # PNG は iPhone のホーム画面・PWA 用
+web/demo/timeline.json, web/demo/people.bin   # デモ再生の素材（§5。scripts/synth/make_demo_assets.py が作る。demo ブランチだけ）
 web/places.geojson                            # 地図の背景の施設（§1.7。scripts/make_places.py が作る）
 scripts/import_bodik.py
 scripts/check/ui-check.js, scripts/check/e2e-check.js     # 画面と通しの自動確認（Playwright）
@@ -249,6 +250,19 @@ API（実 DB に対して。`tests/test_api.py` と同じ方式）:
 | 失効したセッション・古い位置の DB からの削除 | 済（検知の定期処理が 30 日 / 14 日で消す） |
 | 答える人の位置の確認（別のセッションで自分の報告を確かめる・遠くから「終わっていた」を押す、を防ぐ） | 実地実験の前に検討する |
 
-## 5. デモモード（`demo` ブランチ）
+## 5. デモモード（`/?demo=1`）— `demo` ブランチだけ
 
-発表・審査・動画用に、合成データの 1 日を画面で早回し再生するデモモード（`/?demo=1`、`DEMO=1` で起動したときだけ動く）を作ったが、OSS の本体には要らないので **main には入れず `demo` ブランチに置いている**。中身の説明はそのブランチの同じ文書 §5 と docs/scenario.md（紹介動画のシナリオ）。
+発表・審査・デモ動画のために、合成データの 1 日を早回しで再生する。**サーバーを `DEMO=1` で起動したときだけ動く**（それ以外は `web/demo/` が 404 になり、`?demo=1` でもふだんの画面になる。app/main.py の WebFiles）。**見た目は通常の画面と同じ**（帯も再生バーも出さない。動画を撮るときに邪魔にならないように）。API は使わない。main にはこの機能はなく、`demo` ブランチ（整理後の main + デモを足す 1 コミット）にだけある。
+
+- 素材は `web/demo/`（`scripts/synth/make_demo_assets.py` が作る）: `timeline.json` = 検知が見つけた候補の時系列（`scripts/synth/detect_demo.py` の出力に正解の名前・種類を付けたもの）＋最初に見せる範囲、`people.bin` = 1,000 人の位置（5 分おき）
+- 動画用のデータは `scripts/synth/demo_scenario_video.json`（八代市役所の周り: 北は臨港線、西はゆめタウン、南は植柳、東は国道 3 号の少し先。家もこの範囲に置く）から作る。手順は README の「デモ」
+- 最初（既定 8:00）は地図に何もない。再生が進むと、青い点（人）が集まった場所に `?` のピンが立つ（出た直後は少し弾む）。開始時刻より前に見つかった集まりは出さない
+- **公式の拠点（避難所・公式給水）に当たった候補は、聞かずに確認済み**（緑の公式のピン）。詳細に「N 人の集まりを検知。公式の拠点なので、聞かずに確認済みにしました」と出る
+- 位置は使わない。**地図の中心が「自分の位置」**（青い点が中心に付いてくる）。`?` のピンから 500m 以内に中心を持っていくと「近くで人が集まっています」が出て、答えるとそのピンが確認済み（紺）になる。回答は手元だけ
+- 「知らせる」も通常どおり押せる。地図の中心に未確認のピン（例「水?」）が立つ（手元だけ）。現在地ボタンは台本の範囲に戻る
+- 操作はキー: **スペース** = 再生/一時停止、**← →** = 10 分戻す/進める、**[ ]** = 遅く/速く（1 秒 = 1 / 5 / 15 分）、**c** = 再生バー（再生・時計・つまみ・速さ）を出す/隠す
+- URL の指定: `at=lat,lon`（最初の場所）、`zoom=`、`from=HH:MM`（最初の時刻）、`speed=1|5|15`、`paused=1`（止めた状態で始める）、`controls=1`（再生バーを出す）。例 `/?demo=1&from=08:00&speed=5`
+- 動画を 1 コマずつ撮るときは `window.demoSeek(分)` で時刻を直接指定できる（`scripts/check/capture-demo.js`）
+- 集まりが終わったピンは薄くなり、2 時間後に消える。「最後の確認」などの時刻も再生中の時刻が基準
+- 公開は `DEMO=1 docker compose up -d` のうえで `ngrok http 18080`（DB は使わない）
+- 確認: `DEMO=1 node scripts/check/e2e-check.js <lat> <lon> <置き場>`（8:00 にピンがないこと → 再生 → 質問 → 回答）

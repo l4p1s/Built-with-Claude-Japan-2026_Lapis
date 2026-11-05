@@ -23,7 +23,7 @@ docker compose exec api ruff check .
 - API 仕様書: http://localhost:18080/docs （OpenAPI: `/openapi.json`）
 - 公式の避難所データ（BODIK 令和8年熊本地震）の取り込み: `docker compose exec api python scripts/import_bodik.py`
 - 地図の背景の施設（八代市の店・病院・役所・学校・公園など）を作り直す: `python scripts/make_places.py`（→ `web/places.geojson`。docs/web-ui-design.md §1.7）
-- 環境変数: `DETECT_EVERY_S`（検知の間隔、既定 300 秒、0 で止める）
+- 環境変数: `DETECT_EVERY_S`（検知の間隔、既定 300 秒、0 で止める）、`DEMO=1`（デモ画面を有効にする。下記）
 - DB を初期化し直す: `docker compose down -v`（取り込んだデータも消えるので、取り込みをやり直す）
 
 ## 検知を通して動かす（合成データを API に入れる）
@@ -36,9 +36,23 @@ docker compose exec api python -m app.detect_job                # 今の時刻�
 
 地図（http://localhost:18080）に `?` のピンが出て、その近くで画面を開くと「近くで人が集まっています」と聞かれる。答えると確認済みになる。通しの自動確認は `scripts/check/e2e-check.js`、画面の自動確認は `scripts/check/ui-check.js`（どちらも Playwright、使い方はファイル冒頭）。
 
-## 発表用のデモと紹介動画
+## デモ（発表・審査・動画）— このブランチだけ
 
-発表・審査・動画用のデモ（合成データの 1 日を画面で早回し再生する機能、動画の素材、紹介動画のシナリオ）は main には入れず、`demo` ブランチに置いている。OSS として使う人には要らないため。
+**このブランチ（`demo`）は、整理後の main に「デモを足す 1 コミット」を乗せたもの。** main を直したら `git merge main` で取り込める（デモのファイルは main にないので衝突しない）。
+
+サーバーを **`DEMO=1 docker compose up -d`** で起動し、`http://localhost:18080/?demo=1`（公開するなら `ngrok http 18080`）を開く。
+見た目は通常の画面と同じで、合成データの「地震の翌日」を早回しで再生する（API・DB は使わない）。人（青い点）が集まった場所に `?` のピンが立ち、公式の拠点なら聞かずに確認済み（緑）になる。位置は使わず、**地図の中心が自分の位置**。
+
+- 操作はキー: スペース = 再生/停止、← → = 10 分、[ ] = 速さ（1 秒 = 1/5/15 分）、c = 再生バー
+- URL: `from=08:00`（開始時刻）、`speed=5`、`paused=1`、`at=lat,lon`、`zoom=`、`controls=1`。動画を撮るなら `/?demo=1&from=08:00&speed=5&paused=1` → 同意 → スペース
+- デモ動画用のデータ（八代市役所の周り: 北は臨港線・西はゆめタウン・南は植柳・東は国道 3 号の先）を作り直す:
+  ```sh
+  python scripts/synth/make_demo_data.py --scenario scripts/synth/demo_scenario_video.json --out data/demo   # 家もこの範囲だけに置く
+  python scripts/synth/make_heatmap.py --out data/demo && python scripts/synth/detect_demo.py --out data/demo
+  python scripts/synth/make_demo_assets.py --out data/demo --scenario scripts/synth/demo_scenario_video.json  # → web/demo/
+  ```
+- 動画を 1 コマずつ撮る: `scripts/check/capture-demo.js`（使い方はファイル冒頭）。紹介動画のシナリオ: [docs/scenario.md](docs/scenario.md)
+- 詳しくは [docs/web-ui-design.md](docs/web-ui-design.md) §5
 
 ## 合成データと検知の答え合わせ
 
@@ -53,9 +67,10 @@ docker compose exec api python -m app.detect_job                # 今の時刻�
 | [CLAUDE.md](CLAUDE.md) | 企画の芯・検証の数字・出典・発表の構成（数字はここのとおりに使う） |
 | [docs/architecture.md](docs/architecture.md) | システム構成（実行基盤・DB・API・セッション・検知の定期処理）と選定理由 |
 | [docs/algorithm.md](docs/algorithm.md) | 検知アルゴリズム: 考え方・手順・判定の基準・合成データでの結果・限界 |
-| [docs/web-ui-design.md](docs/web-ui-design.md) | 画面の設計（地図・質問・報告・公式拠点） |
+| [docs/web-ui-design.md](docs/web-ui-design.md) | 画面の設計（地図・質問・報告・公式拠点・デモモード） |
 | [docs/web-ui-implementation.md](docs/web-ui-implementation.md) | 画面を作ったときの実装手順書（履歴。現在の仕様は web-ui-design.md） |
 | [docs/demo-data-design.md](docs/demo-data-design.md) | 合成の人流データ: 作り方・仮定値・2026年熊本地震の事実・答え合わせ |
+| [docs/scenario.md](docs/scenario.md) | 3本に分けた紹介動画のシナリオ（テーマ紹介・デモ・精度）: シーンごとの画面・動き・テロップ・出典、デモの撮影リスト |
 | （`survey` ブランチ）docs/survey-design.md | 友人の行動を集める記入フォーム（GitHub Pages）。本体とは別のブランチに置いている |
 | [data/README.md](data/README.md) | 入力データの出典とライセンス |
 

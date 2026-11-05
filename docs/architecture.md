@@ -42,7 +42,7 @@ DB 接続は **psycopg 3 + 生 SQL**（PostGIS の関数は SQL で書く方が�
 - 開発は localhost:18080。`api` はソースをマウントして自動リロード（ホスト側は 18080。8000 は同じマシンの別サーバーが使っているため。コンテナ内は 8000）
 - Web 画面は API と同じオリジンから配信 → CORS 設定不要、`ngrok http 18080` 1本で公開できる
 - 注意（先に伝える制約）: スマホで GPS を取るには HTTPS が必須。localhost では PC ブラウザでしか位置が取れないので、スマホ実機は ngrok 公開時に確認する。発表のデモは `demo` ブランチの再生機能で見せる
-- 環境変数（compose.yaml）: `DATABASE_URL`、`DETECT_EVERY_S`（検知の間隔。既定 300 秒、0 で止める。テストでは 0）
+- 環境変数（compose.yaml）: `DATABASE_URL`、`DETECT_EVERY_S`（検知の間隔。既定 300 秒、0 で止める。テストでは 0）、`DEMO`（1 で `web/demo/` を配信し `/?demo=1` が動く。`demo` ブランチだけ）
 - Web アプリは画面を閉じると位置が取れない（CLAUDE.md §3 のとおり）。これはネイティブ化で解決する前提
 
 ## 3. DB（PostgreSQL + PostGIS）
@@ -114,9 +114,10 @@ app/detect_job.py         # DB から検知して candidates に書く定期処�
 app/mesh.py               # 地域メッシュ番号
 web/index.html, app.js, style.css, manifest.webmanifest, icon*.svg/png
 scripts/import_bodik.py   # 避難所データの取り込み
-scripts/synth/make_demo_data.py, demo_scenario.json  # 合成データ（台本つき）
+scripts/synth/make_demo_data.py, demo_scenario.json, demo_scenario_video.json, make_demo_assets.py  # 合成データ（台本つき）・デモの素材
+web/demo/                 # デモ再生の素材（timeline.json, people.bin。DEMO=1 のときだけ配信。demo ブランチだけ）
 scripts/synth/make_heatmap.py, heatmap.html, detect_demo.py, participation.py  # ヒートマップ・答え合わせ・参加率の表
-scripts/check/ui-check.js, e2e-check.js  # 画面と通しの自動確認（Playwright）
+scripts/check/ui-check.js, e2e-check.js, capture-demo.js  # 画面と通しの自動確認、デモの撮影（Playwright）
 scripts/synth/extract_osm_poi.py, scripts/synth/simulate.py  # 店の位置の抽出、合成データの API への投入
 data/                     # 入力データ（bodik, osm, addresses）。out/, demo/, estat/ はコミットしない
 tests/test_api.py, test_rules.py, test_import_bodik.py, test_detect.py, test_detect_job.py, test_make_demo_data.py

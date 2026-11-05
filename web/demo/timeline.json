@@ -1,0 +1,298 @@
+{
+"date": "2026-07-29",
+"label": "地震の翌日",
+"origin": [
+32.4,
+130.5
+],
+"scale": 10000,
+"step": 5,
+"people": 1000,
+"bounds": [
+[
+130.583,
+32.485
+],
+[
+130.628,
+32.516
+]
+],
+"candidates": [
+{
+"id": 1,
+"lat": 32.49262,
+"lon": 130.62631,
+"detect": 30,
+"end": 460,
+"observed": 18,
+"official": false,
+"kind": "car_sleeping",
+"name": "球磨川河川緑地"
+},
+{
+"id": 2,
+"lat": 32.50576,
+"lon": 130.58569,
+"detect": 30,
+"end": 460,
+"observed": 16,
+"official": false,
+"kind": "car_sleeping",
+"name": "ゆめタウン八代"
+},
+{
+"id": 3,
+"lat": 32.50768,
+"lon": 130.59977,
+"detect": 30,
+"end": 470,
+"observed": 18,
+"official": true,
+"kind": "shelter",
+"name": "八代城跡公園"
+},
+{
+"id": 4,
+"lat": 32.5058,
+"lon": 130.6098,
+"detect": 480,
+"end": 530,
+"observed": 5,
+"official": true,
+"kind": "shelter",
+"name": "八代トヨオカ地建アリーナ（総合体育館）"
+},
+{
+"id": 5,
+"lat": 32.49937,
+"lon": 130.59743,
+"detect": 530,
+"end": 840,
+"observed": 30,
+"official": false,
+"kind": "water",
+"name": "古城町団地"
+},
+{
+"id": 6,
+"lat": 32.50924,
+"lon": 130.59051,
+"detect": 530,
+"end": 730,
+"observed": 18,
+"official": true,
+"kind": "water",
+"name": "八代コミュニティセンター"
+},
+{
+"id": 7,
+"lat": 32.5071,
+"lon": 130.59732,
+"detect": 550,
+"end": 590,
+"observed": 14,
+"official": true,
+"kind": "water",
+"name": "代陽コミュニティセンター"
+},
+{
+"id": 8,
+"lat": 32.50388,
+"lon": 130.59064,
+"detect": 560,
+"end": 1090,
+"observed": 26,
+"official": false,
+"kind": "water",
+"name": "川の交流広場"
+},
+{
+"id": 9,
+"lat": 32.50518,
+"lon": 130.60291,
+"detect": 610,
+"end": 910,
+"observed": 36,
+"official": false,
+"kind": "water",
+"name": "本町緑地"
+},
+{
+"id": 10,
+"lat": 32.51033,
+"lon": 130.61381,
+"detect": 640,
+"end": 1050,
+"observed": 22,
+"official": false,
+"kind": "water",
+"name": "毘舎丸団地"
+},
+{
+"id": 11,
+"lat": 32.50282,
+"lon": 130.60364,
+"detect": 700,
+"end": 1170,
+"observed": 24,
+"official": false,
+"kind": "food",
+"name": "うなぎ処 鰻新"
+},
+{
+"id": 12,
+"lat": 32.50597,
+"lon": 130.616,
+"detect": 720,
+"end": 1010,
+"observed": 42,
+"official": false,
+"kind": "food",
+"name": "八代市働く婦人の家"
+},
+{
+"id": 13,
+"lat": 32.50929,
+"lon": 130.59051,
+"detect": 790,
+"end": 820,
+"observed": 14,
+"official": true,
+"kind": "water",
+"name": "八代コミュニティセンター"
+},
+{
+"id": 14,
+"lat": 32.49709,
+"lon": 130.60714,
+"detect": 840,
+"end": 1070,
+"observed": 15,
+"official": false,
+"kind": "water",
+"name": "内膳児童公園"
+},
+{
+"id": 15,
+"lat": 32.49854,
+"lon": 130.61498,
+"detect": 870,
+"end": 1210,
+"observed": 26,
+"official": false,
+"kind": "water",
+"name": "麦島東公園"
+},
+{
+"id": 16,
+"lat": 32.49877,
+"lon": 130.59716,
+"detect": 880,
+"end": 1040,
+"observed": 16,
+"official": false,
+"kind": null,
+"name": "古城町団地"
+},
+{
+"id": 17,
+"lat": 32.50246,
+"lon": 130.61915,
+"detect": 930,
+"end": 1080,
+"observed": 18,
+"official": false,
+"kind": "goods",
+"name": "ドラッグストア モリ"
+},
+{
+"id": 18,
+"lat": 32.51325,
+"lon": 130.58744,
+"detect": 970,
+"end": 1070,
+"observed": 14,
+"official": false,
+"kind": "water",
+"name": "松崎公園"
+},
+{
+"id": 19,
+"lat": 32.50931,
+"lon": 130.59058,
+"detect": 980,
+"end": 1250,
+"observed": 14,
+"official": true,
+"kind": "water",
+"name": "八代コミュニティセンター"
+},
+{
+"id": 20,
+"lat": 32.49262,
+"lon": 130.59049,
+"detect": 1030,
+"end": 1110,
+"observed": 14,
+"official": false,
+"kind": "water",
+"name": "植柳新町北児童公園"
+},
+{
+"id": 21,
+"lat": 32.505,
+"lon": 130.60354,
+"detect": 1040,
+"end": 1130,
+"observed": 24,
+"official": false,
+"kind": "food",
+"name": "なわや"
+},
+{
+"id": 22,
+"lat": 32.50259,
+"lon": 130.6083,
+"detect": 1100,
+"end": 1200,
+"observed": 40,
+"official": false,
+"kind": "food",
+"name": "西中洲児童公園"
+},
+{
+"id": 23,
+"lat": 32.49263,
+"lon": 130.62631,
+"detect": 1240,
+"end": 1440,
+"observed": 18,
+"official": false,
+"kind": "car_sleeping",
+"name": "球磨川河川緑地"
+},
+{
+"id": 24,
+"lat": 32.50768,
+"lon": 130.59977,
+"detect": 1250,
+"end": 1440,
+"observed": 18,
+"official": true,
+"kind": "shelter",
+"name": "八代城跡公園"
+},
+{
+"id": 25,
+"lat": 32.50576,
+"lon": 130.58569,
+"detect": 1260,
+"end": 1440,
+"observed": 16,
+"official": false,
+"kind": "car_sleeping",
+"name": "ゆめタウン八代"
+}
+]
+}

@@ -234,6 +234,7 @@ curl -s "localhost:18080/v1/spots" -H "Authorization: Bearer <token>" | jq '.fea
 ```
 
 地図（http://localhost:18080）では検知の候補が `?` のピンで出て、近くにいる人に「近くで人が集まっています」と聞く。1 人が種類を答えると確認済みになる。
+発表用のデモ（`demo` ブランチ。`DEMO=1` で起動して `/?demo=1`）は、この検知が合成データに出した候補の時系列（`scripts/synth/make_demo_assets.py` → `web/demo/timeline.json`）をそのまま早回しで再生する（`docs/web-ui-design.md` §5）。
 定期処理の学習期間は 7 日・調べる幅は 3 時間で、平常の滞在がまだ 1 件もないときは期待値の下限（0.3）だけになり、5 人以上の「いつもと違う滞在」の集まりはそのまま候補になる（確認で消す前提）。
 
 ## 8. これからの課題

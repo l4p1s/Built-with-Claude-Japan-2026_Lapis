@@ -16,6 +16,33 @@ const REPORT_KINDS = ["water", "food", "goods", "car_sleeping", "shelter", "othe
 const QUESTION_KINDS = ["water", "food", "goods", "car_sleeping", "shelter", "none"];
 
 const START = { center: [130.6016, 32.5072], zoom: 13 }; // 八代市役所
+// デモ（/?demo=1）: API を使わず、合成データの 1 日（web/demo/、scripts/synth/make_demo_assets.py）を早回しで再生する。
+// 地図の中心を自分の位置にする。at=lat,lon で最初の場所、from=HH:MM で最初の時刻を決められる
+const PARAMS = new URLSearchParams(location.search);
+// サーバーを DEMO=1 で起動していないと web/demo/ が 404 になり、?demo=1 でもふだんの画面になる
+const DEMO = PARAMS.has("demo") && (await fetch("demo/timeline.json", { method: "HEAD" }).then((r) => r.ok, () => false));
+const AT = PARAMS.get("at")?.split(",").map(Number);
+if (AT?.length === 2 && AT.every(Number.isFinite)) START.center = [AT[1], AT[0]];
+if (Number(PARAMS.get("zoom"))) START.zoom = Number(PARAMS.get("zoom")); // 動画を撮るときの拡大（at と一緒に使う）
+const SIM = {
+  t: hm(PARAMS.get("from") ?? "08:00"), // 再生中の時刻（その日の 0:00 からの分）
+  start: hm(PARAMS.get("from") ?? "08:00"), // 再生の始まり。これより前に見つかった候補は出さない（最初は何もない状態から始める）
+  speed: Number(PARAMS.get("speed")) || 5, // 1 秒に進む分
+  reports: [], // デモ中に「知らせる」で立てたピン
+  playing: false,
+  tl: null, // timeline.json
+  frames: null, // people.bin（5 分おきの全員の位置）
+  answered: new Map(), // 候補 id → 答えた種類
+  ended: new Set(), // 「もう終わっていた」と答えた候補
+  drawn: "", // 最後に描いたピンの状態（変わったときだけ描き直す）
+};
+const SIM_HIDE_AFTER = 120; // 集まりが終わってからピンを消すまで（分）
+const SIM_QUESTION_M = 500; // この距離の未確認の候補について聞く（API の QUESTION_RADIUS_M と同じ）
+
+function hm(s) {
+  const [h, m] = String(s).split(":").map(Number);
+  return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : 8 * 60;
+}
 const MAP_STYLE = {
   light: "https://tiles.openfreemap.org/styles/liberty", // 公園・建物まで載っている（施設名は places に一本化）
   dark: "https://tiles.openfreemap.org/styles/dark",
@@ -156,6 +183,11 @@ function showConsent() {
 $("#consent").addEventListener("cancel", (e) => e.preventDefault()); // Esc で閉じさせない
 
 $("#consent-ok").addEventListener("click", async () => {
+  if (DEMO) {
+    $("#consent").close();
+    start();
+    return;
+  }
   const ok = await run(async () => {
     const session = await api("/sessions", { method: "POST", body: { consent: true } });
     saveToken(session.token);
@@ -168,10 +200,15 @@ $("#consent-ok").addEventListener("click", async () => {
 function start() {
   if (!tracking) {
     tracking = true;
-    startTracking();
+    if (DEMO) startDemo();
+    else startTracking();
   }
   refreshSpots();
 }
+
+// デモの見た目は通常と同じにする（動画を撮るため）。再生バーは controls=1 のときだけ出し、ふだんはキーで操作する:
+// スペース = 再生/一時停止、← → = 10 分戻す/進める、[ ] = 遅く/速く、c = 再生バーを出す/隠す
+if (DEMO) $("#replay").hidden = !PARAMS.has("controls");
 
 // ---- 地図とピン ----
 
@@ -266,6 +303,7 @@ function useJapaneseLabels() {
 }
 
 async function refreshSpots() {
+  if (DEMO) return render();
   if (!token) return;
   const b = map.getBounds();
   const bbox = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].join(",");
@@ -338,6 +376,7 @@ function pinElement(feature) {
   el.dataset.key = pinKey(p);
   if (el.dataset.key === selected) el.classList.add("pin--selected");
   if (p.faded) el.classList.add("pin--faded");
+  if (p.fresh) el.classList.add("pin--new"); // 出たばかり（デモ）
   if (p.candidate_id) el.dataset.candidateId = p.candidate_id;
   el.setAttribute("aria-label", pinTitle(p));
   const shape = document.createElement("span");
@@ -377,7 +416,9 @@ function openDetail(feature) {
   $("#detail-error").textContent = "";
   const body = $("#detail-body");
   body.replaceChildren();
-  if (p.source === "official") {
+  if (p.source === "official" && p.detected) {
+    body.append(para(`${formatTime(p.opened_at)} に ${p.observed} 人の集まりを検知。公式の拠点なので、聞かずに確認済みにしました`));
+  } else if (p.source === "official") {
     body.append(
       para(p.address ?? ""),
       para(`開設: ${formatTime(p.opened_at)}`),
@@ -435,6 +476,14 @@ function noteRow(n) {
 }
 
 async function answer(candidateId, kind, errorSelector) {
+  if (DEMO) {
+    if (kind === "ended") SIM.ended.add(candidateId);
+    else if (kind !== "none") SIM.answered.set(candidateId, kind);
+    if ($("#detail").open) $("#detail").close();
+    hideQuestion();
+    render();
+    return;
+  }
   const ok = await run(
     () => api(`/candidates/${candidateId}/answers`, { method: "POST", body: { kind } }),
     errorSelector,
@@ -474,6 +523,192 @@ function placeMe(lat, lon) {
   }
 }
 
+// ---- デモ（再生）----
+
+async function startDemo() {
+  const [tl, bin] = await Promise.all([
+    fetch("demo/timeline.json").then((r) => r.json()),
+    fetch("demo/people.bin").then((r) => r.arrayBuffer()),
+  ]);
+  SIM.tl = tl;
+  SIM.frames = new Int16Array(bin);
+  if (!AT && tl.bounds) map.fitBounds(tl.bounds, { padding: 24, animate: false }); // 台本の範囲を最初に見せる
+  const c = map.getCenter();
+  placeMe(c.lat, c.lng);
+  map.on("move", () => meMarker.setLngLat(map.getCenter()));
+  map.on("moveend", () => {
+    const m = map.getCenter();
+    placeMe(m.lat, m.lng);
+    checkQuestions();
+  });
+  map.on("style.load", addPeopleLayer);
+  if (map.isStyleLoaded()) addPeopleLayer();
+  else map.once("load", addPeopleLayer);
+  $("#replay-play").addEventListener("click", () => setPlaying(!SIM.playing));
+  $("#replay-speed").addEventListener("change", (e) => (SIM.speed = Number(e.target.value)));
+  $("#replay-speed").value = String([1, 5, 15].includes(SIM.speed) ? SIM.speed : 5);
+  addEventListener("keydown", (e) => {
+    if (e.target.closest("input, select, textarea, dialog[open]")) return;
+    const speeds = [1, 5, 15];
+    const i = speeds.indexOf(SIM.speed);
+    if (e.key === " ") setPlaying(!SIM.playing);
+    else if (e.key === "ArrowRight") SIM.t = Math.min(1439, SIM.t + 10);
+    else if (e.key === "ArrowLeft") SIM.t = Math.max(0, SIM.t - 10);
+    else if (e.key === "]") SIM.speed = speeds[Math.min(2, i + 1)];
+    else if (e.key === "[") SIM.speed = speeds[Math.max(0, i - 1)];
+    else if (e.key === "c") $("#replay").hidden = !$("#replay").hidden;
+    else return;
+    e.preventDefault();
+    $("#replay-speed").value = String(SIM.speed);
+    updateDockHeight();
+    render();
+  });
+  $("#replay-slider").addEventListener("input", (e) => {
+    SIM.t = Number(e.target.value);
+    render();
+  });
+  // 毎フレーム時刻を進めて点を動かす。ピンや時計は分が変わったときだけ描き直す
+  let prev = performance.now();
+  const tick = (now) => {
+    const dt = Math.min(now - prev, 250) / 1000; // 裏のタブから戻ったときに一気に進めない
+    prev = now;
+    if (SIM.playing) {
+      const m = Math.floor(SIM.t);
+      SIM.t = Math.min(1439, SIM.t + SIM.speed * dt);
+      if (SIM.t >= 1439) setPlaying(false);
+      if (Math.floor(SIM.t) !== m) render();
+      else drawPeople();
+    }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+  render();
+  setPlaying(!PARAMS.has("paused"));
+  // 動画を1コマずつ撮るときに、時刻（分、小数可）を直接指定する。地図を描き終えたら解決する（scripts/check/capture-demo.js）
+  window.demoSeek = (t) =>
+    new Promise((resolve) => {
+      map.once("idle", resolve);
+      SIM.t = t;
+      render();
+      map.triggerRepaint();
+    });
+}
+
+function setPlaying(on) {
+  SIM.playing = on;
+  $("#replay-play").textContent = on ? "一時停止" : "再生";
+}
+
+function simNow() {
+  return Date.parse(`${SIM.tl.date}T00:00:00+09:00`) + SIM.t * 60_000;
+}
+
+const simIso = (minutes) => new Date(Date.parse(`${SIM.tl.date}T00:00:00+09:00`) + minutes * 60_000).toISOString();
+
+// 再生中の時刻に地図に出す候補。公式の拠点に当たったものは聞かずに確認済み（公式のピン）にする
+function demoFeatures() {
+  const t = SIM.t;
+  const reports = SIM.reports.map((r) =>
+    feature(r, {
+      source: "report",
+      status: "pending",
+      candidate_id: r.id,
+      kinds: { [r.kind]: 1 },
+      top_kind: r.kind,
+      last_activity_at: simIso(r.t),
+      faded: false,
+      notes: r.note ? [{ answer_id: r.id, kind: r.kind, note: r.note, answered_at: simIso(r.t) }] : [],
+      name: "",
+    }),
+  );
+  return reports.concat(SIM.tl.candidates
+    .filter((c) => c.detect > SIM.start && c.detect <= t && t < c.end + SIM_HIDE_AFTER && !SIM.ended.has(c.id))
+    .map((c) => {
+      const base = { fresh: t - c.detect < 20, observed: c.observed, name: c.name, faded: t > c.end };
+      if (c.official) {
+        return feature(c, { ...base, source: "official", status: "open", detected: true, kind: c.kind, opened_at: simIso(c.detect) });
+      }
+      const kind = SIM.answered.get(c.id) ?? null;
+      return feature(c, {
+        ...base,
+        source: "detected",
+        status: kind ? "confirmed" : "pending",
+        candidate_id: c.id,
+        kinds: kind ? { [kind]: 1 } : {},
+        top_kind: kind,
+        last_activity_at: simIso(Math.min(t, c.end)),
+        notes: [],
+      });
+    }));
+}
+
+function feature(c, properties) {
+  return { type: "Feature", geometry: { type: "Point", coordinates: [c.lon, c.lat] }, properties };
+}
+
+function demoQuestions() {
+  return spots
+    .filter((f) => f.properties.source === "detected" && f.properties.status === "pending")
+    .map((f) => ({ f, d: distanceM(here, { lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0] }) }))
+    .filter(({ d }) => d <= SIM_QUESTION_M)
+    .sort((x, y) => x.d - y.d)
+    .map(({ f }) => ({ candidate_id: f.properties.candidate_id, source: "detected" }));
+}
+
+function distanceM(p, q) {
+  return Math.hypot((p.lat - q.lat) * 110574, (p.lon - q.lon) * 111320 * Math.cos((p.lat * Math.PI) / 180));
+}
+
+function render() {
+  if (!SIM.tl) return;
+  const t = Math.floor(SIM.t);
+  $("#replay-clock").textContent = `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
+  $("#replay-slider").value = t;
+  drawPeople();
+  const feats = demoFeatures();
+  const key = feats.map((f) => [f.properties.candidate_id ?? f.properties.name, f.properties.status, f.properties.faded, f.properties.fresh].join()).join(";");
+  if (key !== SIM.drawn) {
+    SIM.drawn = key;
+    spots = feats;
+    drawSpots();
+  }
+  checkQuestions();
+}
+
+// 人の位置（5 分おき）。集まりができていく様子を見せる
+function addPeopleLayer() {
+  if (map.getSource("people")) return;
+  map.addSource("people", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+  map.addLayer({
+    id: "people",
+    type: "circle",
+    source: "people",
+    paint: { "circle-radius": 3, "circle-color": "#2563eb", "circle-opacity": 0.4 },
+  });
+  drawPeople();
+}
+
+function drawPeople() {
+  const src = map.getSource("people");
+  if (!src || !SIM.frames) return;
+  const { origin, scale, step, people } = SIM.tl;
+  // 前後のコマの間を直線でつなぐ（つながないと点が 5 分ごとに飛ぶ）
+  const last = 1440 / step - 1;
+  const fi = Math.min(Math.floor(SIM.t / step), last);
+  const fj = Math.min(fi + 1, last);
+  const w = Math.min(SIM.t / step - fi, 1);
+  const f = SIM.frames;
+  const features = [];
+  for (let i = 0; i < people; i++) {
+    const a = (fi * people + i) * 2;
+    const b = (fj * people + i) * 2;
+    const lat = f[a] + (f[b] - f[a]) * w;
+    const lon = f[a + 1] + (f[b + 1] - f[a + 1]) * w;
+    features.push({ type: "Feature", geometry: { type: "Point", coordinates: [origin[1] + lon / scale, origin[0] + lat / scale] } });
+  }
+  src.setData({ type: "FeatureCollection", features });
+}
+
 function onPosition(pos) {
   const { latitude: lat, longitude: lon, accuracy } = pos.coords;
   const first = here === null;
@@ -508,10 +743,14 @@ async function flush() {
 async function checkQuestions() {
   if (!here) return;
   let list;
-  try {
-    list = await api(`/questions?lat=${here.lat}&lon=${here.lon}`);
-  } catch {
-    return;
+  if (DEMO) {
+    list = demoQuestions();
+  } else {
+    try {
+      list = await api(`/questions?lat=${here.lat}&lon=${here.lon}`);
+    } catch {
+      return;
+    }
   }
   const q = list.find((item) => !dismissed.has(item.candidate_id));
   if (!q) return hideQuestion();
@@ -570,13 +809,23 @@ $("#report-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const note = $("#report-note").value.trim() || null;
   const body = { lat: here.lat, lon: here.lon, kind: reportKind, note };
+  if (DEMO) {
+    SIM.reports.push({ id: 1000 + SIM.reports.length, ...body, t: SIM.t });
+    $("#report").close();
+    SIM.drawn = "";
+    render();
+    return;
+  }
   if (await run(() => api("/reports", { method: "POST", body }), "#report-error")) {
     $("#report").close();
     refreshSpots();
   }
 });
 
-$("#locate").addEventListener("click", () => map.easeTo({ center: [here.lon, here.lat] }));
+$("#locate").addEventListener("click", () => {
+  if (DEMO && SIM.tl?.bounds) return map.fitBounds(SIM.tl.bounds, { padding: 24 }); // デモは台本の範囲へ
+  map.easeTo({ center: [here.lon, here.lat] });
+});
 
 // ---- メニュー ----
 
@@ -632,15 +881,11 @@ function kindButtons(kinds, onPick) {
 }
 
 function ago(iso) {
-  const min = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60_000));
+  const now = DEMO && SIM.tl ? simNow() : Date.now();
+  const min = Math.max(0, Math.round((now - Date.parse(iso)) / 60_000));
   if (min < 1) return "たった今";
   if (min < 60) return `${min}分前`;
   return `${Math.floor(min / 60)}時間${min % 60 ? `${min % 60}分` : ""}前`;
-}
-
-// 2 点の距離（m）。八代の緯度での近似
-function distanceM(p, q) {
-  return Math.hypot((p.lat - q.lat) * 110574, (p.lon - q.lon) * 93900);
 }
 
 function formatTime(iso) {
@@ -694,5 +939,5 @@ for (const g of document.querySelectorAll(".grabber")) {
 $("#dock-kinds").replaceChildren(kindButtons(REPORT_KINDS, openReport));
 setLocationState("waiting");
 addEventListener("resize", updateDockHeight);
-if (token) start();
+if (token && !DEMO) start();
 else showConsent();

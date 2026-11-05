@@ -182,4 +182,12 @@ def get_spots(
 mimetypes.add_type("application/manifest+json", ".webmanifest")
 
 
-app.mount("/", StaticFiles(directory=Path(__file__).parent.parent / "web", html=True), name="web")
+class WebFiles(StaticFiles):
+    # デモ（/?demo=1）の素材 web/demo/ は、DEMO=1 で起動したときだけ配る。無いと画面はふだんの動きになる
+    async def get_response(self, path: str, scope):
+        if path.split(os.sep)[0] == "demo" and os.environ.get("DEMO") != "1":
+            raise HTTPException(status.HTTP_404_NOT_FOUND)
+        return await super().get_response(path, scope)
+
+
+app.mount("/", WebFiles(directory=Path(__file__).parent.parent / "web", html=True), name="web")

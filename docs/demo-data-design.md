@@ -1,7 +1,7 @@
 # デモ・実験用の人流データ（八代市 1000人 × 1分刻み）
 
 > 生成: `python scripts/synth/make_demo_data.py --people 1000 --out data/out`（numpy が要る。数分）
-> 台本: `scripts/synth/demo_scenario.json`（実験用。デモ動画用の台本 demo_scenario_video.json は `demo` ブランチ）/ テスト: `tests/test_make_demo_data.py` / 入力の出典: `data/README.md`
+> 台本: `scripts/synth/demo_scenario.json`（実験用）と `scripts/synth/demo_scenario_video.json`（デモ動画用、§3 末尾。`demo` ブランチだけ）/ テスト: `tests/test_make_demo_data.py` / 入力の出典: `data/README.md`
 
 ## 1. 目的
 
@@ -80,7 +80,7 @@
 | 台本 | 出力先 | 使いどころ |
 |---|---|---|
 | `scripts/synth/demo_scenario.json`（既定） | `data/out/` | 検知の実験・答え合わせ（§7）。家は市全体、集まりは市内に散らばる |
-| `scripts/demo_scenario_video.json`（`demo` ブランチ） | `data/demo/` | 発表のデモ・動画。家も集まりも八代市役所の周り（北緯 32.485–32.516、東経 130.583–130.628。台本の `bbox`）に置き、朝から夜まで次々に集まりができる。場所は 500m メッシュが重ならず、避難所から 300m 以上離れたものを選ぶ。画面の素材にする手順はそのブランチの README |
+| `scripts/synth/demo_scenario_video.json`（`demo` ブランチだけ） | `data/demo/`（`--scenario` と `--out` で指定） | 発表のデモ・動画。家も集まりも八代市役所の周り（北緯 32.485–32.516、東経 130.583–130.628。台本の `bbox`）に置き、朝から夜まで次々に集まりができる。場所は 500m メッシュが重ならず、避難所から 300m 以上離れたものを選ぶ（同じマスだと 1 つのピンにまとまり、避難所の近くだと公式として扱われるため）。`scripts/synth/make_demo_assets.py` で `web/demo/` の素材にする（web-ui-design.md §5） |
 
 どちらも `data/out/`・`data/demo/` はコミットしない（`data/.gitignore`）。
 
