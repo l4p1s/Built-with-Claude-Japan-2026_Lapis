@@ -30,6 +30,7 @@ def cleanup():
         (LON, LAT),
     )
     sql("DELETE FROM sessions WHERE token_hash = ANY(%s)", ([f"t{i}".encode() for i in range(40)],))
+    sql("DELETE FROM official_spots WHERE source = 'test-job'")
 
 
 def add_person(i, track):
@@ -103,3 +104,22 @@ def test_cleanup_removes_old_points_and_sessions():
     sql("UPDATE sessions SET last_seen_at = %s WHERE id = %s", (NOW - timedelta(days=31), sid))
     detect_job.run_once(NOW)
     assert sql("SELECT count(*) FROM sessions WHERE id = %s", (sid,))[0][0] == 0
+
+
+def test_gathering_at_open_official_spot_is_not_a_candidate():
+    """開設中の公式の拠点（避難所）の 150m 以内の集まりは候補にしない。閉鎖後なら候補になる"""
+    spot = (LAT + 0.1, LON + 0.1)
+    for i in range(31, 40):
+        add_person(i, minutes(NOW - timedelta(hours=1), 40, *spot))
+    sql(
+        "INSERT INTO official_spots (source, source_key, name, kind, geom, opened_at, closed_at)"
+        " VALUES ('test-job', 'x', '避難所', 'shelter', ST_MakePoint(%s, %s)::geography, %s, NULL)",
+        (spot[1] + 0.0005, spot[0], NOW - timedelta(days=1)),  # 約 50m 東
+    )
+    assert detect_job.run_once(NOW) == []
+    sql(
+        "UPDATE official_spots SET closed_at = %s WHERE source = 'test-job'",
+        (NOW - timedelta(hours=3),),
+    )
+    written = detect_job.run_once(NOW)
+    assert len(written) == 1 and written[0][1] is True

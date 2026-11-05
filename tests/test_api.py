@@ -3,7 +3,7 @@
 docker compose run --rm api pytest
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import get_args
 
 import psycopg
@@ -50,9 +50,11 @@ def add_candidate(source="detected") -> int:
     )[0][0]
 
 
-def answer(h, cid, kind, note=None):
+def answer(h, cid, kind, note=None, lat=LAT, lon=LON):
     return client.post(
-        f"/v1/candidates/{cid}/answers", json={"kind": kind, "note": note}, headers=h
+        f"/v1/candidates/{cid}/answers",
+        json={"kind": kind, "note": note, "lat": lat, "lon": lon},
+        headers=h,
     )
 
 
@@ -334,3 +336,62 @@ def test_demo_assets_only_with_demo_env(monkeypatch):
     assert client.head("/demo/timeline.json").status_code == 404
     monkeypatch.setenv("DEMO", "1")
     assert client.get("/demo/timeline.json").status_code == 200
+
+
+# ---- 対象地域・近くの人だけ・回数制限 ----
+
+
+def test_session_requires_position_inside_area(monkeypatch):
+    monkeypatch.setenv("AREA", f"{LAT},{LON},1000")
+    assert client.post("/v1/sessions", json={"consent": True}).status_code == 422
+    far = client.post("/v1/sessions", json={"consent": True, "lat": LAT + 0.1, "lon": LON})
+    assert far.status_code == 403
+    near = client.post("/v1/sessions", json={"consent": True, "lat": LAT, "lon": LON + 0.001})
+    assert near.status_code == 201
+
+
+def test_locations_outside_area_or_bad_time_are_dropped(monkeypatch):
+    h = new_session()
+    monkeypatch.setenv("AREA", f"{LAT},{LON},1000")
+    now = datetime.now(UTC)
+    points = [
+        {"lat": LAT, "lon": LON, "recorded_at": now.isoformat()},  # 中
+        {"lat": LAT + 0.1, "lon": LON, "recorded_at": now.isoformat()},  # 外
+        {"lat": LAT, "lon": LON, "recorded_at": (now + timedelta(hours=1)).isoformat()},  # 未来
+        {"lat": LAT, "lon": LON, "recorded_at": (now - timedelta(days=30)).isoformat()},  # 古すぎ
+    ]
+    r = client.post("/v1/locations", json={"points": points}, headers=h)
+    assert r.status_code == 202 and r.json()["accepted"] == 1
+
+
+def test_answer_only_near_candidate():
+    h = new_session()
+    cid = add_candidate()
+    assert answer(h, cid, "water", lat=LAT + 0.1).status_code == 403  # 約 11km 先から
+    assert answer(h, cid, "water", lat=LAT + 0.003).status_code == 201  # 約 330m
+
+
+def test_report_outside_area_is_rejected(monkeypatch):
+    h = new_session()
+    monkeypatch.setenv("AREA", f"{LAT},{LON},1000")
+    r = client.post("/v1/reports", json={"lat": LAT + 0.1, "lon": LON, "kind": "water"}, headers=h)
+    assert r.status_code == 403
+
+
+def test_rate_limit(monkeypatch):
+    from app import ratelimit
+
+    monkeypatch.setenv("RATE_LIMIT", "on")
+    monkeypatch.setitem(ratelimit.LIMITS, "sessions", ratelimit.Limiter(2, 60))
+    assert client.post("/v1/sessions", json={"consent": True}).status_code == 201
+    assert client.post("/v1/sessions", json={"consent": True}).status_code == 201
+    assert client.post("/v1/sessions", json={"consent": True}).status_code == 429
+
+
+def test_limiter_window():
+    from app import ratelimit
+
+    lim = ratelimit.Limiter(2, 10)
+    assert lim.allow("a", now=100) and lim.allow("a", now=101) and not lim.allow("a", now=102)
+    assert lim.allow("b", now=102)  # 別のキーは別に数える
+    assert lim.allow("a", now=111)  # 10 秒たつと空く

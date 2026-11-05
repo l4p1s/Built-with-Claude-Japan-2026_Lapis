@@ -2,16 +2,16 @@ import mimetypes
 import os
 import threading
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Annotated, Literal
 
 import psycopg
-from fastapi import FastAPI, HTTPException, Query, status
+from fastapi import FastAPI, HTTPException, Query, Request, status
 from fastapi.staticfiles import StaticFiles
 from pydantic import AfterValidator, AwareDatetime, BaseModel, Field
 
-from app import detect_job, rules, spots
+from app import detect_job, ratelimit, rules, spots
 from app.auth import SESSION_TTL, Session, create_session
 from app.db import Conn
 
@@ -28,6 +28,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Aid Spot Finder API", version="0.1.0", lifespan=lifespan)
+FUTURE_SLACK = timedelta(minutes=5)  # 端末の時計のずれとして許す未来の時刻
 
 Lat = Annotated[float, Field(ge=-90, le=90)]
 Lon = Annotated[float, Field(ge=-180, le=180)]
@@ -37,6 +38,8 @@ AnswerKind = rules.Kind | Literal["none", "ended"]
 
 class SessionCreate(BaseModel):
     consent: Literal[True]  # 参加は同意制
+    lat: Lat | None = None  # 対象地域（AREA）の中にいることを確かめる。AREA を決めていなければ任意
+    lon: Lon | None = None
 
 
 class SessionOut(BaseModel):
@@ -69,6 +72,8 @@ class Question(BaseModel):
 class AnswerIn(BaseModel):
     kind: AnswerKind  # none = わからない、ended = もう終わっていた
     note: Note = None
+    lat: Lat  # 答える人の今の位置。候補から QUESTION_RADIUS_M 以内の人だけが答えられる
+    lon: Lon
 
 
 class ReportIn(BaseModel):
@@ -98,8 +103,20 @@ def healthz(conn: Conn) -> dict:
     return {"ok": True}
 
 
+def client_ip(request: Request) -> str:
+    # ngrok などの前段がいるときは X-Forwarded-For の先頭が端末
+    fwd = request.headers.get("x-forwarded-for")
+    return fwd.split(",")[0].strip() if fwd else (request.client.host if request.client else "?")
+
+
 @app.post("/v1/sessions", status_code=status.HTTP_201_CREATED)
-def post_session(body: SessionCreate, conn: Conn) -> SessionOut:
+def post_session(body: SessionCreate, conn: Conn, request: Request) -> SessionOut:
+    ratelimit.check("sessions", client_ip(request))
+    if rules.area():
+        if body.lat is None or body.lon is None:
+            raise HTTPException(422, "参加には今いる場所（lat, lon）が要ります")
+        if not rules.in_area(body.lat, body.lon):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "対象地域の外では参加できません")
     return SessionOut(token=create_session(conn), expires_at=datetime.now(UTC) + SESSION_TTL)
 
 
@@ -112,15 +129,25 @@ def delete_session(conn: Conn, sid: Session) -> None:
 
 @app.post("/v1/locations", status_code=status.HTTP_202_ACCEPTED)
 def post_locations(body: LocationBatch, conn: Conn, sid: Session) -> Accepted:
+    """位置を受け取る。対象地域の外の点と、時刻が変な点（未来・保存期間より古い）は捨てる"""
+    ratelimit.check("locations", str(sid))
+    now = datetime.now(UTC)
+    points = [
+        p
+        for p in body.points
+        if rules.in_area(p.lat, p.lon)
+        and p.recorded_at <= now + FUTURE_SLACK
+        and p.recorded_at >= now - detect_job.RETENTION
+    ]
     with conn.cursor() as cur:
         cur.executemany(
             """
             INSERT INTO location_points (session_id, geom, accuracy_m, recorded_at)
             VALUES (%s, ST_MakePoint(%s, %s)::geography, %s, %s)
             """,
-            [(sid, p.lon, p.lat, p.accuracy_m, p.recorded_at) for p in body.points],
+            [(sid, p.lon, p.lat, p.accuracy_m, p.recorded_at) for p in points],
         )
-    return Accepted(accepted=len(body.points))
+    return Accepted(accepted=len(points))
 
 
 @app.get("/v1/questions")
@@ -136,16 +163,29 @@ def get_questions(
 
 @app.post("/v1/candidates/{candidate_id}/answers", status_code=status.HTTP_201_CREATED)
 def post_answer(candidate_id: int, body: AnswerIn, conn: Conn, sid: Session) -> AnswerIn:
-    try:
-        spots.record_answer(conn, candidate_id, sid, body.kind, body.note)
-    except psycopg.errors.ForeignKeyViolation:
+    ratelimit.check("writes", str(sid))
+    row = conn.execute(
+        "SELECT ST_Y(center::geometry), ST_X(center::geometry) FROM candidates WHERE id = %s",
+        (candidate_id,),
+    ).fetchone()
+    if row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "candidate not found")
+    # 遠くから「終わっていた」を押す・自分の報告を別の端末で確かめる、を防ぐ
+    if rules.distance_m(body.lat, body.lon, row[0], row[1]) > rules.QUESTION_RADIUS_M:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            f"その場所から {rules.QUESTION_RADIUS_M}m 以内にいる人だけが答えられます",
+        )
+    spots.record_answer(conn, candidate_id, sid, body.kind, body.note)
     return body
 
 
 @app.post("/v1/reports", status_code=status.HTTP_201_CREATED)
 def post_report(body: ReportIn, conn: Conn, sid: Session) -> ReportOut:
     """今いる場所にあるものを知らせる。近くの候補にまとめるか、新しい候補を作る。"""
+    ratelimit.check("writes", str(sid))
+    if not rules.in_area(body.lat, body.lon):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "対象地域の外からは知らせられません")
     cid = spots.find_or_create_report(conn, body.lat, body.lon)
     spots.record_answer(conn, cid, sid, body.kind, body.note)
     return ReportOut(candidate_id=cid)
@@ -154,6 +194,7 @@ def post_report(body: ReportIn, conn: Conn, sid: Session) -> ReportOut:
 @app.post("/v1/answers/{answer_id}/flags", status_code=status.HTTP_204_NO_CONTENT)
 def post_flag(answer_id: int, conn: Conn, sid: Session) -> None:
     """備考を「不適切」と通報する。同じ人の2回目は何もしない。"""
+    ratelimit.check("writes", str(sid))
     try:
         conn.execute(
             "INSERT INTO flags (answer_id, session_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",

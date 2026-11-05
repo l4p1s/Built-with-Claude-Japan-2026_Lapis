@@ -24,8 +24,12 @@ from app.mesh import mesh_code
 LOOKBACK = timedelta(hours=3)  # この幅の時間帯を調べる（続いている集まりは候補を更新する）
 WARMUP = timedelta(hours=2)  # 調べ始めより前から続く滞在を拾うため、点はこれだけ前から読む
 LEARN_DAYS = 7  # 平常の学習に使う日数（docs/algorithm.md §4.1: 平日 2 日を含む 5 日で十分）
+LEARN_EVERY = timedelta(
+    hours=24
+)  # 学習（自宅・いつもの場所・マスの割合）を回し直す間隔。それまでは覚えたものを使う
 RETENTION = timedelta(days=14)  # 位置を残す期間（学習に使う分より長く）
 MERGE_M = 150  # この距離にある候補（検知・報告）にまとめる
+OFFICIAL_M = 150  # 開設中の公式の拠点からこの距離の集まりは候補にしない（公式のピンがもう出ているので聞く必要がない）
 JST = timezone(timedelta(hours=9))
 
 
@@ -76,10 +80,20 @@ def learn(conn, now):
     return people, baseline_share(cells), nights
 
 
-def run(conn, now=None):
+_learned = {"at": None, "value": None}  # プロセス内に覚えた学習結果（定期処理が使う）
+
+
+def learn_cached(conn, now):
+    """LEARN_EVERY に 1 回だけ learn() を回し、あとは覚えたものを返す。新しい人は次の学習まで「当日だけ」版で扱う"""
+    if _learned["at"] is None or now - _learned["at"] >= LEARN_EVERY:
+        _learned.update(at=now, value=learn(conn, now))
+    return _learned["value"]
+
+
+def run(conn, now=None, use_cache=False):
     """1 回ぶんの検知。見つけた候補を candidates に書き、[(候補 id, 新規か)] を返す"""
     now = now or datetime.now(UTC)
-    people, share, nights = learn(conn, now)
+    people, share, nights = learn_cached(conn, now) if use_cache else learn(conn, now)
     base = now - LOOKBACK - WARMUP
     unusual = []
     for sid, (ts, la, lo) in _tracks(conn, base, now).items():
@@ -90,9 +104,27 @@ def run(conn, now=None):
     t_start = int(WARMUP.total_seconds() // 60)
     t_end = int((now - base).total_seconds() // 60)
     cands = detect(unusual, share, t_start=t_start, t_end=t_end)
-    written = [_write(conn, c, base) for c in cands]
+    written = [_write(conn, c, base) for c in cands if not _at_official(conn, c, base)]
     _cleanup(conn, now)
     return written
+
+
+def _at_official(conn, c, base):
+    """候補の中心が、その時間帯に開いていた公式の拠点（避難所・給水所）から OFFICIAL_M 以内か"""
+    ws = base + timedelta(minutes=c.window_start)
+    we = base + timedelta(minutes=c.window_end)
+    return (
+        conn.execute(
+            """
+            SELECT 1 FROM official_spots
+            WHERE opened_at <= %(we)s AND (closed_at IS NULL OR closed_at > %(ws)s)
+              AND ST_DWithin(geom, ST_MakePoint(%(lon)s, %(lat)s)::geography, %(r)s)
+            LIMIT 1
+            """,
+            {"ws": ws, "we": we, "lat": c.lat, "lon": c.lon, "r": OFFICIAL_M},
+        ).fetchone()
+        is not None
+    )
 
 
 def _write(conn, c, base):
@@ -176,16 +208,16 @@ def _cleanup(conn, now):
     conn.execute("DELETE FROM sessions WHERE last_seen_at < %s", (now - SESSION_TTL,))
 
 
-def run_once(at=None):
+def run_once(at=None, use_cache=False):
     with psycopg.connect(DATABASE_URL) as conn:
-        return run(conn, at)
+        return run(conn, at, use_cache)
 
 
 def loop(every_s, stop):
     """API の中で every_s 秒ごとに回す（app/main.py から別スレッドで）"""
     while not stop.wait(every_s):
         try:
-            run_once()
+            run_once(use_cache=True)
         except Exception as e:  # 1 回の失敗で止めない
             print("detect_job:", repr(e))
 

@@ -42,7 +42,7 @@ DB 接続は **psycopg 3 + 生 SQL**（PostGIS の関数は SQL で書く方が�
 - 開発は localhost:18080。`api` はソースをマウントして自動リロード（ホスト側は 18080。8000 は同じマシンの別サーバーが使っているため。コンテナ内は 8000）
 - Web 画面は API と同じオリジンから配信 → CORS 設定不要、`ngrok http 18080` 1本で公開できる
 - 注意（先に伝える制約）: スマホで GPS を取るには HTTPS が必須。localhost では PC ブラウザでしか位置が取れないので、スマホ実機は ngrok 公開時に確認する。発表のデモは `demo` ブランチの再生機能で見せる
-- 環境変数（compose.yaml）: `DATABASE_URL`、`DETECT_EVERY_S`（検知の間隔。既定 300 秒、0 で止める。テストでは 0）、`DEMO`（1 で `web/demo/` を配信し `/?demo=1` が動く。`demo` ブランチだけ）
+- 環境変数（compose.yaml）: `DATABASE_URL`、`AREA`（対象地域 `lat,lon,半径m`。既定は八代市役所から 25km、空で制限なし）、`DETECT_EVERY_S`（検知の間隔。既定 300 秒、0 で止める。テストでは 0）、`RATE_LIMIT=off`（回数制限を止める。テスト用）、`DEMO`（1 で `web/demo/` を配信し `/?demo=1` が動く。`demo` ブランチだけ）
 - Web アプリは画面を閉じると位置が取れない（CLAUDE.md §3 のとおり）。これはネイティブ化で解決する前提
 
 ## 3. DB（PostgreSQL + PostGIS）
@@ -56,7 +56,7 @@ DB 接続は **psycopg 3 + 生 SQL**（PostGIS の関数は SQL で書く方が�
 | candidates | id, source(detected/report), center geography, status(pending/confirmed/ended), last_activity_at, created_at | 非公式拠点の候補。検知の列（cell_code, window_start, observed, expected, p_value）は detected のときだけ入る |
 | answers | id, candidate_id, session_id, kind(water/food/goods/car_sleeping/shelter/other/none/ended), note(100文字まで), answered_at, unique(candidate_id, session_id) | 1人1候補につき最新の意見1件（上書き） |
 | flags | answer_id, session_id, created_at | 備考の「不適切」通報。1人1備考1回 |
-| official_spots | id, source, source_key, name, address, kind(shelter/water), geom, opened_at, closed_at | 公式の拠点。`scripts/import_bodik.py` で取り込む |
+| official_spots | id, source, source_key, name, address, kind(shelter/water), geom, opened_at, closed_at | 公式の拠点。八代市の避難所は `scripts/import_bodik.py`（BODIK の GeoJSON）、他の地域や給水所は `scripts/import_official.py`（CSV、data/official/README.md）で取り込む。source ごとに上書き |
 
 マス目: **1/2 地域メッシュ（500m）の番号**（`app/mesh.py`）で集計。検証（YJMob100K の 500m）と国勢調査・経済センサスのメッシュと揃う。メッシュ番号の計算は純関数でテストを付ける。
 
@@ -76,6 +76,23 @@ DB 接続は **psycopg 3 + 生 SQL**（PostGIS の関数は SQL で書く方が�
 
 仕様書は FastAPI が `/openapi.json` と `/docs` を自動生成。将来のネイティブ用クライアントはここから生成する。
 
+### 4.1 位置データの形式と流れ（端末 → 集計）
+
+位置は **端末がためて、まとめて送る**（ストリーミングで 1 点ずつ送らない）。電池と電波を節約でき、圏外でも後から送れる。検知は 5 分ごとのバッチなので、秒単位の即時性は要らない。
+
+| 項目 | 決めたこと |
+|---|---|
+| 座標 | WGS84（GPS そのまま、EPSG:4326）の 10 進の度。`lat`（緯度、-90〜90）、`lon`（経度、-180〜180）。小数 6 桁まで（約 0.1m）。度分秒や日本測地系は使わない |
+| 精度 | `accuracy_m`: 端末が返す誤差の半径（m）。任意、0 以上 |
+| 時刻 | `recorded_at`: 端末で取った時刻。ISO 8601 で**時差つき**（例 `2026-07-29T12:30:00+09:00` か `...03:30:00Z`）。時差なしは 422 |
+| 1 回の送信 | `POST /v1/locations` に `{"points": [{lat, lon, accuracy_m, recorded_at}, ...]}`、1〜1000 点。`Authorization: Bearer <token>` |
+| Web 画面の間隔 | 位置は `watchPosition` の更新のうち **30 秒に 1 点**を記録し、**60 秒ごと**にまとめて送る（最初の 1 点はすぐ送る）。送れなければ端末に最大 1000 点ためて次回に送る |
+| 保存 | `location_points(session_id, geom, accuracy_m, recorded_at)`。参加ごとの番号（セッション）に結びつき、名前や端末 ID は持たない。14 日で消す |
+| 集計 | `app/detect_job.py` が 5 分ごとに直近 3 時間を読み、500m メッシュ × 30 分で「いつもと違う滞在」を数える（docs/algorithm.md）。個人の軌跡は外に出さず、候補（マス・時間帯・人数）だけが `candidates` に残る |
+
+ネイティブアプリや LINE ミニアプリも同じ `POST /v1/locations` を使う（画面を閉じても位置が取れるのがネイティブ化の目的）。間隔は端末側で変えてよい（例: 動いていないときは送らない）。
+合成データの CSV（`scripts/synth/`）は実験用で、本番の経路はこの API だけ。発表用のデモ（`demo` ブランチ）は位置を取らず送らない。
+
 ## 5. セッション ID の扱い（アカウントなし）
 
 - 発行: サーバーが `secrets.token_urlsafe(32)` で生成し、**DB には SHA-256 ハッシュだけ**保存（DB が漏れてもなりすませない）
@@ -84,13 +101,18 @@ DB 接続は **psycopg 3 + 生 SQL**（PostGIS の関数は SQL で書く方が�
 - 有効期限: 最終利用から30日でセッションが使えなくなる。失効したセッションと 14 日より古い位置は検知の定期処理（`app/detect_job.py`）が消す
 - 参加をやめると、位置・回答・通報に加え、自分の報告だけでできたピンも消える（他の人の回答があるピンは残り、状態を決め直す）
 - `/v1/sessions` と `/healthz` 以外はすべてセッション必須（閲覧も書き込みも）
+
+### 5.1 書き込みの守り（悪用対策）
+
+対象地域の中の人だけ参加（`AREA`）、候補から 500m 以内の人だけ回答、回数制限（`app/ratelimit.py`）、位置の時刻の検査、入力の検査。一覧と守れていないことは [security.md](security.md)。
+
 - 正直に書く点: 今の構成では「いつもの場所」の判定のため、位置の点はセッション単位でサーバーに保存する（仮名化）。スライド8の「端末で判定し集計だけ送る」は今後（スライド15）の扱いと揃える
 
 ## 6. 検知処理と画面
 
 - 検知: 純関数は `app/detect.py`（滞在 → いつもの場所 → 500m メッシュ × 30 分 → ポアソン。説明は docs/algorithm.md）。DB との出し入れは `app/detect_job.py`
   - `api` の起動時に別スレッドで `DETECT_EVERY_S` 秒ごと（既定 300、0 で止める）に回る。手動は `docker compose exec api python -m app.detect_job [--at 時刻]`
-  - 直近 7 日で人ごとの自宅・いつもの場所・マス別の滞在の割合を学習し、直近 3 時間を調べる。近く（150m）に生きている候補があれば更新、報告の候補に重なれば 1 人ぶんの裏付けとして確認済みにする
+  - 直近 7 日で人ごとの自宅・いつもの場所・マス別の滞在の割合を学習し（24 時間に 1 回。あいだは覚えたものを使う）、直近 3 時間を調べる。開設中の公式の拠点（`official_spots`）から 150m 以内の集まりは候補にしない（公式のピンがもう出ている）。近く（150m）に生きている候補があれば更新、報告の候補に重なれば 1 人ぶんの裏付けとして確認済みにする
   - 同じ処理で、14 日より古い位置と 30 日使われていないセッションを消す
   - 合成データでの答え合わせ（CSV）は `scripts/synth/detect_demo.py`（docs/demo-data-design.md §7）
   - 点 → 10分以上の滞在 → その人のいつもの場所（自宅周り200mは対象外）か判定 → マス・時間帯ごとに件数 → その日の街全体の量から期待値 → ポアソンで大きく超えたら候補
@@ -107,27 +129,30 @@ db/init.sql
 app/main.py               # ルーティング・Web 画面の配信
 app/auth.py               # セッション発行・検証
 app/db.py                 # DB 接続
-app/rules.py              # 確定・終了などの数値ルール
+app/rules.py              # 確定・終了などの数値ルール・備考の検査・対象地域
+app/ratelimit.py          # 書き込みの回数制限（プロセス内）
 app/spots.py              # 候補・回答・公式拠点の読み書き
 app/detect.py             # 滞在判定・ポアソン検知（純関数）
 app/detect_job.py         # DB から検知して candidates に書く定期処理・古いデータの削除
 app/mesh.py               # 地域メッシュ番号
 web/index.html, app.js, style.css, manifest.webmanifest, icon*.svg/png
-scripts/import_bodik.py   # 避難所データの取り込み
-scripts/synth/make_demo_data.py, demo_scenario.json, demo_scenario_video.json, make_demo_assets.py  # 合成データ（台本つき）・デモの素材
+scripts/import_bodik.py   # 避難所データの取り込み（BODIK の GeoJSON）
+scripts/import_official.py  # 公式の拠点を CSV から取り込む（どの地域でも）
+scripts/synth/make_demo_data.py, demo_scenario.json  # 合成データ（台本つき）
+scripts/synth/demo_scenario_video.json, make_demo_assets.py  # デモ動画用の台本・デモの素材（demo ブランチだけ）
 web/demo/                 # デモ再生の素材（timeline.json, people.bin。DEMO=1 のときだけ配信。demo ブランチだけ）
 scripts/synth/make_heatmap.py, heatmap.html, detect_demo.py, participation.py  # ヒートマップ・答え合わせ・参加率の表
 scripts/check/ui-check.js, e2e-check.js, capture-demo.js  # 画面と通しの自動確認、デモの撮影（Playwright）
 scripts/synth/extract_osm_poi.py, scripts/synth/simulate.py  # 店の位置の抽出、合成データの API への投入
-data/                     # 入力データ（bodik, osm, addresses）。out/, demo/, estat/ はコミットしない
-tests/test_api.py, test_rules.py, test_import_bodik.py, test_detect.py, test_detect_job.py, test_make_demo_data.py
+data/                     # 入力データ（bodik, osm, addresses, official/ の CSV のひな型）。out/, demo/, estat/ はコミットしない
+tests/test_api.py, test_rules.py, test_import_bodik.py, test_import_official.py, test_detect.py, test_detect_job.py, test_make_demo_data.py
 .github/workflows/ci.yml  # PostGIS をサービスに立てて ruff と pytest
 ```
 
 ライセンス: MIT。YJMob100K は CC BY 4.0 なのでデータ自体はリポジトリに入れず、取得手順だけ書く。
 
 ## 8. 入れないもの（必要になったら追加）
-ORM・移行ツール・キュー/スケジューラー（検知は api の中のスレッド。プロセスを複数にしたら外に出す）・プッシュ通知・レート制限・管理画面・フロントのビルド環境。
+ORM・移行ツール・キュー/スケジューラー（検知は api の中のスレッド。プロセスを複数にしたら外に出す）・プッシュ通知・管理画面・フロントのビルド環境。回数制限はプロセス内（`app/ratelimit.py`）で入れた。ワーカーを増やすなら Redis 等に移す。
 
 ## 検証（構築後の確認手順）
 1. `docker compose up` → `curl localhost:18080/healthz`

@@ -189,13 +189,26 @@ $("#consent-ok").addEventListener("click", async () => {
     return;
   }
   const ok = await run(async () => {
-    const session = await api("/sessions", { method: "POST", body: { consent: true } });
+    const pos = await currentPosition(); // 対象地域の中にいる人だけが参加できる
+    const session = await api("/sessions", { method: "POST", body: { consent: true, ...pos } });
     saveToken(session.token);
   }, "#consent-error");
   if (!ok) return;
   $("#consent").close();
   start();
 });
+
+function currentPosition() {
+  return new Promise((resolve, reject) => {
+    const fail = () => reject(new ApiError(0, "参加には今いる場所が必要です。位置の利用を許可してください"));
+    if (!("geolocation" in navigator)) return fail();
+    navigator.geolocation.getCurrentPosition(
+      (p) => resolve({ lat: p.coords.latitude, lon: p.coords.longitude }),
+      fail,
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 60_000 },
+    );
+  });
+}
 
 function start() {
   if (!tracking) {
@@ -484,8 +497,9 @@ async function answer(candidateId, kind, errorSelector) {
     render();
     return;
   }
+  if (!here) return;
   const ok = await run(
-    () => api(`/candidates/${candidateId}/answers`, { method: "POST", body: { kind } }),
+    () => api(`/candidates/${candidateId}/answers`, { method: "POST", body: { kind, lat: here.lat, lon: here.lon } }),
     errorSelector,
   );
   if (!ok) return;

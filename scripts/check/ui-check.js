@@ -171,14 +171,13 @@ async function nudgeMap(page) {
   await D.page.screenshot({ path: `${SHOTS}/11-dark.png` });
   ok("9 ダークモードで配色が切り替わる（地図は 11-dark.png で目視）");
 
-  // 10. 位置を許可しない
+  // 10. 位置を許可しない → 参加できず、同意の画面に理由が出る（対象地域の中にいる人だけが参加できる）
   const N = await open(browser, { permissions: [] });
-  await consent(N.page);
-  await N.page.waitForFunction(() => document.querySelector("#location-hint").textContent.includes("今いる場所が必要"), null, { timeout: 15000 });
-  const disabled = await N.page.evaluate(() => [...document.querySelectorAll("#dock-kinds button")].every((b) => b.disabled));
-  assert.equal(disabled, true);
+  await N.page.locator("#consent-ok").click();
+  await N.page.waitForFunction(() => document.querySelector("#consent-error").textContent.includes("今いる場所が必要"), null, { timeout: 20000 });
+  assert.equal(await N.page.locator("#consent").evaluate((d) => d.open), true);
   await N.page.screenshot({ path: `${SHOTS}/12-denied.png` });
-  ok("10 位置を許可しないと、知らせるボタンが押せず理由が出る");
+  ok("10 位置を許可しないと参加できず、同意の画面に理由が出る");
 
   await browser.close();
   console.log("\n" + results.join("\n"));
