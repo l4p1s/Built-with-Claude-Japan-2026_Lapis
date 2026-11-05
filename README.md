@@ -53,6 +53,7 @@ docker compose exec api python -m app.detect_job                # 今の時刻�
 |---|---|
 | [CLAUDE.md](CLAUDE.md) | 企画の芯・検証の数字・出典・発表の構成（数字はここのとおりに使う） |
 | [docs/architecture.md](docs/architecture.md) | システム構成（実行基盤・DB・API・セッション・検知の定期処理）と選定理由 |
+| [docs/security.md](docs/security.md) | セキュリティと個人情報の扱い: 入れている守り・守れていないこと・運用で守ること |
 | [docs/algorithm.md](docs/algorithm.md) | 検知アルゴリズム: 考え方・手順・判定の基準・合成データでの結果・限界 |
 | [docs/web-ui-design.md](docs/web-ui-design.md) | 画面の設計（地図・質問・報告・公式拠点） |
 | [docs/web-ui-implementation.md](docs/web-ui-implementation.md) | 画面を作ったときの実装手順書（履歴。現在の仕様は web-ui-design.md） |
