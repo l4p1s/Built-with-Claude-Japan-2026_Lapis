@@ -8,6 +8,8 @@
 - 企画の芯・検証の数字・出典は [CLAUDE.md](CLAUDE.md)。この README の数字はそこから引いています
 - ライセンス: MIT（データは各出典の条件に従います）
 
+> **このブランチは `demo`**: main に、発表・審査・動画用のデモ（合成データの 1 日を画面で早回し再生する機能、動画の素材、撮影スクリプト、紹介動画のシナリオ）を足したものです。デモの動かし方は [8.8](#88-デモこのブランチだけ)。アプリ本体の説明は main と同じです。
+
 ## 目次
 
 1. [背景](#1-背景)
@@ -17,7 +19,7 @@
 5. [システム構成](#5-システム構成)
 6. [アーキテクチャ](#6-アーキテクチャ)（API・DB・位置データ・検知・候補の状態・セキュリティ）
 7. [検知の結果](#7-検知の結果)
-8. [動かし方](#8-動かし方)
+8. [動かし方](#8-動かし方)（デモは [8.8](#88-デモこのブランチだけ)）
 9. [ディレクトリ構成](#9-ディレクトリ構成)
 10. [ブランチ](#10-ブランチ)
 11. [限界と今後](#11-限界と今後)
@@ -145,6 +147,7 @@
 
 - 画面は API と同じオリジンから配るので、CORS の設定は要りません。公開は `ngrok http 18080` の 1 本です
 - 検知は API のプロセスの中のスレッドで回します。キューやスケジューラーは入れていません（ワーカーは 1 つで動かす前提）
+- デモ（`DEMO=1`、このブランチだけ）は `web/demo/` の素材をブラウザの中で再生するだけで、API・DB・検知スレッドは使いません
 - 選定の理由（Python + FastAPI、PostGIS、Bearer トークン など）は [docs/architecture.md](docs/architecture.md)
 
 ## 6. アーキテクチャ
@@ -360,7 +363,7 @@ docker compose exec api ruff check .
 - 参加は対象地域（既定は八代市役所から 25km）の中からだけです。ほかの場所で試すなら `AREA` を変えるか空にします
 - DB を初期化し直す: `docker compose down -v`（取り込んだデータも消えます）
 - CI: push と pull request で `.github/workflows/ci.yml` が ruff と pytest を回します
-- デモ（このブランチだけ）: `DEMO=1 docker compose up -d` で起動して `http://localhost:18080/?demo=1`（8.5）
+- デモ（このブランチだけ）: `DEMO=1 docker compose up -d` で起動して `http://localhost:18080/?demo=1`（8.8）
 
 ### 8.2 環境変数
 
@@ -370,6 +373,7 @@ docker compose exec api ruff check .
 | `AREA` | `32.5072,130.6016,25000` | 対象地域 `緯度,経度,半径m`。中にいる人だけが参加でき、外の位置・報告は受け付けない。空にすると制限なし |
 | `DETECT_EVERY_S` | `300` | 検知の間隔（秒）。`0` で止める（テスト） |
 | `RATE_LIMIT` | （有効） | `off` で書き込みの回数制限を止める（テスト・開発） |
+| `DEMO` | （空） | `1` で `web/demo/` を配信し、`/?demo=1` のデモ再生が動く（このブランチだけ） |
 
 例: `AREA= docker compose up -d`（制限なし）、`AREA=32.80,130.71,20000 docker compose up -d`（別の地域）。
 
@@ -390,24 +394,6 @@ python scripts/synth/simulate.py --people 300 --days 8    # API 経由で投入�
 docker compose exec api python -m app.detect_job          # 今の時刻で検知（5 分ごとにも自動で回る）
 ```
 
-### 8.5 デモ（発表・審査・動画）— このブランチだけ
-
-**このブランチ（`demo`）は、整理後の main に「デモを足す 1 コミット」を乗せたもの。** main を直したら `git merge main` で取り込める（デモのファイルは main にないので衝突しない）。
-
-サーバーを **`DEMO=1 docker compose up -d`** で起動し、`http://localhost:18080/?demo=1`（公開するなら `ngrok http 18080`）を開く。
-見た目は通常の画面と同じで、合成データの「地震の翌日」を早回しで再生する（API・DB は使わない）。人（青い点）が集まった場所に `?` のピンが立ち、公式の拠点なら聞かずに確認済み（緑）になる。位置は使わず、**地図の中心が自分の位置**。
-
-- 操作はキー: スペース = 再生/停止、← → = 10 分、[ ] = 速さ（1 秒 = 1/5/15 分）、c = 再生バー
-- URL: `from=08:00`（開始時刻）、`speed=5`、`paused=1`、`at=lat,lon`、`zoom=`、`controls=1`。動画を撮るなら `/?demo=1&from=08:00&speed=5&paused=1` → 同意 → スペース
-- デモ動画用のデータ（八代市役所の周り: 北は臨港線・西はゆめタウン・南は植柳・東は国道 3 号の先）を作り直す:
-  ```sh
-  python scripts/synth/make_demo_data.py --scenario scripts/synth/demo_scenario_video.json --out data/demo   # 家もこの範囲だけに置く
-  python scripts/synth/make_heatmap.py --out data/demo && python scripts/synth/detect_demo.py --out data/demo
-  python scripts/synth/make_demo_assets.py --out data/demo --scenario scripts/synth/demo_scenario_video.json  # → web/demo/
-  ```
-- 動画を 1 コマずつ撮る: `scripts/check/capture-demo.js`（使い方はファイル冒頭）。紹介動画のシナリオ: [docs/scenario.md](docs/scenario.md)
-- 詳しくは [docs/web-ui-design.md](docs/web-ui-design.md) §5
-
 地図に `?` のピンが出て、その近くで画面を開くと「近くで人が集まっています」と聞かれます。答えると確認済みになります。
 
 ### 8.5 答え合わせ・参加率・ヒートマップ
@@ -425,13 +411,70 @@ python scripts/synth/make_heatmap.py && python3 -m http.server 18091 -d data/out
 ### 8.6 画面の自動確認（Playwright）
 
 - `scripts/check/ui-check.js`: 画面の自動確認
-- `scripts/check/e2e-check.js`: 検知 → 地図 → 質問 → 回答 → 確認済み を通した確認
+- `scripts/check/e2e-check.js`: 検知 → 地図 → 質問 → 回答 → 確認済み を通した確認（`DEMO=1` ならデモ再生の確認）
+- `scripts/check/capture-demo.js`: デモを 1 コマずつ撮る（このブランチだけ）
 
 使い方はそれぞれのファイルの冒頭にあります。
 
 ### 8.7 地図の背景の施設を作り直す
 
 `python scripts/make_places.py` → `web/places.geojson`（八代市の店・病院・役所・学校・公園など。[docs/web-ui-design.md](docs/web-ui-design.md) §1.7）。
+
+### 8.8 デモ（このブランチだけ）
+
+発表・審査・動画のために、合成データの「地震の翌日」を画面で早回し再生します。**見た目は通常の画面と同じ**で、API・DB は使いません。位置も使わず、**地図の中心が「自分の位置」**です。
+
+```sh
+DEMO=1 docker compose up -d --build --wait    # DEMO=1 のときだけ web/demo/ を配信する
+# → http://localhost:18080/?demo=1 を開く（公開するなら ngrok http 18080）
+```
+
+```
+ scripts/synth/demo_scenario_video.json      台本（八代市役所の周りの集まり。家もこの範囲だけに置く）
+      │  make_demo_data.py
+      ▼
+ data/demo/                                  1,000 人 × 1 分の合成データ（コミットしない）
+      │  detect_demo.py（app/detect.py で検知と答え合わせ）
+      ▼
+ 検知の候補の時系列
+      │  make_demo_assets.py
+      ▼
+ web/demo/timeline.json, people.bin          候補の時系列 + 1,000 人の位置（5 分おき）
+      │  DEMO=1 で配信
+      ▼
+ /?demo=1                                    ブラウザの中だけで再生（API・DB は使わない）
+```
+
+再生中の画面:
+
+- 最初（既定 8:00）は地図に何もありません。再生が進むと、青い点（人）が集まった場所に `?` のピンが立ちます
+- 公式の拠点（避難所・公式給水）に当たった候補は、聞かずに確認済み（緑の公式のピン）になります
+- `?` のピンから 500m 以内に地図の中心を持っていくと「近くで人が集まっています」と聞かれ、答えると確認済み（紺）になります。回答は手元だけです
+- 集まりが終わったピンは薄くなり、2 時間後に消えます
+
+操作:
+
+| キー | 動き |
+|---|---|
+| スペース | 再生 / 一時停止 |
+| ← → | 10 分戻す / 進める |
+| [ ] | 遅く / 速く（1 秒 = 1 / 5 / 15 分） |
+| c | 再生バー（再生・時計・つまみ・速さ）を出す / 隠す |
+
+URL の指定: `from=HH:MM`（最初の時刻）、`speed=1|5|15`、`paused=1`（止めた状態で始める）、`at=lat,lon`（最初の場所）、`zoom=`、`controls=1`（再生バーを出す）。動画を撮るなら `/?demo=1&from=08:00&speed=5&paused=1` → 同意 → スペース。
+
+デモ動画用のデータ（八代市役所の周り: 北は臨港線・西はゆめタウン・南は植柳・東は国道 3 号の先）を作り直す:
+
+```sh
+python scripts/synth/make_demo_data.py --scenario scripts/synth/demo_scenario_video.json --out data/demo
+python scripts/synth/make_heatmap.py --out data/demo && python scripts/synth/detect_demo.py --out data/demo
+python scripts/synth/make_demo_assets.py --out data/demo --scenario scripts/synth/demo_scenario_video.json   # → web/demo/
+```
+
+- 確認: `DEMO=1 node scripts/check/e2e-check.js <lat> <lon> <置き場>`（8:00 にピンがないこと → 再生 → 質問 → 回答）
+- 1 コマずつ撮る: `scripts/check/capture-demo.js`（`window.demoSeek(分)` で時刻を指定。使い方はファイル冒頭）
+- 紹介動画のシナリオ: [docs/scenario.md](docs/scenario.md)。画面の細かい動き: [docs/web-ui-design.md](docs/web-ui-design.md) §5
+- main を直したら、このブランチで `git merge main` で取り込みます
 
 ## 9. ディレクトリ構成
 
@@ -448,13 +491,14 @@ python scripts/synth/make_heatmap.py && python3 -m http.server 18091 -d data/out
 │   ├── detect_job.py        定期処理（DB → 検知 → candidates、古いデータの削除）
 │   └── mesh.py              地域メッシュの番号
 ├── web/                     Web 画面（index.html, app.js, style.css, places.geojson, manifest, アイコン）
+│   └── demo/                デモ再生の素材（timeline.json, people.bin。DEMO=1 のときだけ配信）
 ├── db/init.sql              DB のスキーマ
 ├── scripts/
 │   ├── import_bodik.py      公式の避難所の取り込み（BODIK の GeoJSON）
 │   ├── import_official.py   公式の拠点の取り込み（CSV、どの地域でも）
 │   ├── make_places.py       地図の背景の施設
-│   ├── synth/               合成データ・API への投入・答え合わせ・参加率・ヒートマップ
-│   └── check/               Playwright の自動確認
+│   ├── synth/               合成データ・API への投入・答え合わせ・参加率・ヒートマップ・デモの素材（make_demo_assets.py, demo_scenario_video.json）
+│   └── check/               Playwright の自動確認・デモの撮影（capture-demo.js）
 ├── tests/                   pytest（API・ルール・取り込み・検知・定期処理・合成データ）
 ├── data/                    入力データ（BODIK・OSM・小字・公式拠点の CSV のひな型）。out/ demo/ estat/ はコミットしない
 ├── docs/                    設計の文書（下の「文書」）
@@ -467,14 +511,14 @@ python scripts/synth/make_heatmap.py && python3 -m http.server 18091 -d data/out
 ## 10. ブランチ
 
 ```
-main   ──●────●────●────●──────────▶  OSS の本体（アプリ・検知・文書）。このブランチ
+main   ──●────●────●────●──────────▶  OSS の本体（アプリ・検知・文書）
                          ╲  main を直したら demo で git merge main
-demo                      ●────●───▶  main + デモ（発表用の早回し再生・紹介動画の素材・撮影スクリプト・シナリオ）
+demo                      ●────●───▶  main + デモ（発表用の早回し再生・紹介動画の素材・撮影スクリプト・シナリオ）。このブランチ
 
 survey ──●────●────────────────────▶  友人の行動の記入フォーム（GitHub Pages はこのブランチの /docs から配信）
 ```
 
-- 発表・審査・動画用のデモは、OSS として使う人には要らないので main に入れていません。`demo` ブランチの README を見てください
+- 発表・審査・動画用のデモは、OSS として使う人には要らないので main に入れず、このブランチに置いています（8.8）
 - 記入フォームは、検知を実際の行動で確かめるためのデータ集めです。`survey` ブランチの README を見てください
 
 ## 11. 限界と今後
@@ -505,7 +549,7 @@ survey ──●────●────────────────�
 | [docs/architecture.md](docs/architecture.md) | システム構成と選定理由（言語・実行基盤・DB・API・位置データ・セッション・定期処理） |
 | [docs/algorithm.md](docs/algorithm.md) | 検知アルゴリズム: 考え方・手順・定数・合成データでの結果・参加率・採らなかった方式 |
 | [docs/security.md](docs/security.md) | セキュリティと個人情報: 入れている守り・守れていないこと・運用・確かめ方 |
-| [docs/web-ui-design.md](docs/web-ui-design.md) | 画面の設計（地図・質問・報告・公式拠点）と API・DB のルール |
+| [docs/web-ui-design.md](docs/web-ui-design.md) | 画面の設計（地図・質問・報告・公式拠点）と API・DB のルール、デモモード（§5） |
 | [docs/web-ui-implementation.md](docs/web-ui-implementation.md) | 画面を最初に作ったときの実装手順書（履歴。今の仕様は web-ui-design.md） |
 | [docs/demo-data-design.md](docs/demo-data-design.md) | 合成の人流データ: 作り方・仮定値・2026年熊本地震の事実・答え合わせ |
 | [docs/scenario.md](docs/scenario.md) | 3本に分けた紹介動画のシナリオ（テーマ紹介・デモ・精度）: シーンごとの画面・動き・テロップ・出典、デモの撮影リスト |
