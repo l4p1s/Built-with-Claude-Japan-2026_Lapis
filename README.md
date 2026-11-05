@@ -23,6 +23,7 @@ docker compose exec api ruff check .
 - API 仕様書: http://localhost:18080/docs （OpenAPI: `/openapi.json`）
 - 公式の避難所データ（BODIK 令和8年熊本地震）の取り込み: `docker compose exec api python scripts/import_bodik.py`。他の地域の避難所・給水所は CSV で: `docker compose exec api python scripts/import_official.py data/official/<file>.csv --source <名前>`（列の説明は [data/official/README.md](data/official/README.md)）
 - 地図の背景の施設（八代市の店・病院・役所・学校・公園など）を作り直す: `python scripts/make_places.py`（→ `web/places.geojson`。docs/web-ui-design.md §1.7）
+- 位置の流れ: 端末（Web 画面）が GPS を 30 秒に 1 点記録 → 60 秒ごとに `POST /v1/locations`（WGS84 の 10 進の度、時差つき時刻。形式は [docs/architecture.md](docs/architecture.md) §4.1）→ DB → 5 分ごとの検知 → 候補のピン
 - 環境変数: `DETECT_EVERY_S`（検知の間隔、既定 300 秒、0 で止める）
 - DB を初期化し直す: `docker compose down -v`（取り込んだデータも消えるので、取り込みをやり直す）
 
