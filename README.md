@@ -1,147 +1,138 @@
-# Built-with-Claude-Japan-2026_Lapis
+# あるばい — 行動の記入フォーム（`survey` ブランチ）
 
-## これは何
+> **このブランチは記入フォームの置き場です。** アプリ本体（API・検知・画面）と、その説明（背景・システム構成・アーキテクチャ・動かし方）は [`main` ブランチの README](https://github.com/l4p1s/Built-with-Claude-Japan-2026_Lapis/blob/main/README.md) を見てください。
 
-災害時にアプリ利用者の匿名の GPS から「いつもと違う人の集まり」を見つけ、公式リストに載らない支援拠点（お店や個人の炊き出し・物資配布、給水車、車中泊の集まり）を、現地の人に聞いて確定し、地図に載せる仕組み。企画の背景と検証の数字は [CLAUDE.md](CLAUDE.md)。
+**あるばい**（熊本弁で「あるよ」）は、災害時にアプリ利用者の匿名の GPS から「いつもと違う人の集まり」を見つけ、公式のリストに載らない支援拠点（お店や個人の炊き出し・給水・車中泊の集まり）を地図に載せる仕組みです。
+その検知を、実際の人の行動で考えて確かめるために、友人に「ある 1 日にどこへ行ったか」を記入してもらうフォームを、このブランチに置いています。
+
+- 記入ページ: https://l4p1s.github.io/Built-with-Claude-Japan-2026_Lapis/survey/
+- 設計の詳細: [docs/survey-design.md](docs/survey-design.md)
+
+## 目次
+
+1. [何を集めるか](#1-何を集めるか)
+2. [全体の中での位置](#2-全体の中での位置)
+3. [仕組み](#3-仕組み)
+4. [ファイル](#4-ファイル)
+5. [回答のデータ](#5-回答のデータ)
+6. [プライバシー](#6-プライバシー)
+7. [設定と確かめ方](#7-設定と確かめ方)
+8. [限界](#8-限界)
+9. [このブランチのほかのファイル](#9-このブランチのほかのファイル)
+
+## 1. 何を集めるか
+
+- 検知は「**その人がいつもは行かない場所**」を数えます。なので、同じ人の「平常の日」と「災害の日（2026年7月の熊本地震の後）」を**対で**集めます
+- 記入する日: いつもの平日・いつもの休日・地震の日・地震の後の日の 4 日。「追加の日」も足せます
+- 地震の日からは「いつもと同じ」を選ぶと写せて、違うところだけ直せます（3 か月前を思い出すのは大変なため）
+- 住所は打たず、地図をタップして「家はここ、次にここへ行って…」と入れます。1 画面に 1 問です
+- 場所ごとに聞くこと: 種類（自宅・職場/学校・店・給水・炊き出し・避難所・車中泊・知人の家・その他）、着いた時刻と長さ、ふだんも行くか、何しに・知ったきっかけ・移動手段（任意）
+
+Google マップのタイムラインが残っている友人は、その書き出しを使います（記録の方が正確）。残っていない友人の分をこのフォームで集めます。
+
+## 2. 全体の中での位置
 
 ```
-スマホ（位置を送る）→ API（FastAPI + PostGIS）→ 検知（app/detect.py、5 分ごと）→ 候補「？」→ 近くの人に「ここに何がある？」→ 確認済みとして地図に
+ 1. 記入フォーム              ← このブランチ
+      │  回答（JSON）
+      ▼
+ 2. 変換                       フォームの回答と Google マップのタイムラインを、同じ「入った場所の一覧」に直す
+      │
+      ▼
+ 3. 水増し                     筋書き（順番・場所の種類・時間帯・滞在の長さ）を残し、自宅と行き先を公開データから選び直す
+      │
+      ▼
+ 4. 検知アルゴリズム           3 のデータで考え、実データ（YJMob100K）で確かめる（main の app/detect.py）
 ```
 
-## 起動方法
+2〜4 はこのブランチの対象外です。
 
-Docker（Compose）だけあれば動きます。
+## 3. 仕組み
 
-```sh
-docker compose up -d --build --wait   # API と PostgreSQL + PostGIS を起動
-curl localhost:18080/healthz           # {"ok":true}
-docker compose exec api pytest -q     # テスト（実 DB を使う。49 件）
-docker compose exec api ruff check .
+自前のサーバーは使いません。ページは GitHub Pages、回答は発案者の Google スプレッドシートに Google Apps Script で集めます。
+
+```
+ [記入ページ]  docs/survey/index.html（GitHub Pages）
+      │  POST 回答の JSON
+      ▼
+ [Google Apps Script]  scripts/survey-collect.gs ──▶ [Google スプレッドシート]「回答」シート（1 人 1 行）
+      ▲  │
+      │  └─ 全員分の回答
+      │
+ [回答を見るページ]  docs/survey/view.html ── POST {list, 合言葉}
+
+ 書きかけ: ブラウザの localStorage に自動で保存し、開き直すと続きから
+ 地図: MapLibre GL 6.16.0 + 国土地理院の地図（標準地図・航空写真）
+ 検索: Photon（店や施設の名前）+ 国土地理院の地名検索（住所・町名）
 ```
 
-- Web 画面: http://localhost:18080 （スマホ実機で GPS を使うには HTTPS が要るので `ngrok http 18080` で公開する）
-- API 仕様書: http://localhost:18080/docs （OpenAPI: `/openapi.json`）
-- 公式の避難所データ（BODIK 令和8年熊本地震）の取り込み: `docker compose exec api python scripts/import_bodik.py`
-- 地図の背景の施設（八代市の店・病院・役所・学校・公園など）を作り直す: `python scripts/make_places.py`（→ `web/places.geojson`。docs/web-ui-design.md §1.7）
-- 環境変数: `DETECT_EVERY_S`（検知の間隔、既定 300 秒、0 で止める）、`DEMO=1`（デモ画面を有効にする。下記）
-- DB を初期化し直す: `docker compose down -v`（取り込んだデータも消えるので、取り込みをやり直す）
+- 本文は `text/plain` で送ります（ブラウザが事前の確認の通信をしないので、Apps Script でも受けられる）
+- 同じ端末から送り直すと、前の回答に上書きされます（端末ごとの番号 `cid`）
+- GitHub Pages の公開元は、**このブランチ（`survey`）の `/docs`** です
 
-## 検知を通して動かす（合成データを API に入れる）
+## 4. ファイル
 
-```sh
-python scripts/make_demo_data.py --out data/out                 # 八代市 1000 人 × 1 分 × 17 日の合成データ（numpy が要る。約 3 分）
-python scripts/simulate.py --people 300 --days 8                # API 経由で投入。「地震の翌日 = 今日」に日付をずらす（約 3 分）
-docker compose exec api python -m app.detect_job                # 今の時刻で検知（5 分ごとにも自動で回る）
-```
-
-地図（http://localhost:18080）に `?` のピンが出て、その近くで画面を開くと「近くで人が集まっています」と聞かれる。答えると確認済みになる。通しの自動確認は `scripts/e2e-check.js`、画面の自動確認は `scripts/ui-check.js`（どちらも Playwright、使い方はファイル冒頭）。
-
-## デモ（発表・審査・動画）
-
-サーバーを **`DEMO=1 docker compose up -d`** で起動し、`http://localhost:18080/?demo=1`（公開するなら `ngrok http 18080`）を開く。
-見た目は通常の画面と同じで、合成データの「地震の翌日」を早回しで再生する（API・DB は使わない）。人（青い点）が集まった場所に `?` のピンが立ち、公式の拠点なら聞かずに確認済み（緑）になる。位置は使わず、**地図の中心が自分の位置**。
-
-- 操作はキー: スペース = 再生/停止、← → = 10 分、[ ] = 速さ（1 秒 = 1/5/15 分）、c = 再生バー
-- URL: `from=08:00`（開始時刻）、`speed=5`、`paused=1`、`at=lat,lon`、`controls=1`。動画を撮るなら `/?demo=1&from=08:00&speed=5&paused=1` → 同意 → スペース
-- デモ動画用のデータ（八代市役所の周り: 北は臨港線・西はゆめタウン・南は植柳・東は国道 3 号の先）を作り直す:
-  ```sh
-  python scripts/make_demo_data.py --scenario scripts/demo_scenario_video.json --out data/demo   # 家もこの範囲だけに置く
-  python scripts/make_heatmap.py --out data/demo && python scripts/detect_demo.py --out data/demo
-  python scripts/make_demo_assets.py --out data/demo --scenario scripts/demo_scenario_video.json  # → web/demo/
-  ```
-- 詳しくは [docs/web-ui-design.md](docs/web-ui-design.md) §5
-
-## 合成データと検知の答え合わせ
-
-- 合成データの作り方・仮定・2026年熊本地震の事実: [docs/demo-data-design.md](docs/demo-data-design.md)。入力の出典: [data/README.md](data/README.md)
-- 検知アルゴリズムの説明と結果: [docs/algorithm.md](docs/algorithm.md)。答え合わせ: `python scripts/detect_demo.py --out data/out`（`--no-baseline` で平常期を使わない版、`--learn-days N` で学習日数、`--sample 0.1` で参加率 10% の見立て）。参加率 × 集まりの人数の表: `python scripts/participation.py`
-- 人の動きを見る: `python scripts/make_heatmap.py` → `python3 -m http.server 18091 -d data/out` → http://localhost:18091/heatmap.html （1 日を 43 秒で再生し、人が集まった 30 分後に「？」のピンが立つ）
-
-## 文書
-
-| 文書 | 内容 |
+| ファイル | 中身 |
 |---|---|
-| [CLAUDE.md](CLAUDE.md) | 企画の芯・検証の数字・出典・発表の構成（数字はここのとおりに使う） |
-| [docs/architecture.md](docs/architecture.md) | システム構成（実行基盤・DB・API・セッション・検知の定期処理）と選定理由 |
-| [docs/algorithm.md](docs/algorithm.md) | 検知アルゴリズム: 考え方・手順・判定の基準・合成データでの結果・限界 |
-| [docs/web-ui-design.md](docs/web-ui-design.md) | 画面の設計（地図・質問・報告・公式拠点・デモモード） |
-| [docs/web-ui-implementation.md](docs/web-ui-implementation.md) | 画面を作ったときの実装手順書（履歴。現在の仕様は web-ui-design.md） |
-| [docs/demo-data-design.md](docs/demo-data-design.md) | 合成の人流データ: 作り方・仮定値・2026年熊本地震の事実・答え合わせ |
-| [docs/survey-design.md](docs/survey-design.md) | 友人の行動を集める記入フォーム（GitHub Pages の `docs/survey/`） |
-| [docs/scenario.md](docs/scenario.md) | 紹介動画のシナリオ: シーンごとの画面・テロップ・出典、デモの撮影リスト |
-| [data/README.md](data/README.md) | 入力データの出典とライセンス |
+| `docs/survey/index.html` | 記入ページ（HTML・CSS・JS を 1 つに。ビルドなし） |
+| `docs/survey/view.html` | 回答を見るページ（合言葉が必要）。地図・1 日の帯・表、全員分を JSON で保存 |
+| `docs/survey/common.js` | 送り先の URL（`ENDPOINT`）と共通の部品 |
+| `scripts/survey-collect.gs` | Google Apps Script（受け取り・上書き・形と大きさの確認・合言葉） |
+| `scripts/survey-check.js` | 記入ページと見るページの自動確認（Playwright） |
+| `scripts/survey-collect-check.js` | Apps Script を Node で動かして確かめる |
+| `docs/survey-design.md` | 設計（画面と操作・データの形・保存・プライバシー・確かめ方・集め方） |
 
-## 参考文献
+## 5. 回答のデータ
 
-※「本文確認済み」と書いていない文献は、要旨のみ確認。
+```json
+{"v":1,"cid":"0f8fad5b-…","name":"A","home":[32.507,130.602],
+ "days":[
+  {"label":"いつもの平日","date":null,"stays":[
+    {"lat":32.507,"lon":130.602,"from":"00:00","to":"07:45","type":"home","usual":true},
+    {"lat":32.51234,"lon":130.60111,"from":"08:00","to":"08:30","type":"shop","purpose":"朝ごはん","heard":"usual","usual":true,"mode":"car"}]},
+  {"label":"地震の日","date":"2026-07-27","copied_from":"いつもの平日","stays":[]}]}
+```
 
-### 場所ごとの平常比較は災害時に崩れる
+- 家の位置は小数 3 桁（約 100m）に丸めます。ほかの場所は小数 5 桁
+- `to` が `from` より前なら翌日まで（車中泊など）
+- 種類のキーは、本体の `app/rules.py` と重なるもの（water / food / shelter / car_sleeping / other）は同じ名前です
+- キーの一覧は [docs/survey-design.md](docs/survey-design.md) §3
 
-- **Jiang, R., Song, X., Huang, D., Song, X., Xia, T., Cai, Z., Wang, Z., Kim, K.-S., Shibasaki, R. (2019). DeepUrbanEvent: A System for Predicting Citywide Crowd Dynamics at Big Events.** Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining, 2114–2122. https://doi.org/10.1145/3292500.3330654
-  - 地震・台風・大きな祭りなどの「大きな出来事」のときは、人の動きが日常と大きく変わるため、街全体の人の動きの予測が難しいと指摘
-  - 直近1時間の街全体の人の動きを入力にして、次の1時間を予測するシステムを提案。動画の予測と同じ考え方で、深層学習（再帰型ニューラルネットワーク）を使う
-  - 企画との関係: 「災害時は平常時の比較が通用しない」ことを支持
+## 6. プライバシー
 
-- **Fan, Z., Song, X., Shibasaki, R., Adachi, R. (2015). CityMomentum: An Online Approach for Crowd Behavior Prediction at a Citywide Level.** Proceedings of the 2015 ACM International Joint Conference on Pervasive and Ubiquitous Computing (UbiComp 2015), 559–569. https://doi.org/10.1145/2750858.2804277
-  - 過去のデータを使わず、直近の人の動きだけで街全体の短期の人の動きを予測する方法（似た動きの人をまとめて予測する）
-  - 大規模災害への対応を目的とした研究の一部
-  - 企画との関係: 「災害時は過去の平常データに頼れない」ことを支持
+- 回答は発案者の Google アカウントのスプレッドシートにだけ溜まります。読めるのは、そのアカウントと、合言葉を知っている人（見るページ）だけです
+- 家の位置は丸めてから保存・送信します。丸める前の値はどこにも残しません
+- 受け取った回答（`survey-answers*.json`）と合言葉は **リポジトリに入れません**（`data/.gitignore`、合言葉は Apps Script のプロパティ `VIEW_KEY`）。公開するのは水増しした後のデータだけです
+- 回答した人から「やめたい」と言われたら、スプレッドシートのその人の行と、それから作ったデータを消します
+- 地図のタイルや検索を使うとき、表示している範囲や検索した言葉が国土地理院・Photon に伝わります
 
-### 個人の移動は規則的で、逸脱が信号になる
+## 7. 設定と確かめ方
 
-- **Song, C., Qu, Z., Blumm, N., Barabási, A.-L. (2010). Limits of Predictability in Human Mobility.** Science, 327, 1018–1021. https://doi.org/10.1126/science.1177170
-  - 匿名の携帯電話利用者5万人（1,000万人から無作為に抽出）の3か月分の移動を分析
-  - 移動の予測可能性は利用者全体で93%。移動距離が人によって大きく違っても、予測可能性はあまり変わらない
-  - 企画との関係: 人の動きは規則的なので、「いつもと違う場所に行った」こと自体が信号になる
+- Apps Script の設定（発案者が 1 回だけ）: [docs/survey-design.md](docs/survey-design.md) §8。出てきたウェブアプリの URL を `docs/survey/common.js` の `ENDPOINT` に入れます
+- 手元でページを開く:
 
-- **Song, C., Koren, T., Wang, P., Barabási, A.-L. (2010). Modelling the scaling properties of human mobility.** Nature Physics, 6, 818–823. https://doi.org/10.1038/nphys1760
-  - 匿名の携帯電話利用者300万人の移動を分析
-  - 人の移動を「新しい場所の探索」と「よく行く場所に戻る」の2つの要素で表すモデルを提案。単純なランダムな動きとはどれだけ違うかを示した
-  - 企画との関係: 同上（個人ごとの「いつもの場所」を基準にする考え方の裏付け）
+  ```sh
+  python3 -m http.server 18090 -d docs     # → http://localhost:18090/survey/
+  ```
 
-### 探索型の人がいる → 人ごとの補正が必要
+- 自動確認:
 
-- **Pappalardo, L., Simini, F., Rinzivillo, S., Pedreschi, D., Giannotti, F., Barabási, A.-L. (2015). Returners and explorers dichotomy in human mobility.** Nature Communications, 6, 8166. https://doi.org/10.1038/ncomms9166
-  - いつもの場所を行き来する「リターナー（戻る型）」と、新しい場所へ広く動く「エクスプローラー（探索型）」の2種類の人がいることを発見
-  - 既存のモデルではこの2種類を説明できないため、新しいモデルを作った
-  - 企画との関係: 探索型の人を軽く数える補正の根拠
+  ```sh
+  NODE_PATH=<playwright-core のある node_modules> node scripts/survey-check.js   # 上の http.server を立ててから
+  node scripts/survey-collect-check.js                                           # Apps Script の動き
+  ```
 
-### 個人単位でイベント参加を判定
+## 8. 限界
 
-- **Traag, V. A., Browet, A., Calabrese, F., Morlot, F. (2011). Social Event Detection in Massive Mobile Phone Data Using Probabilistic Location Inference.** 2011 IEEE Third International Conference on Privacy, Security, Risk and Trust and 2011 IEEE Third International Conference on Social Computing (PASSAT/SocialCom), 625–628. https://doi.org/10.1109/PASSAT/SocialCom.2011.133
-  - 大量の携帯電話データから、普段と違う大きな人の集まり（イベント）を見つける方法。位置を確率的に推定する（ベイズ推定）
-  - 「誰がそのイベントに参加しているか」を判定する枠組みも作った。いくつかの例で方法を示した
-  - 企画との関係: 個人単位で集まりへの参加を判定する、最も近い先例
+- 思い出して書くので、時刻と場所はタイムラインの記録より粗くなります
+- 道順は入りません。場所と場所の間は「3. 水増し」で補います
+- 送り先の URL はページに書いてあるので、誰でも送れます。形と大きさ（45,000 文字まで）は確かめますが、でたらめな回答が混ざることはあり得ます。見るページで中身を見て、知らないものは消します
+- 国土地理院の地図には店の名前が載りません（店は名前で検索します）。OpenStreetMap に載っていない店は検索でも見つかりません
 
-### 災害時の人流で避難・支援の実態を把握
+## 9. このブランチのほかのファイル
 
-- **Yabe, T., Tsubouchi, K., Sudo, A., Sekimoto, Y. (2016). A framework for evacuation hotspot detection after large scale disasters using location data from smartphones: case study of Kumamoto earthquake.** Proceedings of the 24th ACM SIGSPATIAL International Conference on Advances in Geographic Information Systems. https://doi.org/10.1145/2996913.2997014
-  - 2016年4月16日の熊本地震（M7.3）では1万棟以上が大きく壊れ、10万人以上が避難した。指定避難所以外に避難した人もいて、行政が避難先を把握するまで数日かかり、物資や救助が遅れた
-  - 従来の把握方法は徒歩の現地調査で、時間がかかり、発災直後は実施が難しい
-  - Yahoo Japan が集めたスマホの GPS から、避難が集中した場所（避難ホットスポット）を推定する枠組みを提案。施設の位置や新聞報道と照らし合わせて検証し、場所ごとの人数の推移と、拠点として機能した期間を示した
-  - 企画との関係: 熊本での最も近い先例。対象は避難先
-
-- **瀬戸寿一・樫山武浩・関本義秀 (2016). 平成28年4月熊本地震における携帯電話位置情報を用いた避難所の混雑度推計.** 地理情報システム学会 講演論文集. https://www.gisa-japan.org/content/files/conferences/2016/papers/C32.pdf （本文確認済み）
-  - データ: ゼンリンデータコム「混雑統計®」（ドコモ地図ナビのオート GPS 利用者の位置情報を統計加工したもの、250m メッシュ）。熊本県内、2016年4月7日〜17日。4月7日〜13日を平時とした
-  - 避難所データ: 学生 IT ボランティア「Youth Action for Kumamoto」の避難所データベース（903件）。このうち259件（約28.7%）は国土数値情報に載っていない自主避難所など
-  - 結果: 平時より混雑したメッシュは15日10、16日38、17日22。グランメッセ熊本（当初は指定避難所でない）周辺では16日2〜4時に約3,200人以上。江原中学校周辺はピーク（17日17時）で約2,700人以上
-  - 限界: 著者自身が「この手法だけでは実際の避難状況の把握や対策には不完全」と述べている
-  - 企画との関係: 場所ごとの平常比較の国内先例
-
-- **菊池健太・円山琢也 (2023). 複数の位置情報データを利用した令和2年7月豪雨熊本県人吉市の避難と支援の実態把握.** 土木学会論文集, 79(1). https://doi.org/10.2208/jscejj.22-00243
-  - データ: 基地局ベースの「モバイル空間統計」と、GPS ベースの点群型の人流データ
-  - 浸水した地区では、夜間の人口が平常時より大きく減った
-  - GPS データからボランティアの活動の様子を捉え、ボランティアセンターでの滞在時間を算出した
-  - 企画との関係: 災害時の人流で支援の実態を把握した、国内で最も近い研究
-
-### 現地の人に聞いて確かめる
-
-- **Liu, Y., Alexandrova, T., Nakajima, T. (2013). Using Stranger as Sensors: Temporal and Geo-sensitive Question Answering via Social Media.** Proceedings of the 22nd International Conference on World Wide Web (WWW 2013), 803–814. https://doi.org/10.1145/2488388.2488458 （本文確認済み）
-  - MoboQ: 「今、あの店の行列はどれくらい？」のような、場所と時間に関する質問に、その場にいそうな人が答えるサービス。中国で実際に運用
-  - 中国の SNS「新浪微博（Sina Weibo）」の投稿から、その場所に今いそうな人を見つけ、その人に質問を送る（答える人は MoboQ の利用者でなくてよい）
-  - 2012年初めから10月までに、登録者35,214人が15,224件の質問をし、29,491件の回答が集まった。74.6%の質問に1件以上の回答があり、28%は10分以内、51%は20分以内に最初の回答が届いた
-  - 企画との関係: 「ここに何がある？」を現地の人に聞いて確かめる部分の先例
+このブランチの `app/`・`web/`・`scripts/`（survey 以外）・`docs/`（survey 以外）は、**main を整理する前（2026-11-05 より前）の写し**で、更新していません。アプリ本体を使う・直すときは `main` ブランチを使ってください。
 
 ## ライセンス
 
-[MIT](LICENSE)。公式の避難所データ（BODIK）と地図（OpenStreetMap など）は、それぞれの提供元の利用条件に従います。
+[MIT](LICENSE)。地図（国土地理院）と検索（Photon / OpenStreetMap）は、それぞれの提供元の利用条件に従います。
