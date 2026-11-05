@@ -1,3 +1,12 @@
 .git
+.github
 .venv
+.claude
 **/__pycache__
+.pytest_cache
+.ruff_cache
+# 生成した人流データ・取得したメッシュ人口（大きい。イメージに入れない）
+data/out
+data/demo
+data/estat
+web/demo

@@ -2,7 +2,7 @@
 const { chromium } = require("playwright-core");
 const assert = require("assert/strict");
 
-const URL = "http://localhost:18080/";
+const URL = process.env.URL ?? "http://localhost:18080/";
 const HERE = { latitude: 32.5072, longitude: 130.6016 };
 const SHOTS = process.env.SHOTS ?? "/tmp/ui-shots";
 const base = { viewport: { width: 390, height: 844 }, locale: "ja-JP", geolocation: HERE };
@@ -53,8 +53,7 @@ async function nudgeMap(page) {
   await A.page.waitForFunction(() => [...document.querySelectorAll("#dock-kinds button")].every((b) => !b.disabled));
   await A.page.waitForTimeout(3000); // タイルと地名の読み込み
   await A.page.screenshot({ path: `${SHOTS}/02-map.png` });
-  assert.equal(await A.page.locator("#replay").isVisible(), false);
-  ok("2 現在地の点が出て、知らせるボタンが押せる。デモの再生バーは出ない（地名は 02-map.png で目視）");
+  ok("2 現在地の点が出て、知らせるボタンが押せる（地名は 02-map.png で目視）");
 
   // 現在地ボタン: 地図をずらしてから押すと、現在地が画面の真ん中に戻る
   await nudgeMap(A.page);

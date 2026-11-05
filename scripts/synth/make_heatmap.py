@@ -1,6 +1,6 @@
 """合成データ（data/out/points_*.csv.gz）を 5 分おきに間引いて、時刻を動かせるヒートマップ用のデータと画面を作る。
 
-    python scripts/make_heatmap.py --out data/out
+    python scripts/synth/make_heatmap.py --out data/out
     python3 -m http.server 18091 -d data/out   # → http://localhost:18091/heatmap.html
 
 出力: data/out/heatmap/<日付>.bin（int16 の格子座標。1 日 288 コマ × 人数 × (lat, lon)）、index.json、heatmap.html
@@ -58,7 +58,7 @@ def main():
         [float(r["home_lat"]), float(r["home_lon"])]
         for r in csv.DictReader(open(f"{a.out}/people.csv", encoding="utf-8"))
     ]
-    # 検知の結果（scripts/detect_demo.py の出力）があれば、再生でピンを立てるために入れる
+    # 検知の結果（scripts/synth/detect_demo.py の出力）があれば、再生でピンを立てるために入れる
     cand_path = f"{a.out}/detect_candidates.csv"
     cands = (
         list(csv.DictReader(open(cand_path, encoding="utf-8"))) if os.path.exists(cand_path) else []

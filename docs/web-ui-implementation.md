@@ -1,6 +1,6 @@
 # Web 画面 実装手順書
 
-> **これは画面を最初に作ったとき（2026-11-02〜03）の手順書で、履歴として残している。** 現在の仕様は [web-ui-design.md](web-ui-design.md)。その後の変更（検知の組み込み `app/detect_job.py`、デモ再生 `/?demo=1`、地図を Google / Apple マップ風にした改善、画面の自動確認 `scripts/ui-check.js`）はここには反映していない。
+> **これは画面を最初に作ったとき（2026-11-02〜03）の手順書で、履歴として残している。** 現在の仕様は [web-ui-design.md](web-ui-design.md)。その後の変更（検知の組み込み `app/detect_job.py`、デモ再生 `/?demo=1`、地図を Google / Apple マップ風にした改善、画面の自動確認 `scripts/check/ui-check.js`）はここには反映していない。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

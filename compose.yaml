@@ -20,7 +20,6 @@ services:
       - .:/app
     environment:
       DATABASE_URL: postgresql://app:app@db:5432/app
-      DEMO: ${DEMO:-}  # DEMO=1 docker compose up -d で、デモ（/?demo=1）を動かす
     ports:
       - "127.0.0.1:18080:8000"
     depends_on:

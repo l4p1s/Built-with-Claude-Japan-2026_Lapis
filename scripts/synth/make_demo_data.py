@@ -1,6 +1,6 @@
 """八代市の1000人の1分ごとの位置を合成する（デモ・検知の実験用）。
 
-    python scripts/make_demo_data.py --quake-at 2026-07-28T16:00 --people 1000 --out data/out
+    python scripts/synth/make_demo_data.py --quake-at 2026-07-28T16:00 --people 1000 --out data/out
 
 入力は data/（BODIK 公共施設・観光施設・避難所、OSM の店、e-Stat のメッシュ人口。無ければ小字の代表点で代用）。
 出力は data/out/points_YYYY-MM-DD.csv.gz（uid,time,lat,lon）と、答え合わせ用の people/places/events.csv、summary.md。

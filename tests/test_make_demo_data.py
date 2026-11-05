@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(ROOT / "scripts" / "synth"))
 from make_demo_data import MINUTES, PARAMS, dist_m, mesh_center, track  # noqa: E402
 
 
@@ -42,7 +42,7 @@ def out(tmp_path_factory):
     subprocess.run(
         [
             sys.executable,
-            "scripts/make_demo_data.py",
+            "scripts/synth/make_demo_data.py",
             "--people",
             "300",
             "--normal-days",

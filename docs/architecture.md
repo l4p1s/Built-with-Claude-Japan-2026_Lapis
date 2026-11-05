@@ -1,7 +1,7 @@
 # システム構成（実行基盤・言語・DB・API・セッション）
 
 > 画面と API・DB の詳細は [web-ui-design.md](web-ui-design.md)、検知の中身は [algorithm.md](algorithm.md)、合成データは [demo-data-design.md](demo-data-design.md) が最新。この文書は全体の構成と選定理由をまとめる。
-> 2026-11-04 時点で、ここに書いた構成はすべて実装済み（API・画面・検知の定期処理・CI・デモ）。
+> 2026-11-05 時点で、ここに書いた構成はすべて実装済み（API・画面・検知の定期処理・CI）。発表用のデモ再生と記入フォームは `demo` / `survey` ブランチに分けている。
 
 ## Context（この文書を書いた時点）
 リポジトリにはまだ CLAUDE.md と README.md しかなかった。ハッカソン提出（GitHub 必須）かつ OSS として公開する前提で、
@@ -41,8 +41,8 @@ DB 接続は **psycopg 3 + 生 SQL**（PostGIS の関数は SQL で書く方が�
 - **Docker Compose** で `db`（公式 `postgis/postgis` イメージ）と `api`（python-slim + uv）の2コンテナ。`docker compose up` 1発で起動し、審査員・OSS 利用者も同じ手順で再現できる
 - 開発は localhost:18080。`api` はソースをマウントして自動リロード（ホスト側は 18080。8000 は同じマシンの別サーバーが使っているため。コンテナ内は 8000）
 - Web 画面は API と同じオリジンから配信 → CORS 設定不要、`ngrok http 18080` 1本で公開できる
-- 注意（先に伝える制約）: スマホで GPS を取るには HTTPS が必須。localhost では PC ブラウザでしか位置が取れないので、スマホ実機は ngrok 公開時に確認する。発表のデモは位置を使わない再生（`DEMO=1` で起動、web-ui-design.md §5）で見せる
-- 環境変数（compose.yaml）: `DATABASE_URL`、`DETECT_EVERY_S`（検知の間隔。既定 300 秒、0 で止める。テストでは 0）、`DEMO`（1 で `web/demo/` を配信し `/?demo=1` が動く。本番では付けない）
+- 注意（先に伝える制約）: スマホで GPS を取るには HTTPS が必須。localhost では PC ブラウザでしか位置が取れないので、スマホ実機は ngrok 公開時に確認する。発表のデモは `demo` ブランチの再生機能で見せる
+- 環境変数（compose.yaml）: `DATABASE_URL`、`DETECT_EVERY_S`（検知の間隔。既定 300 秒、0 で止める。テストでは 0）
 - Web アプリは画面を閉じると位置が取れない（CLAUDE.md §3 のとおり）。これはネイティブ化で解決する前提
 
 ## 3. DB（PostgreSQL + PostGIS）
@@ -92,11 +92,11 @@ DB 接続は **psycopg 3 + 生 SQL**（PostGIS の関数は SQL で書く方が�
   - `api` の起動時に別スレッドで `DETECT_EVERY_S` 秒ごと（既定 300、0 で止める）に回る。手動は `docker compose exec api python -m app.detect_job [--at 時刻]`
   - 直近 7 日で人ごとの自宅・いつもの場所・マス別の滞在の割合を学習し、直近 3 時間を調べる。近く（150m）に生きている候補があれば更新、報告の候補に重なれば 1 人ぶんの裏付けとして確認済みにする
   - 同じ処理で、14 日より古い位置と 30 日使われていないセッションを消す
-  - 合成データでの答え合わせ（CSV）は `scripts/detect_demo.py`（docs/demo-data-design.md §7）
+  - 合成データでの答え合わせ（CSV）は `scripts/synth/detect_demo.py`（docs/demo-data-design.md §7）
   - 点 → 10分以上の滞在 → その人のいつもの場所（自宅周り200mは対象外）か判定 → マス・時間帯ごとに件数 → その日の街全体の量から期待値 → ポアソンで大きく超えたら候補
   - ポアソンの上側確率は標準ライブラリ `math` で計算（scipy は検証の再現で必要になったら追加）
 - Web 画面: ビルド不要の素の HTML/JS + MapLibre GL 6（CDN）+ OpenFreeMap。API から配信
-- デモ用 `scripts/simulate.py`: 合成データ（`scripts/make_demo_data.py`、docs/demo-data-design.md）を **REST API 経由で**投入する。日付は「地震の翌日 = 今日」にずらすので、時間が進むと検知が「今」の集まりを見つける（再生）
+- デモ用 `scripts/synth/simulate.py`: 合成データ（`scripts/synth/make_demo_data.py`、docs/demo-data-design.md）を **REST API 経由で**投入する。日付は「地震の翌日 = 今日」にずらすので、時間が進むと検知が「今」の集まりを見つける（再生）
 
 ## 7. ファイル構成（最小）
 
@@ -113,14 +113,11 @@ app/detect.py             # 滞在判定・ポアソン検知（純関数）
 app/detect_job.py         # DB から検知して candidates に書く定期処理・古いデータの削除
 app/mesh.py               # 地域メッシュ番号
 web/index.html, app.js, style.css, manifest.webmanifest, icon*.svg/png
-web/demo/                 # デモ再生の素材（timeline.json, people.bin。DEMO=1 のときだけ配信）
 scripts/import_bodik.py   # 避難所データの取り込み
-scripts/make_demo_data.py, demo_scenario.json, demo_scenario_video.json  # 合成データ（通常の台本・デモ動画用の台本）
-scripts/make_heatmap.py, heatmap.html, detect_demo.py, make_demo_assets.py  # ヒートマップ・答え合わせ・デモの素材
-scripts/simulate.py       # 合成データを API 経由で投入
-scripts/ui-check.js, e2e-check.js  # 画面と通しの自動確認（Playwright）
-scripts/extract_osm_poi.py, survey-*.js, survey-collect.gs  # 店の位置の抽出、記入フォームの確認と回答の集約
-docs/survey/              # 友人の行動の記入フォーム（GitHub Pages）
+scripts/synth/make_demo_data.py, demo_scenario.json  # 合成データ（台本つき）
+scripts/synth/make_heatmap.py, heatmap.html, detect_demo.py, participation.py  # ヒートマップ・答え合わせ・参加率の表
+scripts/check/ui-check.js, e2e-check.js  # 画面と通しの自動確認（Playwright）
+scripts/synth/extract_osm_poi.py, scripts/synth/simulate.py  # 店の位置の抽出、合成データの API への投入
 data/                     # 入力データ（bodik, osm, addresses）。out/, demo/, estat/ はコミットしない
 tests/test_api.py, test_rules.py, test_import_bodik.py, test_detect.py, test_detect_job.py, test_make_demo_data.py
 .github/workflows/ci.yml  # PostGIS をサービスに立てて ruff と pytest
@@ -135,7 +132,7 @@ ORM・移行ツール・キュー/スケジューラー（検知は api の中�
 1. `docker compose up` → `curl localhost:18080/healthz`
 2. `curl -X POST localhost:18080/v1/sessions -d '{"consent":true}'` でトークン取得、トークンなしで `/v1/spots` が 401 になること
 3. 報告 `POST /v1/reports` → 別セッションで回答 → `/v1/spots` の GeoJSON で `confirmed` になる
-3'. `python scripts/simulate.py` → `docker compose exec api python -m app.detect_job` → `/v1/spots` に `source: detected` の候補が出る → 近くで `/v1/questions` に出て、回答すると `confirmed`
+3'. `python scripts/synth/simulate.py` → `docker compose exec api python -m app.detect_job` → `/v1/spots` に `source: detected` の候補が出る → 近くで `/v1/questions` に出て、回答すると `confirmed`
 4. ブラウザで localhost:18080 を開き、地図にピンが出ること
 5. `DELETE /v1/sessions/me` で location_points・回答・自分だけの報告のピンが消えること
 6. `docker compose run --rm api pytest -q`（API・ルール・取り込み・検知・定期処理・合成データ）と GitHub Actions（`.github/workflows/ci.yml`）が通ること

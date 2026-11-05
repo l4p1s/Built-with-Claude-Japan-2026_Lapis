@@ -1,6 +1,6 @@
 # 検知アルゴリズム: 人の動きから「いつもと違う集まり」を見つける
 
-> 実装: `app/detect.py`（純関数）、`app/mesh.py`（地域メッシュ）。答え合わせ: `scripts/detect_demo.py`。テスト: `tests/test_detect.py`
+> 実装: `app/detect.py`（純関数）、`app/mesh.py`（地域メッシュ）。答え合わせ: `scripts/synth/detect_demo.py`。テスト: `tests/test_detect.py`
 > 入力は「誰が・いつ・どこにいたか」の点列（1 分おき）。出力は「このマス・この時間帯に、いつもと違う集まりがある」という候補。
 > 候補の正体（給水・炊き出し・車中泊など）は、その場にいる人に聞いて確定する（CLAUDE.md §2）。アルゴリズムは候補出しまで。
 
@@ -106,7 +106,7 @@ P(X ≥ k) = 1 − Σ_{i<k} e^{−λ} λ^i / i!
 | `MIN_OBSERVED` | 5 人 | 候補にする最少人数 | 少人数の集まりは表示しない（CLAUDE.md §2） |
 | `MIN_EXPECTED` | 0.3 | 期待値の下限 | 仮置き |
 
-「仮置き」の値は、合成データの答え合わせ（`scripts/detect_demo.py`）で調整する。調整に使った seed と測定に使う seed は分ける。
+「仮置き」の値は、合成データの答え合わせ（`scripts/synth/detect_demo.py`）で調整する。調整に使った seed と測定に使う seed は分ける。
 
 ## 4. 合成データでの結果
 
@@ -129,7 +129,7 @@ P(X ≥ k) = 1 − Σ_{i<k} e^{−λ} λ^i / i!
 
 ### 4.1 平常期のデータは要るのか（「当日だけ」版との比較）
 
-CLAUDE.md §9 の「当日のデータだけで把握できる方が望ましい」を確かめるため、平常期を使わない版を同じデータで動かした（`scripts/detect_demo.py --no-baseline`）。
+CLAUDE.md §9 の「当日のデータだけで把握できる方が望ましい」を確かめるため、平常期を使わない版を同じデータで動かした（`scripts/synth/detect_demo.py --no-baseline`）。
 
 | | 平常期で学習（本線） | 当日だけ |
 |---|---|---|
@@ -173,12 +173,12 @@ CLAUDE.md §9 の「当日のデータだけで把握できる方が望ましい
 | **測定用 3 本の合計** | **93/93、誤報 3（1 日 0.3 件）、中央値 30 分** | **93/93、誤報 15（1 日 1.7 件）、中央値 30 分** |
 
 調整用と同じ結果が出た。検知率は 3 本とも 100%、誤報は平常期ありで 1 日 0〜0.7 件、当日だけで 1 日 1〜2 件。
-再現: `python scripts/make_demo_data.py --seed 2 --out <置き場>` → `python scripts/detect_demo.py --out <置き場>`（`--no-baseline` も）。
+再現: `python scripts/synth/make_demo_data.py --seed 2 --out <置き場>` → `python scripts/synth/detect_demo.py --out <置き場>`（`--no-baseline` も）。
 
 ### 4.3 参加率を変えると、何人の集まりまで見えるか
 
 合成データの 1000 人は市民の縮図（集まりの人数は実際の規模）なので、参加率 p のときは集まりに来る人の p だけがアプリ利用者になる。
-人を無作為に間引いて（平常期の学習も間引いた人だけで行う）、seed 1〜4 の 4 本 × 参加率 5 段階で検知率を測った（`scripts/participation.py`。判定の基準は変えていない: 5 人以上、p < 1/1000）。
+人を無作為に間引いて（平常期の学習も間引いた人だけで行う）、seed 1〜4 の 4 本 × 参加率 5 段階で検知率を測った（`scripts/synth/participation.py`。判定の基準は変えていない: 5 人以上、p < 1/1000）。
 表の分母は 4 本ぶんの集まりの件数（公式を除く 31 件 × 4）。
 
 | 集まりの人数 | 参加率 5% | 参加率 10% | 参加率 20% | 参加率 50% | 参加率 100% |
@@ -214,11 +214,11 @@ CLAUDE.md §9 の「当日のデータだけで把握できる方が望ましい
 ## 7. 動かし方
 
 ```sh
-python scripts/make_demo_data.py --out data/out   # 合成データ（約 3 分、numpy が要る）
-python scripts/detect_demo.py --out data/out      # 検知と答え合わせ（約 40 秒）→ data/out/detect_result.md
-python scripts/detect_demo.py --no-baseline       # 平常期を使わない「当日だけ」版 → detect_result_nobase.md
-python scripts/detect_demo.py --sample 0.1        # 参加率 10% の見立て（人を間引く）→ detect_result_s10.md
-python scripts/participation.py --out data/out <seed2 の置き場> ...   # 参加率 × 集まりの人数の表（§4.3）
+python scripts/synth/make_demo_data.py --out data/out   # 合成データ（約 3 分、numpy が要る）
+python scripts/synth/detect_demo.py --out data/out      # 検知と答え合わせ（約 40 秒）→ data/out/detect_result.md
+python scripts/synth/detect_demo.py --no-baseline       # 平常期を使わない「当日だけ」版 → detect_result_nobase.md
+python scripts/synth/detect_demo.py --sample 0.1        # 参加率 10% の見立て（人を間引く）→ detect_result_s10.md
+python scripts/synth/participation.py --out data/out <seed2 の置き場> ...   # 参加率 × 集まりの人数の表（§4.3）
 pytest tests/test_detect.py                       # 純関数のテスト
 ```
 
@@ -228,13 +228,12 @@ API で通して動かす（検知 → 地図 → 質問 → 確認）:
 
 ```sh
 docker compose up -d --build --wait
-python scripts/simulate.py --people 300 --days 8        # 合成データを API 経由で投入（地震の翌日 = 今日にずらす。数分）
+python scripts/synth/simulate.py --people 300 --days 8        # 合成データを API 経由で投入（地震の翌日 = 今日にずらす。数分）
 docker compose exec api python -m app.detect_job        # 今の時刻で検知（5 分ごとにも自動で回る）
 curl -s "localhost:18080/v1/spots" -H "Authorization: Bearer <token>" | jq '.features[] | select(.properties.source=="detected")'
 ```
 
 地図（http://localhost:18080）では検知の候補が `?` のピンで出て、近くにいる人に「近くで人が集まっています」と聞く。1 人が種類を答えると確認済みになる。
-発表用のデモ（`DEMO=1` で起動して `/?demo=1`）は、この検知が合成データに出した候補の時系列（`scripts/make_demo_assets.py` → `web/demo/timeline.json`）をそのまま早回しで再生する（`docs/web-ui-design.md` §5）。
 定期処理の学習期間は 7 日・調べる幅は 3 時間で、平常の滞在がまだ 1 件もないときは期待値の下限（0.3）だけになり、5 人以上の「いつもと違う滞在」の集まりはそのまま候補になる（確認で消す前提）。
 
 ## 8. これからの課題

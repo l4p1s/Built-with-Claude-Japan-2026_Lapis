@@ -1,11 +1,11 @@
 # デモ・実験用の人流データ（八代市 1000人 × 1分刻み）
 
-> 生成: `python scripts/make_demo_data.py --people 1000 --out data/out`（numpy が要る。数分）
-> 台本: `scripts/demo_scenario.json`（実験用）と `scripts/demo_scenario_video.json`（デモ動画用、§3 末尾）/ テスト: `tests/test_make_demo_data.py` / 入力の出典: `data/README.md`
+> 生成: `python scripts/synth/make_demo_data.py --people 1000 --out data/out`（numpy が要る。数分）
+> 台本: `scripts/synth/demo_scenario.json`（実験用。デモ動画用の台本 demo_scenario_video.json は `demo` ブランチ）/ テスト: `tests/test_make_demo_data.py` / 入力の出典: `data/README.md`
 
 ## 1. 目的
 
-検知アルゴリズム（CLAUDE.md §3）の実験と、発表デモの材料。
+検知アルゴリズム（CLAUDE.md §3）の実験と、発表の材料。
 八代市の 1000 人の 1 分ごとの位置を 17 日分（平常 14 日 + 地震当日 + 翌日 2 日）作る。
 
 - 地震前: 人が集まる場所はスーパーや大型店（ゆめタウン八代・イオン）
@@ -46,7 +46,7 @@
 - 翌日（D1）: 仕事なし、店は閉まったまま。避難所の人の 6 割は昼に家の様子を見に帰る。車中泊の人は朝 7 時に家へ、夜に戻る。25% が親戚・知人の家（他の人の家）に 1〜3 時間。台本の集まり（給水・炊き出し）に人が来る
 - 2 日後（D2）: 30% が出勤、マックスバリュとゆめタウン八代が再開して 15% が 60 分の行列に並ぶ。避難所の 30%・車中泊の 50% が家に戻る。15% が親戚・知人の家へ。台本の集まりに人が来る
 
-### 集まり（`scripts/demo_scenario.json`、`pick_visitors`）
+### 集まり（`scripts/synth/demo_scenario.json`、`pick_visitors`）
 
 規模は §4 の実績に合わせた（個人店の炊き出し 約 30 食/日、町内会 約 80 食/日、給水車は団地の前、大きい炊き出しは支援団体の拠点だけ）。
 コミュニティセンターは避難所なので `official=1` の**公式**給水になる。それ以外は公式に載らない拠点。
@@ -79,8 +79,8 @@
 
 | 台本 | 出力先 | 使いどころ |
 |---|---|---|
-| `scripts/demo_scenario.json`（既定） | `data/out/` | 検知の実験・答え合わせ（§7）。家は市全体、集まりは市内に散らばる |
-| `scripts/demo_scenario_video.json` | `data/demo/`（`--scenario` と `--out` で指定） | 発表のデモ・動画。家も集まりも八代市役所の周り（北は臨港線・西はゆめタウン・南は植柳・東は国道 3 号の先 = 北緯 32.485–32.516、東経 130.583–130.628。台本の `bbox`）に置き、朝から夜まで次々に集まりができる。場所は 500m メッシュが重ならず、避難所から 300m 以上離れたものを選ぶ（同じマスだと 1 つのピンにまとまり、避難所の近くだと公式として扱われるため）。`scripts/make_demo_assets.py` で `web/demo/` の素材にする（web-ui-design.md §5） |
+| `scripts/synth/demo_scenario.json`（既定） | `data/out/` | 検知の実験・答え合わせ（§7）。家は市全体、集まりは市内に散らばる |
+| `scripts/demo_scenario_video.json`（`demo` ブランチ） | `data/demo/` | 発表のデモ・動画。家も集まりも八代市役所の周り（北緯 32.485–32.516、東経 130.583–130.628。台本の `bbox`）に置き、朝から夜まで次々に集まりができる。場所は 500m メッシュが重ならず、避難所から 300m 以上離れたものを選ぶ。画面の素材にする手順はそのブランチの README |
 
 どちらも `data/out/`・`data/demo/` はコミットしない（`data/.gitignore`）。
 
@@ -132,19 +132,19 @@
 ## 6. 動きを目で見る（ヒートマップ）
 
 ```
-python scripts/make_heatmap.py --out data/out     # 5 分おきに間引いて data/out/heatmap/ と heatmap.html を作る（約 1 分）
+python scripts/synth/make_heatmap.py --out data/out     # 5 分おきに間引いて data/out/heatmap/ と heatmap.html を作る（約 1 分）
 python3 -m http.server 18091 -d data/out          # → http://localhost:18091/heatmap.html
 ```
 
 日を選び、スライダーか「再生」で時刻を動かす（速さは 1 日 2 分 / 43 秒 / 17 秒）。「家の周り 200m を薄く」（既定でオン）は、検知と同じく自宅の周りを対象外にした見え方。「点も出す」で一人ひとりの位置も見える。
 
-**検知の再生**: `scripts/detect_demo.py` の結果（`detect_candidates.csv`）があれば、人が集まって 30 分後（最初の時間帯が終わった時刻）にオレンジの「？」のピンが立ち、右の「検知の記録」に「12:20 検知 西宮、上日置集会所 炊き出し（31 人）」のように並ぶ。ピンは集まりが終わって 60 分で消える。記録の場所の名前は答え合わせ用（300m 以内でその時刻にやっている台本の集まり）で、検知そのものは名前を知らない。「台本の集まりを出す」で正解の赤い丸を重ねられる。
+**検知の再生**: `scripts/synth/detect_demo.py` の結果（`detect_candidates.csv`）があれば、人が集まって 30 分後（最初の時間帯が終わった時刻）にオレンジの「？」のピンが立ち、右の「検知の記録」に「12:20 検知 西宮、上日置集会所 炊き出し（31 人）」のように並ぶ。ピンは集まりが終わって 60 分で消える。記録の場所の名前は答え合わせ用（300m 以内でその時刻にやっている台本の集まり）で、検知そのものは名前を知らない。「台本の集まりを出す」で正解の赤い丸を重ねられる。
 発表では「ふつう」で再生し、人の塊ができてからピンが立つ様子を見せる（1 日 43 秒）。
 
-## 7. 検知の答え合わせ（`app/detect.py` + `scripts/detect_demo.py`）
+## 7. 検知の答え合わせ（`app/detect.py` + `scripts/synth/detect_demo.py`）
 
 ```
-python scripts/detect_demo.py --out data/out   # → data/out/detect_result.md, detect_candidates.csv（約 40 秒）
+python scripts/synth/detect_demo.py --out data/out   # → data/out/detect_result.md, detect_candidates.csv（約 40 秒）
 ```
 
 検知は CLAUDE.md §3 の方式をそのまま純関数にしたもの（`app/detect.py`。CSV でも DB でも同じ関数を使う）。

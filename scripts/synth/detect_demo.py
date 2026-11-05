@@ -1,6 +1,6 @@
 """合成データ（data/out）に検知（app/detect.py）を流し、events.csv と答え合わせする。
 
-    python scripts/detect_demo.py --out data/out
+    python scripts/synth/detect_demo.py --out data/out
 
 出力: data/out/detect_result.md（検知率・検知までの時間・誤報）と detect_candidates.csv
 """
@@ -15,7 +15,7 @@ import sys
 from collections import Counter, defaultdict
 from datetime import date
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from app.detect import (  # noqa: E402
     Person,
     baseline_share,

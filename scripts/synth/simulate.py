@@ -1,6 +1,6 @@
 """合成データ（data/out/points_*.csv.gz）を REST API 経由で投入し、検知〜地図までを通して動かす。
 
-    python scripts/simulate.py --api http://localhost:18080 --people 300 --days 8 --stride 2
+    python scripts/synth/simulate.py --api http://localhost:18080 --people 300 --days 8 --stride 2
 
 日付は「地震の翌日（D1）= 今日」になるようにずらす（--no-shift でそのまま）。
 今日の分も丸 1 日ぶん入れるので、時間が進むにつれて検知が「今」の集まりを見つける（再生になる）。

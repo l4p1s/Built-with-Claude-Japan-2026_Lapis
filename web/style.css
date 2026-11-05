@@ -43,7 +43,7 @@
 }
 
 * { box-sizing: border-box; }
-[hidden] { display: none !important; } /* display を決めた要素（.replay など）でも hidden で消す */
+[hidden] { display: none !important; } /* display を決めた要素でも hidden で消す */
 html, body { margin: 0; height: 100%; background: var(--surface); color: var(--fg); }
 #map { position: fixed; inset: 0; }
 button { font: inherit; color: inherit; cursor: pointer; }
@@ -146,14 +146,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .pin--pending .pin__shape { background: var(--pending); color: var(--on-pending); }
 .pin--official .pin__shape { background: var(--official); color: #fff; }
 .pin--faded { opacity: 0.45; }
-.pin--new .pin__shape { animation: pop 600ms var(--ease); }
-@keyframes pop { from { transform: scale(0.2); opacity: 0; } }
 
-/* デモの再生バー（ドックの中。知らせるボタンの代わりに出す） */
-.replay { display: flex; gap: 8px; align-items: center; }
-.replay__clock { min-width: 5ch; font-size: 20px; font-weight: 600; }
-.replay input[type="range"] { flex: 1; min-width: 60px; accent-color: var(--accent); }
-.replay select { min-height: 44px; padding: 0 8px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2); color: var(--fg); font: inherit; }
 .me {
   width: 16px; height: 16px; border-radius: 50%; background: var(--me); border: 3px solid #fff;
   box-shadow: 0 0 0 8px rgb(0 122 255 / 0.2), 0 1px 4px rgb(0 0 0 / 0.3);

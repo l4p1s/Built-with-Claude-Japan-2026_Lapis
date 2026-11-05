@@ -2,7 +2,7 @@
 
 流れ: 点 → 10分以上の滞在 → その人のいつもの場所（自宅の周り 200m を含む）でない滞在だけ数える
      → 500m メッシュ × 30 分で人数を数える → その時間帯の街全体の量から期待値 → ポアソンで大きく超えたら候補。
-純関数だけなので、CSV（scripts/detect_demo.py）でも DB でも同じ関数を使える。
+純関数だけなので、CSV（scripts/synth/detect_demo.py）でも DB でも同じ関数を使える。
 """
 
 import math
@@ -14,7 +14,7 @@ from app.mesh import mesh_code
 LAT_M = 110574.0
 LON_M = 111320.0 * math.cos(math.radians(32.5))
 
-# 判定の基準。仮置きし、答え合わせ（scripts/detect_demo.py）で調整する
+# 判定の基準。仮置きし、答え合わせ（scripts/synth/detect_demo.py）で調整する
 STAY_RADIUS_M = 100  # この半径にとどまっていれば同じ滞在
 STAY_MIN = 10  # 滞在と数える最短の長さ（分）
 PLACE_RADIUS_M = 150  # いつもの場所の半径
