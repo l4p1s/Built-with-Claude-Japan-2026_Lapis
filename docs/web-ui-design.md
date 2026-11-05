@@ -167,6 +167,8 @@ DB の変更は `db/init.sql` を直接書き換える（公開前のため移�
 
 ### 2.6 official_spots（公式拠点）
 
+- 取り込み: 八代市の避難所は BODIK の GeoJSON（`scripts/import_bodik.py`）、他の地域の避難所・給水所は CSV（`scripts/import_official.py`、列は data/official/README.md）。`source` ごとに上書きするので、同じ CSV を入れ直しても重複しない
+
 - 新しい表: `official_spots(id, source, source_key, name, address, kind, geom, opened_at, closed_at)`
   - `source` は取り込み元（`bodik-kumamoto-r8`）、`source_key` は取り込み元の中で一意なキー。BODIK のデータには ID がないため「市町村コード:名前」を使う。`(source, source_key)` を一意にする
 - `scripts/import_bodik.py` が BODIK の GeoJSON（`https://odcs.bodik.jp/kumamoto-r8/data/portal/shelters.geojson`）をダウンロードして取り込む。同じデータを再び取り込んでも重複しない

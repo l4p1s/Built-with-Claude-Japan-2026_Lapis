@@ -56,7 +56,7 @@ DB 接続は **psycopg 3 + 生 SQL**（PostGIS の関数は SQL で書く方が�
 | candidates | id, source(detected/report), center geography, status(pending/confirmed/ended), last_activity_at, created_at | 非公式拠点の候補。検知の列（cell_code, window_start, observed, expected, p_value）は detected のときだけ入る |
 | answers | id, candidate_id, session_id, kind(water/food/goods/car_sleeping/shelter/other/none/ended), note(100文字まで), answered_at, unique(candidate_id, session_id) | 1人1候補につき最新の意見1件（上書き） |
 | flags | answer_id, session_id, created_at | 備考の「不適切」通報。1人1備考1回 |
-| official_spots | id, source, source_key, name, address, kind(shelter/water), geom, opened_at, closed_at | 公式の拠点。`scripts/import_bodik.py` で取り込む |
+| official_spots | id, source, source_key, name, address, kind(shelter/water), geom, opened_at, closed_at | 公式の拠点。八代市の避難所は `scripts/import_bodik.py`（BODIK の GeoJSON）、他の地域や給水所は `scripts/import_official.py`（CSV、data/official/README.md）で取り込む。source ごとに上書き |
 
 マス目: **1/2 地域メッシュ（500m）の番号**（`app/mesh.py`）で集計。検証（YJMob100K の 500m）と国勢調査・経済センサスのメッシュと揃う。メッシュ番号の計算は純関数でテストを付ける。
 
@@ -113,7 +113,8 @@ app/detect.py             # 滞在判定・ポアソン検知（純関数）
 app/detect_job.py         # DB から検知して candidates に書く定期処理・古いデータの削除
 app/mesh.py               # 地域メッシュ番号
 web/index.html, app.js, style.css, manifest.webmanifest, icon*.svg/png
-scripts/import_bodik.py   # 避難所データの取り込み
+scripts/import_bodik.py   # 避難所データの取り込み（BODIK の GeoJSON）
+scripts/import_official.py  # 公式の拠点を CSV から取り込む（どの地域でも）
 scripts/synth/make_demo_data.py, demo_scenario.json  # 合成データ（台本つき）
 scripts/synth/make_heatmap.py, heatmap.html, detect_demo.py, participation.py  # ヒートマップ・答え合わせ・参加率の表
 scripts/check/ui-check.js, e2e-check.js  # 画面と通しの自動確認（Playwright）
