@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ja" data-resolution="landscape" data-composition-variables='[
+  {"id":"navy","type":"color","label":"紺（地・確認済み）","default":"#1e3a5f"},
+  {"id":"orange","type":"color","label":"オレンジ（未確認・強調）","default":"#ea8a00"},
+  {"id":"green","type":"color","label":"緑（公式）","default":"#0f7b4f"},
+  {"id":"paper","type":"color","label":"地図の地","default":"#f5f2eb"}
+]'>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+    <style>
+      /* 色はアプリ（web/style.css）と同じ */
+      :root { --navy: #1e3a5f; --orange: #ea8a00; --green: #0f7b4f; --paper: #f5f2eb; --ink: #111827; --fg-2: #4b5565; --muted: #4b5565; }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: var(--navy); }
+    </style>
+  </head>
+  <body>
+    <!-- 2本目 デモ（docs/scenario.md §5、B01〜B05）。見る場所を 1 つずつにする（町の札を拡大 ↔ 画面の一部に寄る）。assets は ../assets へのリンク -->
+    <div id="root" data-composition-id="main" data-start="0" data-duration="58" data-width="1920" data-height="1080">
+      <div id="b01" data-composition-id="b01" data-composition-src="compositions/b01.html" data-start="0" data-duration="6" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="b02" data-composition-id="b02" data-composition-src="compositions/b02.html" data-start="6" data-duration="14" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="b03" data-composition-id="b03" data-composition-src="compositions/b03.html" data-start="20" data-duration="16" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="b04" data-composition-id="b04" data-composition-src="compositions/b04.html" data-start="36" data-duration="12" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="b05" data-composition-id="b05" data-composition-src="compositions/b05.html" data-start="48" data-duration="10" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+    </div>
+    <script>
+      window.__timelines["main"] = gsap.timeline({ paused: true });
+    </script>
+  </body>
+</html>

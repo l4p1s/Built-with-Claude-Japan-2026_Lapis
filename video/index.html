@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ja" data-resolution="landscape" data-composition-variables='[
+  {"id":"navy","type":"color","label":"紺（地・確認済み）","default":"#1e3a5f"},
+  {"id":"orange","type":"color","label":"オレンジ（未確認・強調）","default":"#ea8a00"},
+  {"id":"green","type":"color","label":"緑（公式）","default":"#0f7b4f"},
+  {"id":"paper","type":"color","label":"地図の地","default":"#f5f2eb"}
+]'>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+    <style>
+      /* 色はアプリ（web/style.css）と同じ */
+      :root { --navy: #1e3a5f; --orange: #ea8a00; --green: #0f7b4f; --paper: #f5f2eb; --ink: #111827; --fg-2: #4b5565; --muted: #4b5565; }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: var(--navy); }
+    </style>
+  </head>
+  <body>
+    <!-- 1本目 テーマ紹介（docs/scenario.md §4、A01〜A10）。前の 23 シーンの下書きの入口は draft2-index.html.bak（入口が 2 つあると check が止まるので拡張子を変えてある） -->
+    <div id="root" data-composition-id="main" data-start="0" data-duration="90" data-width="1920" data-height="1080">
+      <div id="a01" data-composition-id="a01" data-composition-src="compositions/a01.html" data-start="0" data-duration="10" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="a02" data-composition-id="a02" data-composition-src="compositions/a02.html" data-start="10" data-duration="8" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="a03" data-composition-id="a03" data-composition-src="compositions/a03.html" data-start="18" data-duration="10" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="a04" data-composition-id="a04" data-composition-src="compositions/a04.html" data-start="28" data-duration="10" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="a05" data-composition-id="a05" data-composition-src="compositions/a05.html" data-start="38" data-duration="9" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="a06" data-composition-id="a06" data-composition-src="compositions/a06.html" data-start="47" data-duration="7" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="a07" data-composition-id="a07" data-composition-src="compositions/a07.html" data-start="54" data-duration="12" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="a08" data-composition-id="a08" data-composition-src="compositions/a08.html" data-start="66" data-duration="8" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="a09" data-composition-id="a09" data-composition-src="compositions/a09.html" data-start="74" data-duration="10" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="a10" data-composition-id="a10" data-composition-src="compositions/a10.html" data-start="84" data-duration="6" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+    </div>
+    <script>
+      window.__timelines["main"] = gsap.timeline({ paused: true });
+    </script>
+  </body>
+</html>

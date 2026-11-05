@@ -1,0 +1,77 @@
+<template>
+  <style>
+  #root { position: absolute; inset: 0; overflow: hidden; font-family: "Noto Sans JP", sans-serif;
+    color: var(--ink); font-variant-numeric: tabular-nums; }
+  .abs { position: absolute; }
+  .display { font-size: 96px; font-weight: 600; line-height: 1.3; }
+  .lead { font-size: 64px; font-weight: 600; line-height: 1.4; }
+  .body { font-size: 40px; font-weight: 400; line-height: 1.5; }
+  .note { font-size: 32px; font-weight: 400; line-height: 1.5; color: var(--muted); }
+  .accent { color: var(--orange); }
+  .src { position: absolute; left: 192px; bottom: 64px; font-size: 28px; color: var(--muted); }
+  .credit { position: absolute; right: 24px; bottom: 16px; font-size: 20px; color: #3a3a3c;
+    background: rgb(255 255 255 / 0.85); padding: 4px 12px; border-radius: 8px; }
+  .tag { display: inline-flex; align-items: center; justify-content: center; border-radius: 22%;
+    background: var(--navy); color: #fff; font-weight: 600; }
+  .phone { position: absolute; left: 300px; top: 68px; width: 449px; height: 944px; padding: 12px;
+    border-radius: 60px; background: #0e1726; box-shadow: 0 24px 60px rgb(17 24 39 / 0.28); }
+  .phone video, .phone img { display: block; width: 425px; height: 920px; border-radius: 48px; object-fit: cover; }
+  .clock { font-size: 120px; font-weight: 600; line-height: 1; color: var(--navy); letter-spacing: 0.02em; }
+  .clock small { display: block; font-size: 32px; font-weight: 400; color: var(--muted); margin-bottom: 16px; letter-spacing: 0; }
+
+  #root { background: var(--paper); }
+
+  #s13-head { left: 192px; top: 96px; width: 1540px; }
+  #s13-head .lead { font-size: 54px; }
+  #s13-cell { left: 1000px; top: 570px; width: 230px; height: 230px; background: rgb(234 138 0 / 0.22); border: 4px solid var(--orange); }
+  .s13-chip { position: absolute; background: var(--orange); color: #111827; font-size: 28px; font-weight: 600; padding: 4px 12px; border-radius: 10px; }
+  #s13-pin { left: 1067px; top: 430px; width: 96px; height: 96px; border-radius: 50%; background: var(--orange); border: 6px solid #fff;
+    font-size: 52px; font-weight: 600; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgb(17 24 39 / 0.2); }
+  #s13-ask { left: 1290px; top: 420px; background: #fff; font-size: 40px; font-weight: 600; padding: 24px 40px; border-radius: 32px;
+    border-bottom-left-radius: 8px; box-shadow: 0 8px 24px rgb(17 24 39 / 0.12); }
+
+  </style>
+  <div id="root" data-composition-id="s13" data-width="1920" data-height="1080">
+    <svg class="abs" style="left:0;top:0" width="1920" height="1080" data-layout-ignore><rect x="160" y="330" width="230" height="230" fill="none" stroke="#1e3a5f" stroke-opacity="0.14" stroke-width="3"/><rect x="160" y="570" width="230" height="230" fill="none" stroke="#1e3a5f" stroke-opacity="0.14" stroke-width="3"/><rect x="160" y="810" width="230" height="230" fill="none" stroke="#1e3a5f" stroke-opacity="0.14" stroke-width="3"/><rect x="160" y="1050" width="230" height="230" fill="none" stroke="#1e3a5f" stroke-opacity="0.14" stroke-width="3"/><rect x="400" y="330" width="230" height="230" fill="none" stroke="#1e3a5f" stroke-opacity="0.14" stroke-width="3"/><rect x="400" y="570" width="230" height="230" fill="none" stroke="#1e3a5f" stroke-opacity="0.14" stroke-width="3"/><rect x="400" y="810" width="230" height="230" fill="none" stroke="#1e3a5f" stroke-opacity="0.14" stroke-width="3"/><rect x="400" y="1050" width="230" height="230" fill="none" stroke="#1e3a5f" stroke-opacity="0.14" stroke-width="3"/><rect x="640" y="330" width="230" height="230" fill="none" stroke="#1e3a5f" stroke-opacity="0.14" stroke-width="3"/><rect x="640" y="570" width="230" height="230" fill="none" stroke="#1e3a5f" stroke-opacity="0.14" stroke-width="3"/><rect x="640" y="810" width="230" height="230" fill="none" stroke="#1e3a5f" stroke-opacity="0.14" stroke-width="3"/><rect x="640" y="1050" width="230" height="230" fill="none" stroke="#1e3a5f" stroke-opacity="0.14" stroke-width="3"/><rect x="880" y="330" width="230" height="230" fill="none" stroke="#1e3a5f" stroke-opacity="0.14" stroke-width="3"/><rect x="880" y="570" width="230" height="230" fill="none" stroke="#1e3a5f" stroke-opacity="0.14" stroke-width="3"/><rect x="880" y="810" width="230" height="230" fill="none" stroke="#1e3a5f" stroke-opacity="0.14" stroke-width="3"/><rect x="880" y="1050" width="230" height="230" fill="none" stroke="#1e3a5f" stroke-opacity="0.14" stroke-width="3"/><rect x="1120" y="330" width="230" height="230" fill="none" stroke="#1e3a5f" stroke-opacity="0.14" stroke-width="3"/><rect x="1120" y="570" width="230" height="230" fill="none" stroke="#1e3a5f" stroke-opacity="0.14" stroke-width="3"/><rect x="1120" y="810" width="230" height="230" fill="none" stroke="#1e3a5f" stroke-opacity="0.14" stroke-width="3"/><rect x="1120" y="1050" width="230" height="230" fill="none" stroke="#1e3a5f" stroke-opacity="0.14" stroke-width="3"/><rect x="1360" y="330" width="230" height="230" fill="none" stroke="#1e3a5f" stroke-opacity="0.14" stroke-width="3"/><rect x="1360" y="570" width="230" height="230" fill="none" stroke="#1e3a5f" stroke-opacity="0.14" stroke-width="3"/><rect x="1360" y="810" width="230" height="230" fill="none" stroke="#1e3a5f" stroke-opacity="0.14" stroke-width="3"/><rect x="1360" y="1050" width="230" height="230" fill="none" stroke="#1e3a5f" stroke-opacity="0.14" stroke-width="3"/><rect x="1600" y="330" width="230" height="230" fill="none" stroke="#1e3a5f" stroke-opacity="0.14" stroke-width="3"/><rect x="1600" y="570" width="230" height="230" fill="none" stroke="#1e3a5f" stroke-opacity="0.14" stroke-width="3"/><rect x="1600" y="810" width="230" height="230" fill="none" stroke="#1e3a5f" stroke-opacity="0.14" stroke-width="3"/><rect x="1600" y="1050" width="230" height="230" fill="none" stroke="#1e3a5f" stroke-opacity="0.14" stroke-width="3"/></svg>
+    <div id="s13-head" class="abs">
+      <p class="lead">同じ場所・同じ時間帯で数え、</p>
+      <p class="lead">いつもより多ければ<span class="accent">候補</span>にする。</p>
+    </div>
+    <div id="s13-cell" class="abs"></div>
+    <p class="s13-chip" style="left:1000px;top:790px;">1件</p><p class="s13-chip" style="left:1064px;top:790px;">1件</p><p class="s13-chip" style="left:1128px;top:790px;">1件</p><p class="s13-chip" style="left:1000px;top:734px;">1件</p><p class="s13-chip" style="left:1064px;top:734px;">1件</p><p class="s13-chip" style="left:1128px;top:734px;">1件</p><p class="s13-chip" style="left:1000px;top:678px;">1件</p><p class="s13-chip" style="left:1064px;top:678px;">1件</p><p class="s13-chip" style="left:1128px;top:678px;">1件</p>
+    <div id="s13-pin" class="abs">?</div>
+    <p id="s13-ask" class="abs">ここに何がある？</p>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+
+    const IN = (t, at, o = {}) => tl.fromTo(t, { opacity: 0, filter: "blur(8px)", ...o.from },
+      { opacity: 1, filter: "blur(0px)", duration: 0.5, ease: "expo.out", stagger: o.stagger ?? 0, ...o.to }, at);
+    const POP = (t, at, stagger = 0) => tl.fromTo(t, { scale: 0.2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: "back.out(1.6)", stagger }, at);
+    // デモの時刻（分）を [秒, 分] の折れ線から出して時計に書く（scripts/capture-demo.js の keys と同じ）
+    const CLOCK = (sel, keys, dur) => {
+      const el = document.querySelector(sel);
+      const at = (s) => {
+        for (let i = 1; i < keys.length; i++) {
+          const [s0, t0] = keys[i - 1], [s1, t1] = keys[i];
+          if (s <= s1) return t0 + ((t1 - t0) * (s - s0)) / (s1 - s0);
+        }
+        return keys[keys.length - 1][1];
+      };
+      const o = { s: 0 };
+      tl.fromTo(o, { s: 0 }, { s: dur, duration: dur, ease: "none", onUpdate: () => {
+        const m = Math.floor(at(o.s));
+        el.textContent = `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
+      } }, 0);
+    };
+
+    IN("#s13-head .lead:nth-child(1)", 0.3);
+    IN("#s13-head .lead:nth-child(2)", 1.0);
+    IN("#s13-cell", 1.6);
+    POP("#s13 .s13-chip", 2.0, 0.22);
+    POP("#s13-pin", 4.6);
+    IN("#s13-ask", 6.0);
+
+    window.__timelines["s13"] = tl;
+  </script>
+</template>

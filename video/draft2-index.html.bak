@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ja" data-resolution="landscape" data-composition-variables='[
+  {"id":"navy","type":"color","label":"紺（地・確認済み）","default":"#1e3a5f"},
+  {"id":"orange","type":"color","label":"オレンジ（未確認・強調）","default":"#ea8a00"},
+  {"id":"green","type":"color","label":"緑（公式）","default":"#0f7b4f"},
+  {"id":"paper","type":"color","label":"地図の地","default":"#f5f2eb"}
+]'>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+    <style>
+      /* 色はアプリ（web/style.css）と同じ */
+      :root { --navy: #1e3a5f; --orange: #ea8a00; --green: #0f7b4f; --paper: #f5f2eb; --ink: #111827; --fg-2: #4b5565; --muted: #4b5565; }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: var(--navy); }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="199" data-width="1920" data-height="1080">
+      <div id="s01" data-composition-id="s01" data-composition-src="compositions/s01.html" data-start="0" data-duration="7" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="s02" data-composition-id="s02" data-composition-src="compositions/s02.html" data-start="7" data-duration="6" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="s03" data-composition-id="s03" data-composition-src="compositions/s03.html" data-start="13" data-duration="10" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="s04" data-composition-id="s04" data-composition-src="compositions/s04.html" data-start="23" data-duration="8" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="s05" data-composition-id="s05" data-composition-src="compositions/s05.html" data-start="31" data-duration="10" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="s06" data-composition-id="s06" data-composition-src="compositions/s06.html" data-start="41" data-duration="9" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="s07" data-composition-id="s07" data-composition-src="compositions/s07.html" data-start="50" data-duration="8" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="s08" data-composition-id="s08" data-composition-src="compositions/s08.html" data-start="58" data-duration="10" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="s09" data-composition-id="s09" data-composition-src="compositions/s09.html" data-start="68" data-duration="8" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="s10" data-composition-id="s10" data-composition-src="compositions/s10.html" data-start="76" data-duration="7" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="s11" data-composition-id="s11" data-composition-src="compositions/s11.html" data-start="83" data-duration="10" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="s12" data-composition-id="s12" data-composition-src="compositions/s12.html" data-start="93" data-duration="10" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="s13" data-composition-id="s13" data-composition-src="compositions/s13.html" data-start="103" data-duration="8" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="s14" data-composition-id="s14" data-composition-src="compositions/s14.html" data-start="111" data-duration="6" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="s15" data-composition-id="s15" data-composition-src="compositions/s15.html" data-start="117" data-duration="10" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="s16" data-composition-id="s16" data-composition-src="compositions/s16.html" data-start="127" data-duration="10" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="s17" data-composition-id="s17" data-composition-src="compositions/s17.html" data-start="137" data-duration="8" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="s18" data-composition-id="s18" data-composition-src="compositions/s18.html" data-start="145" data-duration="10" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="s19" data-composition-id="s19" data-composition-src="compositions/s19.html" data-start="155" data-duration="10" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="s20" data-composition-id="s20" data-composition-src="compositions/s20.html" data-start="165" data-duration="8" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="s21" data-composition-id="s21" data-composition-src="compositions/s21.html" data-start="173" data-duration="8" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="s22" data-composition-id="s22" data-composition-src="compositions/s22.html" data-start="181" data-duration="10" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="s23" data-composition-id="s23" data-composition-src="compositions/s23.html" data-start="191" data-duration="8" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+    </div>
+    <script>
+      window.__timelines["main"] = gsap.timeline({ paused: true });
+    </script>
+  </body>
+</html>

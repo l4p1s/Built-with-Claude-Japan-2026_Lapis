@@ -1,0 +1,76 @@
+<template>
+  <style>
+  #root { position: absolute; inset: 0; overflow: hidden; font-family: "Noto Sans JP", sans-serif;
+    color: var(--ink); font-variant-numeric: tabular-nums; }
+  .abs { position: absolute; }
+  .display { font-size: 96px; font-weight: 600; line-height: 1.3; }
+  .lead { font-size: 64px; font-weight: 600; line-height: 1.4; }
+  .body { font-size: 40px; font-weight: 400; line-height: 1.5; }
+  .note { font-size: 32px; font-weight: 400; line-height: 1.5; color: var(--muted); }
+  .accent { color: var(--orange); }
+  .src { position: absolute; left: 192px; bottom: 64px; font-size: 28px; color: var(--muted); }
+  .credit { position: absolute; right: 24px; bottom: 16px; font-size: 20px; color: #3a3a3c;
+    background: rgb(255 255 255 / 0.85); padding: 4px 12px; border-radius: 8px; }
+  .tag { display: inline-flex; align-items: center; justify-content: center; border-radius: 22%;
+    background: var(--navy); color: #fff; font-weight: 600; }
+  .phone { position: absolute; left: 300px; top: 68px; width: 449px; height: 944px; padding: 12px;
+    border-radius: 60px; background: #0e1726; box-shadow: 0 24px 60px rgb(17 24 39 / 0.28); }
+  .phone video, .phone img { display: block; width: 425px; height: 920px; border-radius: 48px; object-fit: cover; }
+  .clock { font-size: 120px; font-weight: 600; line-height: 1; color: var(--navy); letter-spacing: 0.02em; }
+  .clock small { display: block; font-size: 32px; font-weight: 400; color: var(--muted); margin-bottom: 16px; letter-spacing: 0; }
+
+  #root { background: var(--paper); }
+
+  #s03-map { left: -120px; top: 0; width: 1920px; height: 1080px; }
+  #s03-ring { left: 694px; top: 484px; width: 52px; height: 52px; border-radius: 50%; border: 8px solid var(--navy); background: rgb(30 58 95 / 0.15); }
+  #s03-panel { left: 1060px; top: 150px; width: 720px; padding: 56px 64px; background: #fff; border-radius: 28px;
+    box-shadow: 0 12px 40px rgb(17 24 39 / 0.16); }
+  #s03-panel .lead { font-size: 60px; }
+  .s03-row { margin-top: 36px; font-size: 40px; line-height: 1.4; }
+  .s03-row b { display: block; font-size: 32px; color: var(--navy); font-weight: 600; }
+  .s03-row span { font-size: 30px; color: var(--muted); }
+
+  </style>
+  <div id="root" data-composition-id="s03" data-width="1920" data-height="1080">
+    <img id="s03-map" class="abs" src="assets/map/yatsushiro.png" alt="">
+    <div id="s03-ring" class="abs"></div>
+    <div id="s03-panel" class="abs">
+      <p class="lead">八代市出身。<br>何度も被災した。</p>
+      <p class="s03-row"><b>2016年</b>熊本地震</p>
+      <p class="s03-row"><b>2025年8月</b>八代市の豪雨</p>
+      <p class="s03-row" style="margin-top: 52px;"><b>2026年7月</b>熊本地震<br><span>実家と友人が被災</span></p>
+    </div>
+    <div class="credit" data-layout-ignore>地図 © OpenFreeMap © OpenMapTiles © OpenStreetMap</div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+
+    const IN = (t, at, o = {}) => tl.fromTo(t, { opacity: 0, filter: "blur(8px)", ...o.from },
+      { opacity: 1, filter: "blur(0px)", duration: 0.5, ease: "expo.out", stagger: o.stagger ?? 0, ...o.to }, at);
+    const POP = (t, at, stagger = 0) => tl.fromTo(t, { scale: 0.2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: "back.out(1.6)", stagger }, at);
+    // デモの時刻（分）を [秒, 分] の折れ線から出して時計に書く（scripts/capture-demo.js の keys と同じ）
+    const CLOCK = (sel, keys, dur) => {
+      const el = document.querySelector(sel);
+      const at = (s) => {
+        for (let i = 1; i < keys.length; i++) {
+          const [s0, t0] = keys[i - 1], [s1, t1] = keys[i];
+          if (s <= s1) return t0 + ((t1 - t0) * (s - s0)) / (s1 - s0);
+        }
+        return keys[keys.length - 1][1];
+      };
+      const o = { s: 0 };
+      tl.fromTo(o, { s: 0 }, { s: dur, duration: dur, ease: "none", onUpdate: () => {
+        const m = Math.floor(at(o.s));
+        el.textContent = `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
+      } }, 0);
+    };
+
+    tl.fromTo("#s03-map", { scale: 1 }, { scale: 1.12, duration: 10, ease: "none", transformOrigin: "840px 510px" }, 0);
+    POP("#s03-ring", 0.8);
+    IN("#s03-panel", 0.4);
+    IN("#s03-panel .lead", 0.6);
+    IN("#s03-panel .s03-row", 2.2, { stagger: 1.6 });
+
+    window.__timelines["s03"] = tl;
+  </script>
+</template>

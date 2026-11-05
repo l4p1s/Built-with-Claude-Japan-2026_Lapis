@@ -1,0 +1,69 @@
+<template>
+  <style>
+  #root { position: absolute; inset: 0; overflow: hidden; font-family: "Noto Sans JP", sans-serif;
+    color: var(--ink); font-variant-numeric: tabular-nums; }
+  .abs { position: absolute; }
+  .display { font-size: 96px; font-weight: 600; line-height: 1.3; }
+  .lead { font-size: 64px; font-weight: 600; line-height: 1.4; }
+  .body { font-size: 40px; font-weight: 400; line-height: 1.5; }
+  .note { font-size: 32px; font-weight: 400; line-height: 1.5; color: var(--muted); }
+  .accent { color: var(--orange); }
+  .src { position: absolute; left: 192px; bottom: 64px; font-size: 28px; color: var(--muted); }
+  .credit { position: absolute; right: 24px; bottom: 16px; font-size: 20px; color: #3a3a3c;
+    background: rgb(255 255 255 / 0.85); padding: 4px 12px; border-radius: 8px; }
+  .tag { display: inline-flex; align-items: center; justify-content: center; border-radius: 22%;
+    background: var(--navy); color: #fff; font-weight: 600; }
+  .phone { position: absolute; left: 300px; top: 68px; width: 449px; height: 944px; padding: 12px;
+    border-radius: 60px; background: #0e1726; box-shadow: 0 24px 60px rgb(17 24 39 / 0.28); }
+  .phone video, .phone img { display: block; width: 425px; height: 920px; border-radius: 48px; object-fit: cover; }
+  .clock { font-size: 120px; font-weight: 600; line-height: 1; color: var(--navy); letter-spacing: 0.02em; }
+  .clock small { display: block; font-size: 32px; font-weight: 400; color: var(--muted); margin-bottom: 16px; letter-spacing: 0; }
+
+  #root { background: var(--paper); }
+
+  #s22-label { left: 192px; top: 110px; font-size: 40px; color: var(--muted); }
+  .s22-row { left: 192px; display: flex; gap: 40px; align-items: center; }
+  .s22-row .lead { font-size: 64px; }
+  .s22-row .note { font-size: 34px; }
+
+  </style>
+  <div id="root" data-composition-id="s22" data-width="1920" data-height="1080">
+    <p id="s22-label" class="abs">これから</p>
+    <div class="abs s22-row" style="top:230px;"><svg class="icon" width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="#1e3a5f" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" ><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+  <circle cx="9" cy="7" r="4" />
+  <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+  <path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg><div><p class="lead">友人と実地実験</p></div></div>
+    <div class="abs s22-row" style="top:470px;"><svg class="icon" width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="#1e3a5f" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" ><rect width="14" height="20" x="5" y="2" rx="2" ry="2" />
+  <path d="M12 18h.01" /></svg><div><p class="lead">LINE ミニアプリ・ネイティブアプリへ</p><p class="note">画面を閉じても位置が取れるように</p></div></div>
+    <div class="abs s22-row" style="top:710px;"><svg class="icon" width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="#1e3a5f" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" ><rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+  <path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg><div><p class="lead">端末内で判定し、集計だけ送る</p></div></div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+
+    const IN = (t, at, o = {}) => tl.fromTo(t, { opacity: 0, filter: "blur(8px)", ...o.from },
+      { opacity: 1, filter: "blur(0px)", duration: 0.5, ease: "expo.out", stagger: o.stagger ?? 0, ...o.to }, at);
+    const POP = (t, at, stagger = 0) => tl.fromTo(t, { scale: 0.2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: "back.out(1.6)", stagger }, at);
+    // デモの時刻（分）を [秒, 分] の折れ線から出して時計に書く（scripts/capture-demo.js の keys と同じ）
+    const CLOCK = (sel, keys, dur) => {
+      const el = document.querySelector(sel);
+      const at = (s) => {
+        for (let i = 1; i < keys.length; i++) {
+          const [s0, t0] = keys[i - 1], [s1, t1] = keys[i];
+          if (s <= s1) return t0 + ((t1 - t0) * (s - s0)) / (s1 - s0);
+        }
+        return keys[keys.length - 1][1];
+      };
+      const o = { s: 0 };
+      tl.fromTo(o, { s: 0 }, { s: dur, duration: dur, ease: "none", onUpdate: () => {
+        const m = Math.floor(at(o.s));
+        el.textContent = `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
+      } }, 0);
+    };
+
+    IN("#s22-label", 0.2);
+    IN("#s22 .s22-row", 0.5, { stagger: 3 });
+
+    window.__timelines["s22"] = tl;
+  </script>
+</template>

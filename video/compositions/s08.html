@@ -1,0 +1,87 @@
+<template>
+  <style>
+  #root { position: absolute; inset: 0; overflow: hidden; font-family: "Noto Sans JP", sans-serif;
+    color: var(--ink); font-variant-numeric: tabular-nums; }
+  .abs { position: absolute; }
+  .display { font-size: 96px; font-weight: 600; line-height: 1.3; }
+  .lead { font-size: 64px; font-weight: 600; line-height: 1.4; }
+  .body { font-size: 40px; font-weight: 400; line-height: 1.5; }
+  .note { font-size: 32px; font-weight: 400; line-height: 1.5; color: var(--muted); }
+  .accent { color: var(--orange); }
+  .src { position: absolute; left: 192px; bottom: 64px; font-size: 28px; color: var(--muted); }
+  .credit { position: absolute; right: 24px; bottom: 16px; font-size: 20px; color: #3a3a3c;
+    background: rgb(255 255 255 / 0.85); padding: 4px 12px; border-radius: 8px; }
+  .tag { display: inline-flex; align-items: center; justify-content: center; border-radius: 22%;
+    background: var(--navy); color: #fff; font-weight: 600; }
+  .phone { position: absolute; left: 300px; top: 68px; width: 449px; height: 944px; padding: 12px;
+    border-radius: 60px; background: #0e1726; box-shadow: 0 24px 60px rgb(17 24 39 / 0.28); }
+  .phone video, .phone img { display: block; width: 425px; height: 920px; border-radius: 48px; object-fit: cover; }
+  .clock { font-size: 120px; font-weight: 600; line-height: 1; color: var(--navy); letter-spacing: 0.02em; }
+  .clock small { display: block; font-size: 32px; font-weight: 400; color: var(--muted); margin-bottom: 16px; letter-spacing: 0; }
+
+  #root { background: var(--navy); color: #fff; }
+  .note { color: rgb(255 255 255 / 0.78); }
+  .src { color: rgb(255 255 255 / 0.72); }
+
+  #s08-label { left: 192px; top: 108px; font-size: 36px; color: rgb(255 255 255 / 0.8); }
+  #s08-head { left: 192px; top: 320px; width: 740px; }
+  #s08-head .lead { font-size: 52px; white-space: nowrap; }
+  #s08-big { left: 960px; top: 140px; width: 800px; height: 800px; border-radius: 50%;
+    background: rgb(255 255 255 / 0.12); border: 3px solid rgb(255 255 255 / 0.5); }
+  #s08-small { left: 1287px; top: 753px; width: 147px; height: 147px;
+    border-radius: 50%; background: var(--green); }
+  #s08-big-label { left: 1360px; top: 250px; transform: translateX(-50%); text-align: center; font-size: 40px; white-space: nowrap; }
+  #s08-big-label b { display: block; font-size: 80px; font-weight: 600; }
+  #s08-small-label { left: 1360px; top: 960px; transform: translateX(-50%); font-size: 36px; white-space: nowrap; }
+  #s08-out { left: 1360px; top: 560px; transform: translateX(-50%); font-size: 36px; color: var(--orange); font-weight: 600; white-space: nowrap; }
+
+  </style>
+  <div id="root" data-composition-id="s08" data-width="1920" data-height="1080">
+    <p id="s08-label" class="abs">2026年 熊本地震（熊本県、7/29）</p>
+    <div id="s08-head" class="abs">
+      <p class="lead">避難指示 25.8万人に対し、</p>
+      <p class="lead">避難所は 8,698人。</p>
+      <p class="lead accent">車中泊などは把握されず。</p>
+    </div>
+    <div id="s08-big" class="abs"></div>
+    <div id="s08-small" class="abs"></div>
+    <p id="s08-big-label" class="abs">避難指示<b>25.8万人</b></p>
+    <p id="s08-out" class="abs">把握されていない</p>
+    <p id="s08-small-label" class="abs">避難所 8,698人</p>
+    <p class="src" style="bottom: 40px;">出典: 熊本県 被害情報 第1報、時事通信 2026/8/2</p>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+
+    const IN = (t, at, o = {}) => tl.fromTo(t, { opacity: 0, filter: "blur(8px)", ...o.from },
+      { opacity: 1, filter: "blur(0px)", duration: 0.5, ease: "expo.out", stagger: o.stagger ?? 0, ...o.to }, at);
+    const POP = (t, at, stagger = 0) => tl.fromTo(t, { scale: 0.2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: "back.out(1.6)", stagger }, at);
+    // デモの時刻（分）を [秒, 分] の折れ線から出して時計に書く（scripts/capture-demo.js の keys と同じ）
+    const CLOCK = (sel, keys, dur) => {
+      const el = document.querySelector(sel);
+      const at = (s) => {
+        for (let i = 1; i < keys.length; i++) {
+          const [s0, t0] = keys[i - 1], [s1, t1] = keys[i];
+          if (s <= s1) return t0 + ((t1 - t0) * (s - s0)) / (s1 - s0);
+        }
+        return keys[keys.length - 1][1];
+      };
+      const o = { s: 0 };
+      tl.fromTo(o, { s: 0 }, { s: dur, duration: dur, ease: "none", onUpdate: () => {
+        const m = Math.floor(at(o.s));
+        el.textContent = `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
+      } }, 0);
+    };
+
+    IN("#s08-label, #s08 .src", 0.2);
+    IN("#s08-head .lead:nth-child(1)", 0.4);
+    tl.fromTo("#s08-big", { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.9, ease: "expo.out" }, 0.8);
+    IN("#s08-big-label", 1.2);
+    IN("#s08-head .lead:nth-child(2)", 3.0);
+    POP("#s08-small", 3.4);
+    IN("#s08-small-label", 3.8);
+    IN("#s08-head .lead:nth-child(3), #s08-out", 6.2);
+
+    window.__timelines["s08"] = tl;
+  </script>
+</template>

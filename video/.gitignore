@@ -1,0 +1,8 @@
+# 大きいもの・作り直せるもの・他人の文章の写しはコミットしない
+assets/demo/
+refs/
+renders/
+boards/
+.hyperframes/
+node_modules/
+*.mp4

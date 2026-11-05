@@ -1,0 +1,151 @@
+<template>
+  <style>
+  #root { position: absolute; inset: 0; overflow: hidden; font-family: "Noto Sans JP", sans-serif;
+    color: var(--ink); font-variant-numeric: tabular-nums; }
+  .abs { position: absolute; }
+  /* テロップ: 左 120px・下 120px から左寄せ。左から拭うように出し、大事な語にオレンジのマーカーを引く */
+  .cap { position: absolute; left: 120px; bottom: 120px; display: flex; flex-direction: column; align-items: flex-start; gap: 14px; z-index: 20; }
+  .cap p { font-size: 56px; font-weight: 600; line-height: 1.35; white-space: nowrap; }
+  .cap.band p { background: #fff; color: var(--navy); padding: 10px 28px; border-radius: 18px; box-shadow: 0 6px 24px rgb(17 24 39 / 0.16); }
+  .cap.dark p { color: #fff; }
+  .cap em { font-style: normal; background: linear-gradient(transparent 62%, rgb(234 138 0 / 0.42) 62%) no-repeat 0 0 / 0% 100%; }
+  .cap.dark em { background-image: linear-gradient(transparent 62%, rgb(234 138 0 / 0.75) 62%); }
+  .credit { position: absolute; right: 24px; bottom: 16px; font-size: 18px; color: #3a3a3c; z-index: 21;
+    background: rgb(255 255 255 / 0.85); padding: 4px 12px; border-radius: 8px; }
+  .src { position: absolute; right: 40px; bottom: 28px; font-size: 28px; color: var(--muted); z-index: 21; }
+  .src.dark { color: rgb(255 255 255 / 0.75); }
+  /* アプリの「？」のピン（オレンジの丸に白い縁） */
+  .qpin { position: absolute; width: 64px; height: 64px; border-radius: 50%; background: var(--orange); border: 4px solid #fff;
+    color: var(--ink); font-weight: 600; font-size: 34px; line-height: 1; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.25); z-index: 5; }
+  .dot { position: absolute; width: 18px; height: 18px; border-radius: 50%; background: #2563eb; opacity: 0.6; }
+  .chip { position: absolute; display: flex; align-items: center; gap: 10px; padding: 10px 22px; border-radius: 16px; background: #fff; color: var(--navy);
+    font-size: 30px; font-weight: 600; white-space: nowrap; box-shadow: 0 4px 16px rgb(17 24 39 / 0.14); }
+  .bub { position: absolute; font-size: 36px; font-weight: 600; padding: 16px 30px; border-radius: 32px; white-space: nowrap; }
+  .bub.me { background: var(--navy); color: #fff; border-bottom-right-radius: 8px; }
+  .bub.them { background: #fff; color: var(--navy); border: 3px solid var(--navy); border-bottom-left-radius: 8px; }
+  .card { position: absolute; background: #fff; border-radius: 28px; box-shadow: 0 10px 32px rgb(17 24 39 / 0.14);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+  .card b { font-size: 30px; font-weight: 600; color: var(--navy); }
+  .lab { position: absolute; font-size: 30px; font-weight: 600; white-space: nowrap; }
+  /* 「できない」「届かない」の印（アプリのエラーの色 #b91c1c）と、「届く」の印（紺） */
+  .nox, .okv { position: absolute; width: 64px; height: 64px; border-radius: 50%; border: 4px solid #fff;
+    display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgb(0 0 0 / 0.25); z-index: 6; }
+  .nox { background: #b91c1c; }
+  .okv { background: var(--navy); }
+  svg.full { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; }
+  .dash line, .dash path { fill: none; stroke-width: 6; stroke-linecap: round; stroke-dasharray: 0.1 16; }
+
+  #root { background: var(--navy); color: #fff; }
+  #a03-label { left: 120px; top: 64px; font-size: 30px; opacity: 0.75; }
+  #a03-num { left: 150px; top: 112px; font-weight: 600; line-height: 1; color: #4cc38a; }
+  #a03-num b { font-size: 150px; font-weight: 600; }
+  #a03-num small { font-size: 52px; margin-left: 10px; }
+  #a03-num span { display: block; font-size: 30px; color: rgb(255 255 255 / 0.8); margin-top: 10px; }
+  .a03-dot { position: absolute; width: 22px; height: 22px; border-radius: 50%; background: #4cc38a; }
+  .a03-win { position: absolute; width: 200px; height: 180px; border-radius: 14px; background: #fff; overflow: hidden;
+    box-shadow: 0 10px 30px rgb(0 0 0 / 0.25); }
+  .a03-win .bar { height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 10px; }
+  .a03-win .bar i { width: 9px; height: 9px; border-radius: 50%; background: #c4cad3; }
+  .a03-win .bar em { height: 10px; border-radius: 5px; background: #8b94a3; margin-left: 10px; }
+  .a03-win .ln { height: 12px; border-radius: 6px; background: #eef0f3; margin: 18px 0 0 18px; }
+  #a03-sites { left: 900px; top: 640px; font-size: 40px; font-weight: 600; white-space: nowrap; }
+  #a03-sites b { font-size: 76px; color: var(--orange); margin-right: 6px; }
+  #a03-names { left: 1330px; top: 412px; font-size: 44px; font-weight: 600; color: var(--navy); background: #fff;
+    border: 5px solid var(--orange); border-radius: 20px; padding: 6px 30px; white-space: nowrap; z-index: 5; }
+  #a03-names b { font-size: 64px; color: var(--orange); }
+  </style>
+  <div id="root" data-composition-id="a03" data-width="1920" data-height="1080">
+    <p id="a03-label" class="abs">2026年 熊本県全体</p>
+    <p id="a03-num" class="abs"><b id="a03-n">0</b><small>か所</small><span>公式の給水拠点</span></p>
+    <div id="a03-grid"></div>
+    <div class="a03-win" style="left:900px;top:210px;"><div class="bar" style="background:#e5e7eb"><i></i><i></i><i></i><em style="width:60px"></em></div><div class="ln" style="width:150px"></div><div class="ln" style="width:110px"></div><div class="ln" style="width:130px"></div></div>
+    <div class="a03-win" style="left:1120px;top:210px;"><div class="bar" style="background:#dfe7f1"><i></i><i></i><i></i><em style="width:110px"></em></div><div class="ln" style="width:90px"></div><div class="ln" style="width:150px"></div><div class="ln" style="width:70px"></div></div>
+    <div class="a03-win" style="left:1340px;top:210px;"><div class="bar" style="background:#e9e3d8"><i></i><i></i><i></i><em style="width:80px"></em></div><div class="ln" style="width:130px"></div><div class="ln" style="width:130px"></div><div class="ln" style="width:100px"></div></div>
+    <div class="a03-win" style="left:1560px;top:210px;"><div class="bar" style="background:#e3ece6"><i></i><i></i><i></i><em style="width:130px"></em></div><div class="ln" style="width:160px"></div><div class="ln" style="width:80px"></div><div class="ln" style="width:120px"></div></div>
+    <div class="a03-win" style="left:900px;top:414px;"><div class="bar" style="background:#ece5ee"><i></i><i></i><i></i><em style="width:70px"></em></div><div class="ln" style="width:110px"></div><div class="ln" style="width:140px"></div><div class="ln" style="width:90px"></div></div>
+    <div class="a03-win" style="left:1120px;top:414px;"><div class="bar" style="background:#e5e7eb"><i></i><i></i><i></i><em style="width:100px"></em></div><div class="ln" style="width:140px"></div><div class="ln" style="width:100px"></div><div class="ln" style="width:150px"></div></div>
+    <div class="a03-win" style="left:1340px;top:414px;"><div class="bar" style="background:#e6e1d6"><i></i><i></i><i></i><em style="width:90px"></em></div><div class="ln" style="width:80px"></div><div class="ln" style="width:120px"></div><div class="ln" style="width:140px"></div></div>
+    <div class="a03-win" style="left:1560px;top:414px;"><div class="bar" style="background:#dfe8ef"><i></i><i></i><i></i><em style="width:120px"></em></div><div class="ln" style="width:150px"></div><div class="ln" style="width:150px"></div><div class="ln" style="width:90px"></div></div>
+    <p id="a03-sites" class="abs"><b>8</b>つの自治体サイト</p>
+    <p id="a03-names" class="abs">呼び方 <b>11</b>通り</p>
+    <div class="cap dark"><p>公式の給水拠点79か所の情報は、</p><p><em>8つの自治体サイト</em>に分散。呼び方は<em>11通り</em>。</p></div>
+    <p class="src dark">出典: 名古屋大学 応急給水拠点マップ（防災科研 bosaiXview）</p>
+
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const IN = (t, at, o = {}) => tl.fromTo(t, { opacity: 0, y: 16, filter: "blur(6px)", ...o.from },
+      { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.5, ease: "expo.out", stagger: o.stagger ?? 0, ...o.to }, at);
+    const OUT = (t, at, d = 0.4) => tl.to(t, { opacity: 0, duration: d, ease: "power2.in" }, at);
+    const POP = (t, at, stagger = 0) => tl.fromTo(t, { scale: 0.2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: "back.out(1.8)", stagger }, at);
+    // テロップ: 左から拭って出し、少し遅れて大事な語にマーカーを引く
+    const CAP = (sel, at) => {
+      tl.fromTo(sel, { clipPath: "inset(0% 100% 0% 0% round 18px)", x: -18 }, { clipPath: "inset(0% 0% 0% 0% round 18px)", x: 0, duration: 0.55, ease: "power3.out" }, at);
+      tl.set(sel, { clipPath: "none" }, at + 0.56);
+      const em = document.querySelector(sel).querySelectorAll("em");
+      if (em.length) tl.to(em, { backgroundSize: "100% 100%", duration: 0.5, ease: "power2.out" }, at + 0.45);
+    };
+    // ✕ の印: 回りながら弾んで出て、小さく震える
+    const NOX = (sel, at) => {
+      tl.fromTo(sel, { scale: 0, rotation: -90, opacity: 0 }, { scale: 1, rotation: 0, opacity: 1, duration: 0.5, ease: "back.out(2.5)" }, at);
+      tl.to(sel, { x: "+=7", duration: 0.05, repeat: 5, yoyo: true, ease: "none" }, at + 0.5);
+    };
+    // 点線を (x1,y1) から (x2,y2) まで伸ばす（長さ 0 の線も丸い端で点が出るので、伸ばし始めるまで隠す）
+    const DRAW = (sel, at, d, x2, y2, ease = "power2.out") => {
+      tl.fromTo(sel, { opacity: 0 }, { opacity: 1, duration: 0.05 }, at);
+      tl.to(sel, { attr: { x2, y2 }, duration: d, ease }, at);
+    };
+    // 輪が広がって消える（届いた・立ったの合図）
+    const RING = (sel, at) => tl.fromTo(sel, { scale: 0.3, opacity: 0.9 }, { scale: 2.4, opacity: 0, duration: 0.8, ease: "power2.out", immediateRender: false }, at);
+
+    gsap.set("#a03-names", { xPercent: -50, yPercent: -50 });
+    // 公式の給水拠点 79 か所を 10 列の格子に並べる（位置は実際の場所ではない）
+    const grid = document.querySelector("#a03-grid");
+    const dots = [];
+    for (let i = 0; i < 79; i++) {
+      const d = document.createElement("div");
+      d.className = "a03-dot";
+      d.style.left = `${160 + (i % 10) * 56}px`;
+      d.style.top = `${350 + Math.floor(i / 10) * 46}px`;
+      grid.appendChild(d);
+      dots.push(d);
+    }
+    IN("#a03-label", 0.2);
+    IN("#a03-num", 0.4);
+    dots.forEach((d, i) => tl.fromTo(d, { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: "back.out(2)" }, 0.6 + i * 0.02));
+    const n = { v: 0 };
+    tl.fromTo(n, { v: 0 }, { v: 79, duration: 1.7, ease: "power1.inOut", onUpdate: () => {
+      document.querySelector("#a03-n").textContent = Math.round(n.v);
+    } }, 0.6);
+    const wins = document.querySelectorAll(".a03-win");
+    tl.fromTo(wins, { y: -40, opacity: 0, rotation: (i) => [-4, 3, -2, 5, 3, -5, 2, -3][i] }, { y: 0, opacity: 1, rotation: 0, duration: 0.5, ease: "back.out(2)", stagger: 0.08 }, 2.8);
+    // 点が弧を描いて窓へ吸い込まれる（窓ごとの数は出典にないので、窓の中には残さない）
+    dots.forEach((d, i) => {
+      const w = i % 8, r = Math.floor(w / 4), c = w % 4;
+      const tx = 900 + c * 220 + 100 - (160 + (i % 10) * 56 + 11);
+      const ty = 210 + r * 204 + 105 - (350 + Math.floor(i / 10) * 46 + 11);
+      const at = 3.7 + i * 0.022;
+      tl.to(d, { x: tx, duration: 0.6, ease: "power1.in" }, at);
+      tl.to(d, { y: ty, duration: 0.6, ease: "back.in(1.4)" }, at);
+      tl.to(d, { scale: 0.3, opacity: 0, duration: 0.2, ease: "power1.in" }, at + 0.42);
+    });
+    // 窓が受け取るたびに、小さく揺れる
+    tl.fromTo(wins, { scale: 1 }, { scale: 1.04, duration: 0.12, yoyo: true, repeat: 1, stagger: 0.25, ease: "power1.out" }, 4.2);
+    tl.fromTo("#a03-sites", { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: 0.5, ease: "expo.out" }, 5.8);
+    tl.fromTo("#a03-sites b", { scale: 0.4 }, { scale: 1, duration: 0.5, ease: "back.out(3)", transformOrigin: "50% 70%" }, 5.8);
+    tl.fromTo(".a03-win .bar em", { scaleX: 0, transformOrigin: "0% 50%" }, { scaleX: 1, duration: 0.4, ease: "expo.out", stagger: 0.06 }, 6.6);
+    POP("#a03-names", 7.2);
+    tl.fromTo("#a03-names b", { scale: 0.4 }, { scale: 1, duration: 0.5, ease: "back.out(3)", transformOrigin: "50% 70%" }, 7.4);
+    CAP(".cap p:nth-child(1)", 1.0);
+    CAP(".cap p:nth-child(2)", 5.6);
+    // A04 へ: 窓が左に寄って重なり、1 枚のリストになる
+    OUT("#a03-label, #a03-num, #a03-sites, #a03-names, .cap, .src", 9.2, 0.4);
+    wins.forEach((w, i) => {
+      const r = Math.floor(i / 4), c = i % 4;
+      tl.to(w, { x: 480 - (900 + c * 220 + 100) + i * 4, y: 495 - (210 + r * 204 + 90) + i * 4, scale: 1.3, duration: 0.8, ease: "power3.inOut" }, 9.0 + i * 0.02);
+    });
+
+    window.__timelines["a03"] = tl;
+  </script>
+</template>

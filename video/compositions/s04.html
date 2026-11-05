@@ -1,0 +1,103 @@
+<template>
+  <style>
+  #root { position: absolute; inset: 0; overflow: hidden; font-family: "Noto Sans JP", sans-serif;
+    color: var(--ink); font-variant-numeric: tabular-nums; }
+  .abs { position: absolute; }
+  .display { font-size: 96px; font-weight: 600; line-height: 1.3; }
+  .lead { font-size: 64px; font-weight: 600; line-height: 1.4; }
+  .body { font-size: 40px; font-weight: 400; line-height: 1.5; }
+  .note { font-size: 32px; font-weight: 400; line-height: 1.5; color: var(--muted); }
+  .accent { color: var(--orange); }
+  .src { position: absolute; left: 192px; bottom: 64px; font-size: 28px; color: var(--muted); }
+  .credit { position: absolute; right: 24px; bottom: 16px; font-size: 20px; color: #3a3a3c;
+    background: rgb(255 255 255 / 0.85); padding: 4px 12px; border-radius: 8px; }
+  .tag { display: inline-flex; align-items: center; justify-content: center; border-radius: 22%;
+    background: var(--navy); color: #fff; font-weight: 600; }
+  .phone { position: absolute; left: 300px; top: 68px; width: 449px; height: 944px; padding: 12px;
+    border-radius: 60px; background: #0e1726; box-shadow: 0 24px 60px rgb(17 24 39 / 0.28); }
+  .phone video, .phone img { display: block; width: 425px; height: 920px; border-radius: 48px; object-fit: cover; }
+  .clock { font-size: 120px; font-weight: 600; line-height: 1; color: var(--navy); letter-spacing: 0.02em; }
+  .clock small { display: block; font-size: 32px; font-weight: 400; color: var(--muted); margin-bottom: 16px; letter-spacing: 0; }
+
+  #root { background: var(--paper); }
+
+  #s04-head { left: 192px; top: 120px; width: 1540px; }
+  #s04-head .lead { font-size: 52px; font-weight: 400; }
+  #s04-head .display { font-size: 92px; }
+  .s04-tag { width: 120px; height: 120px; font-size: 76px; margin-right: 20px; vertical-align: middle; }
+  .s04-p { width: 300px; text-align: center; }
+  .s04-circle { width: 168px; height: 168px; margin: 0 auto; border-radius: 50%; background: #fff; display: flex;
+    align-items: center; justify-content: center; box-shadow: 0 8px 24px rgb(17 24 39 / 0.14); }
+  .s04-label { margin-top: 20px; font-size: 40px; font-weight: 600; }
+  .s04-hours { font-size: 30px; color: var(--muted); display: flex; align-items: center; justify-content: center; gap: 8px; }
+
+  </style>
+  <div id="root" data-composition-id="s04" data-width="1920" data-height="1080">
+    <svg class="abs" style="left:0;top:0" width="1920" height="1080" data-layout-ignore><line x1="-200" y1="0" x2="60" y2="1080" stroke="#e2ddd3" stroke-width="14"/><line x1="100" y1="0" x2="360" y2="1080" stroke="#e2ddd3" stroke-width="14"/><line x1="400" y1="0" x2="660" y2="1080" stroke="#e2ddd3" stroke-width="14"/><line x1="700" y1="0" x2="960" y2="1080" stroke="#e2ddd3" stroke-width="14"/><line x1="1000" y1="0" x2="1260" y2="1080" stroke="#e2ddd3" stroke-width="14"/><line x1="1300" y1="0" x2="1560" y2="1080" stroke="#e2ddd3" stroke-width="14"/><line x1="1600" y1="0" x2="1860" y2="1080" stroke="#e2ddd3" stroke-width="14"/><line x1="1900" y1="0" x2="2160" y2="1080" stroke="#e2ddd3" stroke-width="14"/><line x1="0" y1="150" x2="1920" y2="30" stroke="#e2ddd3" stroke-width="14"/><line x1="0" y1="410" x2="1920" y2="290" stroke="#e2ddd3" stroke-width="14"/><line x1="0" y1="670" x2="1920" y2="550" stroke="#e2ddd3" stroke-width="14"/><line x1="0" y1="930" x2="1920" y2="810" stroke="#e2ddd3" stroke-width="14"/><line x1="0" y1="1190" x2="1920" y2="1070" stroke="#e2ddd3" stroke-width="14"/></svg>
+    <div id="s04-head" class="abs">
+      <p class="lead">一番欲しかったのは、</p>
+      <p class="display"><span class="accent">今、どこで</span>水と食べ物がもらえるか</p>
+    </div>
+    <div class="abs" style="left:192px;top:560px;"><span class="tag s04-tag">水</span><span class="tag s04-tag">食</span></div>
+    <div class="abs s04-p" style="left:720px;top:520px;">
+      <div class="s04-circle"><svg class="icon" width="88" height="88" viewBox="0 0 24 24" fill="none" stroke="#1e3a5f" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" ><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7" />
+  <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+  <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4" />
+  <path d="M2 7h20" />
+  <path d="M22 7v3a2 2 0 0 1-2 2a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12a2 2 0 0 1-2-2V7" /></svg></div>
+      <p class="s04-label">開いている店</p>
+      <p class="s04-hours"><svg class="icon" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#4b5565" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ><circle cx="12" cy="12" r="10" />
+  <polyline points="12 6 12 12 16 14" /></svg> いつまで？</p>
+    </div>
+    <div class="abs s04-p" style="left:1100px;top:640px;">
+      <div class="s04-circle"><svg class="icon" width="88" height="88" viewBox="0 0 24 24" fill="none" stroke="#1e3a5f" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" ><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2" />
+  <path d="M15 18H9" />
+  <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14" />
+  <circle cx="17" cy="18" r="2" />
+  <circle cx="7" cy="18" r="2" /></svg></div>
+      <p class="s04-label">給水車</p>
+      <p class="s04-hours"><svg class="icon" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#4b5565" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ><circle cx="12" cy="12" r="10" />
+  <polyline points="12 6 12 12 16 14" /></svg> どこに来る？</p>
+    </div>
+    <div class="abs s04-p" style="left:1480px;top:500px;">
+      <div class="s04-circle"><svg class="icon" width="88" height="88" viewBox="0 0 24 24" fill="none" stroke="#1e3a5f" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" ><path d="M2 12h20" />
+  <path d="M20 12v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8" />
+  <path d="m4 8 16-4" />
+  <path d="m8.86 6.78-.45-1.81a2 2 0 0 1 1.45-2.43l1.94-.48a2 2 0 0 1 2.43 1.46l.45 1.8" /></svg></div>
+      <p class="s04-label">炊き出し</p>
+      <p class="s04-hours"><svg class="icon" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#4b5565" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ><circle cx="12" cy="12" r="10" />
+  <polyline points="12 6 12 12 16 14" /></svg> 今日もある？</p>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+
+    const IN = (t, at, o = {}) => tl.fromTo(t, { opacity: 0, filter: "blur(8px)", ...o.from },
+      { opacity: 1, filter: "blur(0px)", duration: 0.5, ease: "expo.out", stagger: o.stagger ?? 0, ...o.to }, at);
+    const POP = (t, at, stagger = 0) => tl.fromTo(t, { scale: 0.2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: "back.out(1.6)", stagger }, at);
+    // デモの時刻（分）を [秒, 分] の折れ線から出して時計に書く（scripts/capture-demo.js の keys と同じ）
+    const CLOCK = (sel, keys, dur) => {
+      const el = document.querySelector(sel);
+      const at = (s) => {
+        for (let i = 1; i < keys.length; i++) {
+          const [s0, t0] = keys[i - 1], [s1, t1] = keys[i];
+          if (s <= s1) return t0 + ((t1 - t0) * (s - s0)) / (s1 - s0);
+        }
+        return keys[keys.length - 1][1];
+      };
+      const o = { s: 0 };
+      tl.fromTo(o, { s: 0 }, { s: dur, duration: dur, ease: "none", onUpdate: () => {
+        const m = Math.floor(at(o.s));
+        el.textContent = `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
+      } }, 0);
+    };
+
+    IN("#s04-head .lead", 0.3);
+    IN("#s04-head .display", 1.0);
+    IN("#s04 .s04-tag", 2.2, { stagger: 0.2 });
+    IN("#s04 .s04-p", 3.2, { stagger: 0.6 });
+    IN("#s04 .s04-hours", 5.4, { stagger: 0.3 });
+
+    window.__timelines["s04"] = tl;
+  </script>
+</template>

@@ -1,0 +1,93 @@
+<template>
+  <style>
+  #root { position: absolute; inset: 0; overflow: hidden; font-family: "Noto Sans JP", sans-serif;
+    color: var(--ink); font-variant-numeric: tabular-nums; }
+  .abs { position: absolute; }
+  .display { font-size: 96px; font-weight: 600; line-height: 1.3; }
+  .lead { font-size: 64px; font-weight: 600; line-height: 1.4; }
+  .body { font-size: 40px; font-weight: 400; line-height: 1.5; }
+  .note { font-size: 32px; font-weight: 400; line-height: 1.5; color: var(--muted); }
+  .accent { color: var(--orange); }
+  .src { position: absolute; left: 192px; bottom: 64px; font-size: 28px; color: var(--muted); }
+  .credit { position: absolute; right: 24px; bottom: 16px; font-size: 20px; color: #3a3a3c;
+    background: rgb(255 255 255 / 0.85); padding: 4px 12px; border-radius: 8px; }
+  .tag { display: inline-flex; align-items: center; justify-content: center; border-radius: 22%;
+    background: var(--navy); color: #fff; font-weight: 600; }
+  .phone { position: absolute; left: 300px; top: 68px; width: 449px; height: 944px; padding: 12px;
+    border-radius: 60px; background: #0e1726; box-shadow: 0 24px 60px rgb(17 24 39 / 0.28); }
+  .phone video, .phone img { display: block; width: 425px; height: 920px; border-radius: 48px; object-fit: cover; }
+  .clock { font-size: 120px; font-weight: 600; line-height: 1; color: var(--navy); letter-spacing: 0.02em; }
+  .clock small { display: block; font-size: 32px; font-weight: 400; color: var(--muted); margin-bottom: 16px; letter-spacing: 0; }
+
+  #root { background: var(--paper); }
+
+  #s05-head { left: 192px; top: 96px; width: 1540px; }
+  #s05-head .lead { font-size: 56px; }
+  #s05-list { left: 192px; top: 400px; width: 860px; height: 560px; background: #fff; border-radius: 28px; overflow: hidden;
+    box-shadow: 0 8px 24px rgb(17 24 39 / 0.12); }
+  #s05-list header { background: var(--green); color: #fff; font-size: 36px; font-weight: 600; padding: 24px 40px; display: flex; gap: 20px; align-items: center; }
+  .s05-item { display: flex; gap: 24px; align-items: center; padding: 26px 40px; font-size: 38px; border-bottom: 2px solid #eceff4; }
+  #s05-out { left: 1220px; top: 430px; width: 520px; height: 500px; border: 4px dashed var(--orange); border-radius: 28px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
+  #s05-out .circle { width: 200px; height: 200px; border-radius: 50%; background: var(--navy); display: flex; align-items: center; justify-content: center; }
+  #s05-out p { font-size: 38px; font-weight: 600; text-align: center; line-height: 1.4; }
+
+  </style>
+  <div id="root" data-composition-id="s05" data-width="1920" data-height="1080">
+    <div id="s05-head" class="abs">
+      <p class="lead">本当に助かったのは、<span class="accent">店の前の炊き出しや配布</span>。</p>
+      <p class="lead">市役所にもテレビにも、出てこない。</p>
+    </div>
+    <div id="s05-list" class="abs">
+      <header><svg class="icon" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ><line x1="3" x2="21" y1="22" y2="22" />
+  <line x1="6" x2="6" y1="18" y2="11" />
+  <line x1="10" x2="10" y1="18" y2="11" />
+  <line x1="14" x2="14" y1="18" y2="11" />
+  <line x1="18" x2="18" y1="18" y2="11" />
+  <polygon points="12 2 20 7 4 7" /></svg><span>公式の情報</span><svg class="icon" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ><rect width="20" height="15" x="2" y="7" rx="2" ry="2" />
+  <polyline points="17 2 12 7 7 2" /></svg></header>
+      <p class="s05-item"><span class="tag" style="width:64px;height:64px;font-size:40px;background:var(--green)">避</span>避難所</p>
+      <p class="s05-item"><span class="tag" style="width:64px;height:64px;font-size:40px;background:var(--green)">水</span>給水拠点</p>
+      <p class="s05-item" style="color:var(--muted)">…</p>
+    </div>
+    <div id="s05-out" class="abs">
+      <div class="circle"><svg class="icon" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" ><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7" />
+  <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+  <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4" />
+  <path d="M2 7h20" />
+  <path d="M22 7v3a2 2 0 0 1-2 2a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12a2 2 0 0 1-2-2V7" /></svg></div>
+      <p>お店の前の炊き出し<br>商品の配布</p>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+
+    const IN = (t, at, o = {}) => tl.fromTo(t, { opacity: 0, filter: "blur(8px)", ...o.from },
+      { opacity: 1, filter: "blur(0px)", duration: 0.5, ease: "expo.out", stagger: o.stagger ?? 0, ...o.to }, at);
+    const POP = (t, at, stagger = 0) => tl.fromTo(t, { scale: 0.2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: "back.out(1.6)", stagger }, at);
+    // デモの時刻（分）を [秒, 分] の折れ線から出して時計に書く（scripts/capture-demo.js の keys と同じ）
+    const CLOCK = (sel, keys, dur) => {
+      const el = document.querySelector(sel);
+      const at = (s) => {
+        for (let i = 1; i < keys.length; i++) {
+          const [s0, t0] = keys[i - 1], [s1, t1] = keys[i];
+          if (s <= s1) return t0 + ((t1 - t0) * (s - s0)) / (s1 - s0);
+        }
+        return keys[keys.length - 1][1];
+      };
+      const o = { s: 0 };
+      tl.fromTo(o, { s: 0 }, { s: dur, duration: dur, ease: "none", onUpdate: () => {
+        const m = Math.floor(at(o.s));
+        el.textContent = `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
+      } }, 0);
+    };
+
+    IN("#s05-head .lead:nth-child(1)", 0.3);
+    IN("#s05-list", 1.4);
+    IN("#s05-out", 2.6);
+    IN("#s05-head .lead:nth-child(2)", 4.6);
+    tl.fromTo("#s05-out", { x: 0 }, { x: 24, duration: 0.6, ease: "power2.inOut" }, 5.4);
+
+    window.__timelines["s05"] = tl;
+  </script>
+</template>

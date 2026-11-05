@@ -1,0 +1,128 @@
+<template>
+  <style>
+  #root { position: absolute; inset: 0; overflow: hidden; font-family: "Noto Sans JP", sans-serif;
+    color: var(--ink); font-variant-numeric: tabular-nums; }
+  .abs { position: absolute; }
+  /* テロップ: 左 120px・下 120px から左寄せ。左から拭うように出し、大事な語にオレンジのマーカーを引く */
+  .cap { position: absolute; left: 120px; bottom: 120px; display: flex; flex-direction: column; align-items: flex-start; gap: 14px; z-index: 20; }
+  .cap p { font-size: 56px; font-weight: 600; line-height: 1.35; white-space: nowrap; }
+  .cap.band p { background: #fff; color: var(--navy); padding: 10px 28px; border-radius: 18px; box-shadow: 0 6px 24px rgb(17 24 39 / 0.16); }
+  .cap.dark p { color: #fff; }
+  .cap em { font-style: normal; background: linear-gradient(transparent 62%, rgb(234 138 0 / 0.42) 62%) no-repeat 0 0 / 0% 100%; }
+  .cap.dark em { background-image: linear-gradient(transparent 62%, rgb(234 138 0 / 0.75) 62%); }
+  .credit { position: absolute; right: 24px; bottom: 16px; font-size: 18px; color: #3a3a3c; z-index: 21;
+    background: rgb(255 255 255 / 0.85); padding: 4px 12px; border-radius: 8px; }
+  .src { position: absolute; right: 40px; bottom: 28px; font-size: 28px; color: var(--muted); z-index: 21; }
+  .src.dark { color: rgb(255 255 255 / 0.75); }
+  /* アプリの「？」のピン（オレンジの丸に白い縁） */
+  .qpin { position: absolute; width: 64px; height: 64px; border-radius: 50%; background: var(--orange); border: 4px solid #fff;
+    color: var(--ink); font-weight: 600; font-size: 34px; line-height: 1; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.25); z-index: 5; }
+  .dot { position: absolute; width: 18px; height: 18px; border-radius: 50%; background: #2563eb; opacity: 0.6; }
+  .chip { position: absolute; display: flex; align-items: center; gap: 10px; padding: 10px 22px; border-radius: 16px; background: #fff; color: var(--navy);
+    font-size: 30px; font-weight: 600; white-space: nowrap; box-shadow: 0 4px 16px rgb(17 24 39 / 0.14); }
+  .bub { position: absolute; font-size: 36px; font-weight: 600; padding: 16px 30px; border-radius: 32px; white-space: nowrap; }
+  .bub.me { background: var(--navy); color: #fff; border-bottom-right-radius: 8px; }
+  .bub.them { background: #fff; color: var(--navy); border: 3px solid var(--navy); border-bottom-left-radius: 8px; }
+  .card { position: absolute; background: #fff; border-radius: 28px; box-shadow: 0 10px 32px rgb(17 24 39 / 0.14);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+  .card b { font-size: 30px; font-weight: 600; color: var(--navy); }
+  .lab { position: absolute; font-size: 30px; font-weight: 600; white-space: nowrap; }
+  /* 「できない」「届かない」の印（アプリのエラーの色 #b91c1c）と、「届く」の印（紺） */
+  .nox, .okv { position: absolute; width: 64px; height: 64px; border-radius: 50%; border: 4px solid #fff;
+    display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgb(0 0 0 / 0.25); z-index: 6; }
+  .nox { background: #b91c1c; }
+  .okv { background: var(--navy); }
+  svg.full { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; }
+  .dash line, .dash path { fill: none; stroke-width: 6; stroke-linecap: round; stroke-dasharray: 0.1 16; }
+
+  #root { background: var(--paper); }
+  #a02-cam { left: -40px; top: -22px; width: 2000px; height: 1125px; }
+  #a02-cam img { display: block; width: 2000px; height: 1125px; }
+  #a02-veil { left: 0; top: 0; width: 2000px; height: 1125px; background: var(--paper); opacity: 0.45; }
+  #a02-dark { left: 0; top: 0; width: 1920px; height: 1080px; background: var(--navy); opacity: 0; z-index: 30; }
+  .a02-dash line { stroke: var(--navy); }
+  .a02-card { width: 300px; height: 250px; }
+  .a02-card .q { position: absolute; right: -18px; top: -18px; }
+  </style>
+  <div id="root" data-composition-id="a02" data-width="1920" data-height="1080">
+    <div id="a02-cam" class="abs">
+      <img src="assets/map/M1.png" alt="">
+      <div id="a02-veil" class="abs"></div>
+    </div>
+    <svg class="full dash a02-dash" viewBox="0 0 1920 1080">
+      <line id="a02-l1" x1="330" y1="230" x2="330" y2="230" />
+      <line id="a02-l2" x1="1590" y1="200" x2="1590" y2="200" />
+      <line id="a02-l3" x1="360" y1="640" x2="360" y2="640" />
+      <line id="a02-l4" x1="1600" y1="660" x2="1600" y2="660" />
+    </svg>
+    <div class="card a02-card" id="a02-truck" style="left:560px;top:270px;"><svg width="220" height="126" viewBox="0 0 260 150"><rect x="10" y="30" width="160" height="76" rx="38" fill="#fff" stroke="#1e3a5f" stroke-width="6"/><path d="M90 44c12 15 18 24 18 32a18 18 0 0 1-36 0c0-8 6-17 18-32z" fill="#1e3a5f"/><rect x="6" y="106" width="244" height="12" rx="4" fill="#1e3a5f"/><path d="M178 46h42l32 36v36h-74z" fill="#1e3a5f"/><path d="M190 56h26l22 26h-48z" fill="#dbe5f0"/><circle cx="52" cy="124" r="18" fill="#1e3a5f" stroke="#fff" stroke-width="5"/><circle cx="132" cy="124" r="18" fill="#1e3a5f" stroke="#fff" stroke-width="5"/><circle cx="214" cy="124" r="18" fill="#1e3a5f" stroke="#fff" stroke-width="5"/></svg><b>給水車</b><div class="qpin q">?</div></div>
+    <div class="card a02-card" id="a02-pkg" style="left:1060px;top:270px;"><svg width="170" height="123" viewBox="0 0 220 160"><rect x="20" y="70" width="120" height="84" fill="#fff" stroke="#1e3a5f" stroke-width="6"/><line x1="80" y1="70" x2="80" y2="154" stroke="#ea8a00" stroke-width="6"/><rect x="38" y="14" width="86" height="56" fill="#fff" stroke="#1e3a5f" stroke-width="6"/><line x1="81" y1="14" x2="81" y2="70" stroke="#ea8a00" stroke-width="6"/><rect x="156" y="52" width="40" height="102" rx="11" fill="#fff" stroke="#1e3a5f" stroke-width="6"/><rect x="165" y="34" width="22" height="18" rx="4" fill="#1e3a5f"/><path d="M176 86c6 8 9 12 9 16a9 9 0 0 1-18 0c0-4 3-8 9-16z" fill="#1e3a5f"/></svg><b>配給</b><div class="qpin q">?</div></div>
+    <div class="chip" id="a02-c1" style="left:330px;top:230px;"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1e3a5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" x2="21" y1="22" y2="22" />
+  <line x1="6" x2="6" y1="18" y2="11" />
+  <line x1="10" x2="10" y1="18" y2="11" />
+  <line x1="14" x2="14" y1="18" y2="11" />
+  <line x1="18" x2="18" y1="18" y2="11" />
+  <polygon points="12 2 20 7 4 7" /></svg>市役所</div>
+    <div class="chip" id="a02-c2" style="left:1590px;top:200px;"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1e3a5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="15" x="2" y="7" rx="2" ry="2" />
+  <polyline points="17 2 12 7 7 2" /></svg>テレビ</div>
+    <div class="chip" id="a02-c3" style="left:360px;top:640px;"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1e3a5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" /></svg>SNS</div>
+    <div class="chip" id="a02-c4" style="left:1600px;top:660px;"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1e3a5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" />
+  <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>お隣さん</div>
+    <div class="cap band"><p>給水車や配給の情報が、</p><p><em>どこから来るか</em>わからない。</p></div>
+    <div class="credit" data-layout-ignore>地図 © OpenFreeMap © OpenMapTiles © OpenStreetMap ／ 施設 © OpenStreetMap、八代市 CC BY 4.0</div>
+    <div id="a02-dark" class="abs"></div>
+
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const IN = (t, at, o = {}) => tl.fromTo(t, { opacity: 0, y: 16, filter: "blur(6px)", ...o.from },
+      { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.5, ease: "expo.out", stagger: o.stagger ?? 0, ...o.to }, at);
+    const OUT = (t, at, d = 0.4) => tl.to(t, { opacity: 0, duration: d, ease: "power2.in" }, at);
+    const POP = (t, at, stagger = 0) => tl.fromTo(t, { scale: 0.2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: "back.out(1.8)", stagger }, at);
+    // テロップ: 左から拭って出し、少し遅れて大事な語にマーカーを引く
+    const CAP = (sel, at) => {
+      tl.fromTo(sel, { clipPath: "inset(0% 100% 0% 0% round 18px)", x: -18 }, { clipPath: "inset(0% 0% 0% 0% round 18px)", x: 0, duration: 0.55, ease: "power3.out" }, at);
+      tl.set(sel, { clipPath: "none" }, at + 0.56);
+      const em = document.querySelector(sel).querySelectorAll("em");
+      if (em.length) tl.to(em, { backgroundSize: "100% 100%", duration: 0.5, ease: "power2.out" }, at + 0.45);
+    };
+    // ✕ の印: 回りながら弾んで出て、小さく震える
+    const NOX = (sel, at) => {
+      tl.fromTo(sel, { scale: 0, rotation: -90, opacity: 0 }, { scale: 1, rotation: 0, opacity: 1, duration: 0.5, ease: "back.out(2.5)" }, at);
+      tl.to(sel, { x: "+=7", duration: 0.05, repeat: 5, yoyo: true, ease: "none" }, at + 0.5);
+    };
+    // 点線を (x1,y1) から (x2,y2) まで伸ばす（長さ 0 の線も丸い端で点が出るので、伸ばし始めるまで隠す）
+    const DRAW = (sel, at, d, x2, y2, ease = "power2.out") => {
+      tl.fromTo(sel, { opacity: 0 }, { opacity: 1, duration: 0.05 }, at);
+      tl.to(sel, { attr: { x2, y2 }, duration: d, ease }, at);
+    };
+    // 輪が広がって消える（届いた・立ったの合図）
+    const RING = (sel, at) => tl.fromTo(sel, { scale: 0.3, opacity: 0.9 }, { scale: 2.4, opacity: 0, duration: 0.8, ease: "power2.out", immediateRender: false }, at);
+
+    gsap.set(".chip", { xPercent: -50, yPercent: -50 });
+    // A01 の寄りの続き: 市役所（画面の 620, 500 あたり）から町の全体へ降りてくる
+    tl.fromTo("#a02-cam", { scale: 1.4, x: -397, y: -25 }, { scale: 1, x: 0, y: 0, duration: 1.0, ease: "power3.out", transformOrigin: "1057px 547px" }, 0);
+    tl.to("#a02-cam", { x: 36, duration: 7, ease: "none" }, 1.0);
+    tl.fromTo("#a02-truck", { y: 80, opacity: 0 }, { y: 0, opacity: 1, duration: 0.7, ease: "back.out(1.6)" }, 0.3);
+    tl.fromTo("#a02-pkg", { y: 80, opacity: 0 }, { y: 0, opacity: 1, duration: 0.7, ease: "back.out(1.6)" }, 0.5);
+    tl.fromTo(".a02-card .q", { y: -50, scale: 0.3, opacity: 0 }, { y: 0, scale: 1, opacity: 1, duration: 0.5, ease: "bounce.out", stagger: 0.18 }, 1.2);
+    // 4 つの出どころが、違う速さでばらばらに入ってくる
+    [["#a02-c1", -260, -160, 1.1, 2.0], ["#a02-c2", 320, -180, 1.7, 2.3], ["#a02-c3", -320, 260, 1.4, 2.6], ["#a02-c4", 320, 240, 2.0, 2.1]]
+      .forEach(([s, dx, dy, d, at]) => tl.fromTo(s, { x: dx, y: dy, opacity: 0 }, { x: 0, y: 0, opacity: 1, duration: d, ease: "power3.out" }, at));
+    // 札から給水車や配給へ点線が伸びかけて、途中で消える（どこから来るかが決まっていない）
+    DRAW("#a02-l1", 4.4, 0.7, 520, 300);
+    DRAW("#a02-l2", 4.55, 0.7, 1420, 290);
+    DRAW("#a02-l3", 4.7, 0.7, 520, 540);
+    DRAW("#a02-l4", 4.85, 0.7, 1440, 560);
+    OUT(".a02-dash line", 5.6, 0.6);
+    tl.to(".a02-card .q", { rotation: 14, duration: 0.15, repeat: 5, yoyo: true, ease: "sine.inOut" }, 5.4);
+    CAP(".cap p:nth-child(1)", 1.5);
+    CAP(".cap p:nth-child(2)", 4.6);
+    // A03 へ: 引きながら紺に沈む
+    tl.to("#a02-cam", { scale: 0.85, duration: 1.0, ease: "power2.in", transformOrigin: "1000px 560px" }, 7.0);
+    tl.to("#a02-dark", { opacity: 1, duration: 1.0, ease: "power1.in" }, 7.0);
+
+    window.__timelines["a02"] = tl;
+  </script>
+</template>

@@ -1,0 +1,103 @@
+<template>
+  <style>
+  #root { position: absolute; inset: 0; overflow: hidden; font-family: "Noto Sans JP", sans-serif;
+    color: var(--ink); font-variant-numeric: tabular-nums; }
+  .abs { position: absolute; }
+  .display { font-size: 96px; font-weight: 600; line-height: 1.3; }
+  .lead { font-size: 64px; font-weight: 600; line-height: 1.4; }
+  .body { font-size: 40px; font-weight: 400; line-height: 1.5; }
+  .note { font-size: 32px; font-weight: 400; line-height: 1.5; color: var(--muted); }
+  .accent { color: var(--orange); }
+  .src { position: absolute; left: 192px; bottom: 64px; font-size: 28px; color: var(--muted); }
+  .credit { position: absolute; right: 24px; bottom: 16px; font-size: 20px; color: #3a3a3c;
+    background: rgb(255 255 255 / 0.85); padding: 4px 12px; border-radius: 8px; }
+  .tag { display: inline-flex; align-items: center; justify-content: center; border-radius: 22%;
+    background: var(--navy); color: #fff; font-weight: 600; }
+  .phone { position: absolute; left: 300px; top: 68px; width: 449px; height: 944px; padding: 12px;
+    border-radius: 60px; background: #0e1726; box-shadow: 0 24px 60px rgb(17 24 39 / 0.28); }
+  .phone video, .phone img { display: block; width: 425px; height: 920px; border-radius: 48px; object-fit: cover; }
+  .clock { font-size: 120px; font-weight: 600; line-height: 1; color: var(--navy); letter-spacing: 0.02em; }
+  .clock small { display: block; font-size: 32px; font-weight: 400; color: var(--muted); margin-bottom: 16px; letter-spacing: 0; }
+
+  #root { background: var(--paper); }
+
+  #s12-head { left: 192px; top: 96px; width: 1540px; }
+  #s12-head .lead { font-size: 54px; }
+  .s12-place { position: absolute; text-align: center; font-size: 34px; font-weight: 600; }
+  .s12-place .circle { width: 150px; height: 150px; border-radius: 50%; background: #fff; display: flex; align-items: center;
+    justify-content: center; margin: 0 auto 12px; box-shadow: 0 8px 24px rgb(17 24 39 / 0.14); }
+  #s12-park { left: 1240px; top: 640px; }
+  #s12-park .circle { background: #cfe7b6; }
+  #s12-count { left: 1470px; top: 600px; background: var(--orange); color: #111827; font-size: 48px; font-weight: 600;
+    padding: 12px 32px; border-radius: 20px; }
+  #s12-clock { left: 1470px; top: 720px; font-size: 40px; display: flex; gap: 12px; align-items: center; color: var(--navy); font-weight: 600; }
+
+  </style>
+  <div id="root" data-composition-id="s12" data-width="1920" data-height="1080">
+    <svg class="abs" style="left:0;top:0" width="1920" height="1080" data-layout-ignore>
+      <path id="s12-p1" d="M 420 760 C 600 600, 800 480, 1010 430" stroke="#1e3a5f" stroke-opacity="0.25" stroke-width="10" fill="none" stroke-dasharray="2 22" stroke-linecap="round"/>
+      <path id="s12-p2" d="M 420 790 C 620 640, 820 520, 1010 470" stroke="#1e3a5f" stroke-opacity="0.25" stroke-width="10" fill="none" stroke-dasharray="2 22" stroke-linecap="round"/>
+      <path id="s12-p3" d="M 440 820 C 700 860, 1000 820, 1240 730" stroke="#ea8a00" stroke-width="10" fill="none" stroke-dasharray="2 22" stroke-linecap="round"/>
+    </svg>
+    <div id="s12-head" class="abs">
+      <p class="lead">その人にとって「いつもは行かない場所」に</p>
+      <p class="lead">10分以上とどまったら、<span class="accent">1件</span>と数える。</p>
+    </div>
+    <div class="s12-place" style="left:270px;top:680px;"><div class="circle"><svg class="icon" width="84" height="84" viewBox="0 0 24 24" fill="none" stroke="#1e3a5f" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" ><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" />
+  <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg></div>家</div>
+    <div class="s12-place" style="left:1010px;top:330px;"><div class="circle"><svg class="icon" width="84" height="84" viewBox="0 0 24 24" fill="none" stroke="#1e3a5f" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" ><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z" />
+  <path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" />
+  <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2" />
+  <path d="M10 6h4" />
+  <path d="M10 10h4" />
+  <path d="M10 14h4" />
+  <path d="M10 18h4" /></svg></div>職場</div>
+    <div id="s12-park" class="s12-place"><div class="circle"><svg class="icon" width="84" height="84" viewBox="0 0 24 24" fill="none" stroke="#0f7b4f" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" ><path d="M10 10v.2A3 3 0 0 1 8.9 16H5a3 3 0 0 1-1-5.8V10a3 3 0 0 1 6 0Z" />
+  <path d="M7 16v6" />
+  <path d="M13 19v3" />
+  <path d="M12 19h8.3a1 1 0 0 0 .7-1.7L18 14h.3a1 1 0 0 0 .7-1.7L16 9h.2a1 1 0 0 0 .8-1.7L13 3l-1.4 1.5" /></svg></div>公園</div>
+    <div id="s12-person" class="abs" style="left:1180px;top:600px;width:84px;height:84px;border-radius:50%;background:var(--orange);display:flex;align-items:center;justify-content:center;"><svg class="icon" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#111827" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+  <circle cx="12" cy="7" r="4" /></svg></div>
+    <p id="s12-count" class="abs">1件</p>
+    <p id="s12-clock" class="abs"><svg class="icon" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#1e3a5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ><circle cx="12" cy="12" r="10" />
+  <polyline points="12 6 12 12 16 14" /></svg>20分</p>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+
+    const IN = (t, at, o = {}) => tl.fromTo(t, { opacity: 0, filter: "blur(8px)", ...o.from },
+      { opacity: 1, filter: "blur(0px)", duration: 0.5, ease: "expo.out", stagger: o.stagger ?? 0, ...o.to }, at);
+    const POP = (t, at, stagger = 0) => tl.fromTo(t, { scale: 0.2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: "back.out(1.6)", stagger }, at);
+    // デモの時刻（分）を [秒, 分] の折れ線から出して時計に書く（scripts/capture-demo.js の keys と同じ）
+    const CLOCK = (sel, keys, dur) => {
+      const el = document.querySelector(sel);
+      const at = (s) => {
+        for (let i = 1; i < keys.length; i++) {
+          const [s0, t0] = keys[i - 1], [s1, t1] = keys[i];
+          if (s <= s1) return t0 + ((t1 - t0) * (s - s0)) / (s1 - s0);
+        }
+        return keys[keys.length - 1][1];
+      };
+      const o = { s: 0 };
+      tl.fromTo(o, { s: 0 }, { s: dur, duration: dur, ease: "none", onUpdate: () => {
+        const m = Math.floor(at(o.s));
+        el.textContent = `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
+      } }, 0);
+    };
+
+    IN("#s12-head .lead:nth-child(1)", 0.3);
+    IN("#s12-head .lead:nth-child(2)", 1.0);
+    IN("#s12 .s12-place:not(#s12-park)", 1.6, { stagger: 0.3 });
+    IN("#s12-p1, #s12-p2", 2.4, { stagger: 0.6 });
+    IN("#s12-p3, #s12-park", 4.0);
+    POP("#s12-person", 4.6);
+    IN("#s12-clock", 5.2);
+    const c = { v: 0 };
+    tl.fromTo(c, { v: 0 }, { v: 20, duration: 1.8, ease: "none", onUpdate: () => {
+      document.querySelector("#s12-clock").lastChild.textContent = `${Math.round(c.v)}分`;
+    } }, 5.2);
+    POP("#s12-count", 7.0);
+
+    window.__timelines["s12"] = tl;
+  </script>
+</template>

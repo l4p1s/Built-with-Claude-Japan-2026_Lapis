@@ -1,0 +1,129 @@
+<template>
+  <style>
+  #root { position: absolute; inset: 0; overflow: hidden; font-family: "Noto Sans JP", sans-serif;
+    color: var(--ink); font-variant-numeric: tabular-nums; }
+  .abs { position: absolute; }
+  /* テロップ: 左 120px・下 120px から左寄せ。左から拭うように出し、大事な語にオレンジのマーカーを引く */
+  .cap { position: absolute; left: 120px; bottom: 120px; display: flex; flex-direction: column; align-items: flex-start; gap: 14px; z-index: 20; }
+  .cap p { font-size: 56px; font-weight: 600; line-height: 1.35; white-space: nowrap; }
+  .cap.band p { background: #fff; color: var(--navy); padding: 10px 28px; border-radius: 18px; box-shadow: 0 6px 24px rgb(17 24 39 / 0.16); }
+  .cap.dark p { color: #fff; }
+  .cap em { font-style: normal; background: linear-gradient(transparent 62%, rgb(234 138 0 / 0.42) 62%) no-repeat 0 0 / 0% 100%; }
+  .cap.dark em { background-image: linear-gradient(transparent 62%, rgb(234 138 0 / 0.75) 62%); }
+  .credit { position: absolute; right: 24px; bottom: 16px; font-size: 18px; color: #3a3a3c; z-index: 21;
+    background: rgb(255 255 255 / 0.85); padding: 4px 12px; border-radius: 8px; }
+  .src { position: absolute; right: 40px; bottom: 28px; font-size: 28px; color: var(--muted); z-index: 21; }
+  .src.dark { color: rgb(255 255 255 / 0.75); }
+  /* アプリの「？」のピン（オレンジの丸に白い縁） */
+  .qpin { position: absolute; width: 64px; height: 64px; border-radius: 50%; background: var(--orange); border: 4px solid #fff;
+    color: var(--ink); font-weight: 600; font-size: 34px; line-height: 1; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.25); z-index: 5; }
+  .dot { position: absolute; width: 18px; height: 18px; border-radius: 50%; background: #2563eb; opacity: 0.6; }
+  .chip { position: absolute; display: flex; align-items: center; gap: 10px; padding: 10px 22px; border-radius: 16px; background: #fff; color: var(--navy);
+    font-size: 30px; font-weight: 600; white-space: nowrap; box-shadow: 0 4px 16px rgb(17 24 39 / 0.14); }
+  .bub { position: absolute; font-size: 36px; font-weight: 600; padding: 16px 30px; border-radius: 32px; white-space: nowrap; }
+  .bub.me { background: var(--navy); color: #fff; border-bottom-right-radius: 8px; }
+  .bub.them { background: #fff; color: var(--navy); border: 3px solid var(--navy); border-bottom-left-radius: 8px; }
+  .card { position: absolute; background: #fff; border-radius: 28px; box-shadow: 0 10px 32px rgb(17 24 39 / 0.14);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+  .card b { font-size: 30px; font-weight: 600; color: var(--navy); }
+  .lab { position: absolute; font-size: 30px; font-weight: 600; white-space: nowrap; }
+  /* 「できない」「届かない」の印（アプリのエラーの色 #b91c1c）と、「届く」の印（紺） */
+  .nox, .okv { position: absolute; width: 64px; height: 64px; border-radius: 50%; border: 4px solid #fff;
+    display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgb(0 0 0 / 0.25); z-index: 6; }
+  .nox { background: #b91c1c; }
+  .okv { background: var(--navy); }
+  svg.full { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; }
+  .dash line, .dash path { fill: none; stroke-width: 6; stroke-linecap: round; stroke-dasharray: 0.1 16; }
+
+  #root { background: var(--paper); }
+  #a07-cam { left: 0; top: 0; width: 1920px; height: 1080px; clip-path: circle(260px at 960px 440px); }
+  #a07-cam video { display: block; width: 1920px; height: 1080px; }
+  #a07-time { left: 60px; top: 48px; padding: 18px 32px; border-radius: 22px; background: #fff; box-shadow: 0 8px 28px rgb(17 24 39 / 0.16); }
+  #a07-time small { display: block; font-size: 28px; color: var(--muted); }
+  #a07-time b { display: block; font-size: 64px; font-weight: 600; color: var(--navy); line-height: 1.1; }
+  #a07-key { left: 60px; top: 236px; padding: 16px 26px; border-radius: 20px; background: #fff; box-shadow: 0 8px 28px rgb(17 24 39 / 0.16);
+    display: flex; flex-direction: column; gap: 12px; font-size: 28px; font-weight: 600; color: var(--navy); }
+  #a07-key p { display: flex; align-items: center; gap: 14px; white-space: nowrap; }
+  #a07-key .d { width: 22px; height: 22px; border-radius: 50%; background: #2563eb; opacity: 0.6; margin: 0 9px; }
+  #a07-key .qpin { position: static; width: 40px; height: 40px; font-size: 22px; border-width: 3px; }
+  #a07-note { right: 24px; bottom: 60px; font-size: 28px; color: var(--ink); background: rgb(255 255 255 / 0.9); padding: 6px 14px; border-radius: 8px; z-index: 21; }
+  #a07-find { left: 880px; top: 224px; width: 520px; height: 520px; border-radius: 50%; border: 6px dashed var(--orange); }
+  #a07-hit { left: 1080px; top: 424px; width: 120px; height: 120px; position:absolute;border-radius:50%;border:5px solid var(--orange); }
+  #a07-white { left: 1140px; top: 484px; width: 100px; height: 100px; margin: -50px 0 0 -50px; border-radius: 50%; background: var(--paper); z-index: 30; }
+  </style>
+  <div id="root" data-composition-id="a07" data-width="1920" data-height="1080">
+    <div id="a07-cam" class="abs"><video id="a07-video" class="clip" data-start="0" data-duration="12" muted playsinline src="assets/demo/D1.mp4"></video></div>
+    <div id="a07-find" class="abs"></div>
+    <div id="a07-hit" class="abs"></div>
+    <div id="a07-time" class="abs"><small>地震の翌日</small><b id="a07-clock">10:16</b></div>
+    <div id="a07-key" class="abs"><p id="a07-k1"><span class="d"></span>アプリを使う人</p><p id="a07-k2"><span class="qpin">?</span>人の集まり（自動）</p></div>
+    <p id="a07-note" class="abs">画面は合成データの再生</p>
+    <div class="cap band"><p>そこで、<em>GPS</em> で人の集まりを見つける。</p><p>いつもと違う人の集まりを、<em>自動で</em>地図に出す。</p></div>
+    <div class="credit" data-layout-ignore>地図 © OpenFreeMap © OpenMapTiles © OpenStreetMap ／ 施設 © OpenStreetMap、八代市 CC BY 4.0</div>
+    <div id="a07-white" class="abs"></div>
+
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const IN = (t, at, o = {}) => tl.fromTo(t, { opacity: 0, y: 16, filter: "blur(6px)", ...o.from },
+      { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.5, ease: "expo.out", stagger: o.stagger ?? 0, ...o.to }, at);
+    const OUT = (t, at, d = 0.4) => tl.to(t, { opacity: 0, duration: d, ease: "power2.in" }, at);
+    const POP = (t, at, stagger = 0) => tl.fromTo(t, { scale: 0.2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: "back.out(1.8)", stagger }, at);
+    // テロップ: 左から拭って出し、少し遅れて大事な語にマーカーを引く
+    const CAP = (sel, at) => {
+      tl.fromTo(sel, { clipPath: "inset(0% 100% 0% 0% round 18px)", x: -18 }, { clipPath: "inset(0% 0% 0% 0% round 18px)", x: 0, duration: 0.55, ease: "power3.out" }, at);
+      tl.set(sel, { clipPath: "none" }, at + 0.56);
+      const em = document.querySelector(sel).querySelectorAll("em");
+      if (em.length) tl.to(em, { backgroundSize: "100% 100%", duration: 0.5, ease: "power2.out" }, at + 0.45);
+    };
+    // ✕ の印: 回りながら弾んで出て、小さく震える
+    const NOX = (sel, at) => {
+      tl.fromTo(sel, { scale: 0, rotation: -90, opacity: 0 }, { scale: 1, rotation: 0, opacity: 1, duration: 0.5, ease: "back.out(2.5)" }, at);
+      tl.to(sel, { x: "+=7", duration: 0.05, repeat: 5, yoyo: true, ease: "none" }, at + 0.5);
+    };
+    // 点線を (x1,y1) から (x2,y2) まで伸ばす（長さ 0 の線も丸い端で点が出るので、伸ばし始めるまで隠す）
+    const DRAW = (sel, at, d, x2, y2, ease = "power2.out") => {
+      tl.fromTo(sel, { opacity: 0 }, { opacity: 1, duration: 0.05 }, at);
+      tl.to(sel, { attr: { x2, y2 }, duration: d, ease }, at);
+    };
+    // 輪が広がって消える（届いた・立ったの合図）
+    const RING = (sel, at) => tl.fromTo(sel, { scale: 0.3, opacity: 0.9 }, { scale: 2.4, opacity: 0, duration: 0.8, ease: "power2.out", immediateRender: false }, at);
+
+    gsap.set("#a07-white", { scale: 0 });
+    gsap.set("#a07-hit", { opacity: 0 });
+    // A06 の中央から地図が丸く広がる
+    tl.to("#a07-cam", { clipPath: "circle(1200px at 960px 440px)", duration: 1.0, ease: "power2.inOut" }, 0);
+    IN("#a07-time", 0.8);
+    IN("#a07-k1", 1.6, { from: { x: -20, y: 0 }, to: { x: 0 } });
+    tl.fromTo("#a07-key", { opacity: 0 }, { opacity: 1, duration: 0.3 }, 1.5);
+    gsap.set("#a07-k2", { opacity: 0 });
+    IN("#a07-note", 1.2);
+    // 時刻は scripts/capture-demo.js の D1 の keys と同じ折れ線（10:40 の「？」は 6 秒）
+    const keys = [[0, 616], [6, 640], [12, 652]];
+    const o = { s: 0 };
+    tl.fromTo(o, { s: 0 }, { s: 12, duration: 12, ease: "none", onUpdate: () => {
+      let m = keys[2][1];
+      for (let i = 1; i < keys.length; i++) {
+        const [s0, t0] = keys[i - 1], [s1, t1] = keys[i];
+        if (o.s <= s1) { m = t0 + ((t1 - t0) * (o.s - s0)) / (s1 - s0); break; }
+      }
+      m = Math.floor(m);
+      document.querySelector("#a07-clock").textContent = `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
+    } }, 0);
+    // 集まりつつある場所を、点線の輪が絞っていく → 6 秒で「？」が立つ
+    tl.fromTo("#a07-find", { scale: 1, opacity: 0, rotation: 0 }, { scale: 0.32, opacity: 1, rotation: 90, duration: 3.0, ease: "power2.inOut" }, 2.8);
+    tl.to("#a07-find", { opacity: 0, duration: 0.2 }, 5.9);
+    RING("#a07-hit", 6.05);
+    tl.to("#a07-k2", { opacity: 1, duration: 0.4 }, 6.3);
+    tl.fromTo("#a07-video", { scale: 1 }, { scale: 1.1, duration: 2.5, ease: "power2.inOut", transformOrigin: "1140px 484px" }, 6.5);
+    CAP(".cap p:nth-child(1)", 1.0);
+    CAP(".cap p:nth-child(2)", 6.8);
+    // A08 へ: 「？」のピンに寄り、白い丸が広がって紙色の地になる
+    OUT(".cap, #a07-time, #a07-key, #a07-note, .credit", 10.8, 0.4);
+    tl.to("#a07-video", { scale: 1.7, duration: 1.0, ease: "power2.in", transformOrigin: "1140px 484px" }, 11.0);
+    tl.to("#a07-white", { scale: 46, duration: 0.8, ease: "power2.in" }, 11.2);
+
+    window.__timelines["a07"] = tl;
+  </script>
+</template>

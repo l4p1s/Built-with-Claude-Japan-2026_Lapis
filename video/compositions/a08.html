@@ -1,0 +1,135 @@
+<template>
+  <style>
+  #root { position: absolute; inset: 0; overflow: hidden; font-family: "Noto Sans JP", sans-serif;
+    color: var(--ink); font-variant-numeric: tabular-nums; }
+  .abs { position: absolute; }
+  /* テロップ: 左 120px・下 120px から左寄せ。左から拭うように出し、大事な語にオレンジのマーカーを引く */
+  .cap { position: absolute; left: 120px; bottom: 120px; display: flex; flex-direction: column; align-items: flex-start; gap: 14px; z-index: 20; }
+  .cap p { font-size: 56px; font-weight: 600; line-height: 1.35; white-space: nowrap; }
+  .cap.band p { background: #fff; color: var(--navy); padding: 10px 28px; border-radius: 18px; box-shadow: 0 6px 24px rgb(17 24 39 / 0.16); }
+  .cap.dark p { color: #fff; }
+  .cap em { font-style: normal; background: linear-gradient(transparent 62%, rgb(234 138 0 / 0.42) 62%) no-repeat 0 0 / 0% 100%; }
+  .cap.dark em { background-image: linear-gradient(transparent 62%, rgb(234 138 0 / 0.75) 62%); }
+  .credit { position: absolute; right: 24px; bottom: 16px; font-size: 18px; color: #3a3a3c; z-index: 21;
+    background: rgb(255 255 255 / 0.85); padding: 4px 12px; border-radius: 8px; }
+  .src { position: absolute; right: 40px; bottom: 28px; font-size: 28px; color: var(--muted); z-index: 21; }
+  .src.dark { color: rgb(255 255 255 / 0.75); }
+  /* アプリの「？」のピン（オレンジの丸に白い縁） */
+  .qpin { position: absolute; width: 64px; height: 64px; border-radius: 50%; background: var(--orange); border: 4px solid #fff;
+    color: var(--ink); font-weight: 600; font-size: 34px; line-height: 1; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.25); z-index: 5; }
+  .dot { position: absolute; width: 18px; height: 18px; border-radius: 50%; background: #2563eb; opacity: 0.6; }
+  .chip { position: absolute; display: flex; align-items: center; gap: 10px; padding: 10px 22px; border-radius: 16px; background: #fff; color: var(--navy);
+    font-size: 30px; font-weight: 600; white-space: nowrap; box-shadow: 0 4px 16px rgb(17 24 39 / 0.14); }
+  .bub { position: absolute; font-size: 36px; font-weight: 600; padding: 16px 30px; border-radius: 32px; white-space: nowrap; }
+  .bub.me { background: var(--navy); color: #fff; border-bottom-right-radius: 8px; }
+  .bub.them { background: #fff; color: var(--navy); border: 3px solid var(--navy); border-bottom-left-radius: 8px; }
+  .card { position: absolute; background: #fff; border-radius: 28px; box-shadow: 0 10px 32px rgb(17 24 39 / 0.14);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+  .card b { font-size: 30px; font-weight: 600; color: var(--navy); }
+  .lab { position: absolute; font-size: 30px; font-weight: 600; white-space: nowrap; }
+  /* 「できない」「届かない」の印（アプリのエラーの色 #b91c1c）と、「届く」の印（紺） */
+  .nox, .okv { position: absolute; width: 64px; height: 64px; border-radius: 50%; border: 4px solid #fff;
+    display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgb(0 0 0 / 0.25); z-index: 6; }
+  .nox { background: #b91c1c; }
+  .okv { background: var(--navy); }
+  svg.full { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; }
+  .dash line, .dash path { fill: none; stroke-width: 6; stroke-linecap: round; stroke-dasharray: 0.1 16; }
+
+  #root { background: var(--paper); }
+  #a08-world { left: 0; top: 0; width: 1920px; height: 1080px; opacity: 0; }
+  #a08-map { left: -960px; top: -540px; width: 3840px; height: 2160px; }
+  /* 公式の緑のピン（アプリと同じ: 緑の丸に白い縁、白い漢字1文字）。最初は画面の外にあり、引くと見える */
+  .gpin { position: absolute; width: 100px; height: 100px; border-radius: 50%; background: var(--green); border: 6px solid #fff; color: #fff;
+    font-size: 52px; font-weight: 600; line-height: 1; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgb(0 0 0 / 0.25); }
+  #a08-map line { stroke: #fff; stroke-width: 38; }
+  #a08-map .edge line { stroke: #e7e1d4; stroke-width: 46; }
+  #a08-scene { left: 0; top: 0; width: 1920px; height: 1080px; }
+  #a08-store { left: 750px; top: 120px; }
+  #a08-stall { left: 720px; top: 430px; }
+  #a08-owner { left: 470px; top: 330px; }
+  #a08-say { left: 250px; top: 220px; }
+  .a08-p { position: absolute; top: 590px; }
+  #a08-q { left: 912px; top: 30px; width: 96px; height: 96px; font-size: 52px; border-width: 5px; }
+  #a08-ring { left: 900px; top: 18px; width: 120px; height: 120px; position:absolute;border-radius:50%;border:5px solid var(--orange); }
+  #a08-disc { left: 820px; top: 300px; width: 280px; height: 280px; border-radius: 50%; background: #fff; border: 4px solid var(--navy); }
+  </style>
+  <div id="root" data-composition-id="a08" data-width="1920" data-height="1080">
+    <div id="a08-world" class="abs"><svg id="a08-map" class="abs" viewBox="-960 -540 3840 2160"><g class="edge"><line x1="80" y1="-540" x2="320" y2="1620"/><line x1="460" y1="-540" x2="700" y2="1620"/><line x1="1420" y1="-540" x2="1660" y2="1620"/><line x1="1740" y1="-540" x2="1980" y2="1620"/><line x1="-680" y1="-540" x2="-440" y2="1620"/><line x1="-300" y1="-540" x2="-60" y2="1620"/><line x1="2140" y1="-540" x2="2380" y2="1620"/><line x1="2540" y1="-540" x2="2780" y2="1620"/><line x1="-960" y1="210" x2="2880" y2="90"/><line x1="-960" y1="790" x2="2880" y2="670"/><line x1="-960" y1="1030" x2="2880" y2="910"/><line x1="-960" y1="-270" x2="2880" y2="-390"/><line x1="-960" y1="1430" x2="2880" y2="1310"/></g><g><line x1="80" y1="-540" x2="320" y2="1620"/><line x1="460" y1="-540" x2="700" y2="1620"/><line x1="1420" y1="-540" x2="1660" y2="1620"/><line x1="1740" y1="-540" x2="1980" y2="1620"/><line x1="-680" y1="-540" x2="-440" y2="1620"/><line x1="-300" y1="-540" x2="-60" y2="1620"/><line x1="2140" y1="-540" x2="2380" y2="1620"/><line x1="2540" y1="-540" x2="2780" y2="1620"/><line x1="-960" y1="210" x2="2880" y2="90"/><line x1="-960" y1="790" x2="2880" y2="670"/><line x1="-960" y1="1030" x2="2880" y2="910"/><line x1="-960" y1="-270" x2="2880" y2="-390"/><line x1="-960" y1="1430" x2="2880" y2="1310"/></g></svg><div class="gpin" style="left:-302px;top:248px">水</div><div class="gpin" style="left:2098px;top:198px">避</div><div class="gpin" style="left:1648px;top:1198px">水</div><div class="gpin" style="left:448px;top:-252px">避</div></div>
+    <div id="a08-disc" class="abs"></div>
+    <div id="a08-scene" class="abs">
+      <div id="a08-store" class="abs"><svg width="420" height="378" viewBox="0 0 400 360"><rect x="44" y="110" width="312" height="226" rx="8" fill="#fff" stroke="#1e3a5f" stroke-width="6"/><rect x="76" y="168" width="88" height="70" rx="6" fill="#dbe5f0" stroke="#1e3a5f" stroke-width="5"/><rect x="236" y="168" width="88" height="70" rx="6" fill="#dbe5f0" stroke="#1e3a5f" stroke-width="5"/><rect x="172" y="196" width="56" height="140" rx="4" fill="#dbe5f0" stroke="#1e3a5f" stroke-width="5"/><circle cx="216" cy="268" r="5" fill="#1e3a5f"/><rect x="58" y="14" width="284" height="50" rx="10" fill="#1e3a5f"/><rect x="150" y="32" width="100" height="14" rx="7" fill="#fff" opacity=".85"/><rect x="36" y="64" width="41" height="54" fill="#ea8a00"/><rect x="77" y="64" width="41" height="54" fill="#fff"/><rect x="118" y="64" width="41" height="54" fill="#ea8a00"/><rect x="159" y="64" width="41" height="54" fill="#fff"/><rect x="200" y="64" width="41" height="54" fill="#ea8a00"/><rect x="241" y="64" width="41" height="54" fill="#fff"/><rect x="282" y="64" width="41" height="54" fill="#ea8a00"/><rect x="323" y="64" width="41" height="54" fill="#fff"/><rect x="36" y="64" width="328" height="54" fill="none" stroke="#1e3a5f" stroke-width="6"/><path d="M36 118a20.5 20.5 0 0 0 41 0z" fill="#ea8a00" stroke="#1e3a5f" stroke-width="5" stroke-linejoin="round"/><path d="M77 118a20.5 20.5 0 0 0 41 0z" fill="#fff" stroke="#1e3a5f" stroke-width="5" stroke-linejoin="round"/><path d="M118 118a20.5 20.5 0 0 0 41 0z" fill="#ea8a00" stroke="#1e3a5f" stroke-width="5" stroke-linejoin="round"/><path d="M159 118a20.5 20.5 0 0 0 41 0z" fill="#fff" stroke="#1e3a5f" stroke-width="5" stroke-linejoin="round"/><path d="M200 118a20.5 20.5 0 0 0 41 0z" fill="#ea8a00" stroke="#1e3a5f" stroke-width="5" stroke-linejoin="round"/><path d="M241 118a20.5 20.5 0 0 0 41 0z" fill="#fff" stroke="#1e3a5f" stroke-width="5" stroke-linejoin="round"/><path d="M282 118a20.5 20.5 0 0 0 41 0z" fill="#ea8a00" stroke="#1e3a5f" stroke-width="5" stroke-linejoin="round"/><path d="M323 118a20.5 20.5 0 0 0 41 0z" fill="#fff" stroke="#1e3a5f" stroke-width="5" stroke-linejoin="round"/><line x1="8" y1="338" x2="392" y2="338" stroke="#1e3a5f" stroke-width="6" stroke-linecap="round"/></svg></div>
+      <div id="a08-stall" class="abs"><svg width="480" height="180" viewBox="0 0 400 150"><rect x="72" y="20" width="110" height="56" rx="12" fill="#fff" stroke="#1e3a5f" stroke-width="6"/><line x1="64" y1="22" x2="190" y2="22" stroke="#1e3a5f" stroke-width="6" stroke-linecap="round"/><rect x="114" y="8" width="26" height="12" rx="4" fill="#1e3a5f"/><rect x="224" y="30" width="64" height="46" fill="#fff" stroke="#1e3a5f" stroke-width="5"/><line x1="256" y1="30" x2="256" y2="76" stroke="#ea8a00" stroke-width="5"/><rect x="232" y="-4" width="48" height="34" fill="#fff" stroke="#1e3a5f" stroke-width="5"/><line x1="256" y1="-4" x2="256" y2="30" stroke="#ea8a00" stroke-width="5"/><rect x="304" y="10" width="30" height="66" rx="9" fill="#fff" stroke="#1e3a5f" stroke-width="5"/><rect x="310" y="0" width="18" height="12" rx="3" fill="#1e3a5f"/><rect x="20" y="76" width="360" height="20" rx="5" fill="#1e3a5f"/><rect x="44" y="96" width="14" height="52" fill="#1e3a5f"/><rect x="342" y="96" width="14" height="52" fill="#1e3a5f"/></svg></div>
+      <div id="a08-owner" class="abs"><svg width="120" height="200" viewBox="0 0 120 200"><circle cx="60" cy="34" r="28" fill="#1e3a5f"/><path d="M14 196V106c0-26 20-42 46-42s46 16 46 42v90z" fill="#1e3a5f"/><rect x="72" y="92" width="38" height="62" rx="8" fill="#fff" stroke="#1e3a5f" stroke-width="5"/></svg></div>
+      <p class="bub me" id="a08-say">拡散して</p>
+      <div id="a08-crowd"></div>
+      <div id="a08-ring" class="abs"></div>
+      <div id="a08-q" class="qpin">?</div>
+    </div>
+    <div class="cap band"><p>誰も<em>書かなくても</em>、<em>1つの地図</em>にまとまる。</p><p>投稿の手間がいらない。</p></div>
+
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const IN = (t, at, o = {}) => tl.fromTo(t, { opacity: 0, y: 16, filter: "blur(6px)", ...o.from },
+      { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.5, ease: "expo.out", stagger: o.stagger ?? 0, ...o.to }, at);
+    const OUT = (t, at, d = 0.4) => tl.to(t, { opacity: 0, duration: d, ease: "power2.in" }, at);
+    const POP = (t, at, stagger = 0) => tl.fromTo(t, { scale: 0.2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: "back.out(1.8)", stagger }, at);
+    // テロップ: 左から拭って出し、少し遅れて大事な語にマーカーを引く
+    const CAP = (sel, at) => {
+      tl.fromTo(sel, { clipPath: "inset(0% 100% 0% 0% round 18px)", x: -18 }, { clipPath: "inset(0% 0% 0% 0% round 18px)", x: 0, duration: 0.55, ease: "power3.out" }, at);
+      tl.set(sel, { clipPath: "none" }, at + 0.56);
+      const em = document.querySelector(sel).querySelectorAll("em");
+      if (em.length) tl.to(em, { backgroundSize: "100% 100%", duration: 0.5, ease: "power2.out" }, at + 0.45);
+    };
+    // ✕ の印: 回りながら弾んで出て、小さく震える
+    const NOX = (sel, at) => {
+      tl.fromTo(sel, { scale: 0, rotation: -90, opacity: 0 }, { scale: 1, rotation: 0, opacity: 1, duration: 0.5, ease: "back.out(2.5)" }, at);
+      tl.to(sel, { x: "+=7", duration: 0.05, repeat: 5, yoyo: true, ease: "none" }, at + 0.5);
+    };
+    // 点線を (x1,y1) から (x2,y2) まで伸ばす（長さ 0 の線も丸い端で点が出るので、伸ばし始めるまで隠す）
+    const DRAW = (sel, at, d, x2, y2, ease = "power2.out") => {
+      tl.fromTo(sel, { opacity: 0 }, { opacity: 1, duration: 0.05 }, at);
+      tl.to(sel, { attr: { x2, y2 }, duration: d, ease }, at);
+    };
+    // 輪が広がって消える（届いた・立ったの合図）
+    const RING = (sel, at) => tl.fromTo(sel, { scale: 0.3, opacity: 0.9 }, { scale: 2.4, opacity: 0, duration: 0.8, ease: "power2.out", immediateRender: false }, at);
+
+    gsap.set("#a08-disc", { scale: 0 });
+    gsap.set("#a08-ring", { opacity: 0 });
+    tl.fromTo("#a08-store", { y: 60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.7, ease: "back.out(1.4)" }, 0.1);
+    tl.fromTo("#a08-stall", { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "back.out(1.8)" }, 0.3);
+    IN("#a08-owner", 0.4);
+    tl.fromTo("#a08-say", { y: 20, opacity: 0, scale: 0.8 }, { y: 0, opacity: 1, scale: 1, duration: 0.5, ease: "back.out(2)" }, 0.8);
+    // 呼びかけは要らない: 吹き出しが薄くなって消え、スマホを下ろす
+    tl.to("#a08-say", { opacity: 0, y: -14, duration: 0.7, ease: "power2.in" }, 1.6);
+    tl.to("#a08-owner svg rect", { y: 30, duration: 0.5, ease: "power2.inOut" }, 1.8);
+    // 人が店の前に集まる
+    const box = document.querySelector("#a08-crowd");
+    const from = [[-300, 0], [-500, 0], [2200, 0], [2400, 0], [-700, 0], [2600, 0], [-900, 0], [2800, 0]];
+    from.forEach(([fx], i) => {
+      const d = document.createElement("div");
+      d.className = "a08-p";
+      const x = 730 + i * 62;
+      d.style.left = `${x}px`;
+      d.innerHTML = `<svg width="50" height="83" viewBox="0 0 120 200"><circle cx="60" cy="34" r="28" fill="#1e3a5f"/><path d="M14 196V106c0-26 20-42 46-42s46 16 46 42v90z" fill="#1e3a5f"/></svg>`;
+      box.appendChild(d);
+      tl.fromTo(d, { x: fx - x, opacity: 0 }, { x: 0, opacity: 1, duration: 1.6, ease: "power2.out" }, 2.0 + i * 0.12);
+    });
+    // 集まったところに「？」が立ち、地の下に地図が浮かぶ
+    tl.fromTo("#a08-q", { y: -80, scale: 0.2, opacity: 0 }, { y: 0, scale: 1, opacity: 1, duration: 0.7, ease: "bounce.out" }, 4.4);
+    RING("#a08-ring", 4.9);
+    tl.to("#a08-world", { opacity: 1, duration: 0.8, ease: "power1.out" }, 4.8);
+    // 引くと、同じ地図に公式の緑のピンが先に立っている（1つの地図にまとまる）
+    tl.to("#a08-world, #a08-scene", { scale: 0.6, transformOrigin: "960px 380px", duration: 1.0, ease: "power2.inOut" }, 4.9);
+    tl.to(".gpin", { scale: 1.2, duration: 0.25, ease: "power2.out", yoyo: true, repeat: 1, stagger: 0.08 }, 6.0);
+    CAP(".cap p:nth-child(1)", 2.4);
+    CAP(".cap p:nth-child(2)", 5.4);
+    // A09 へ: 店とピンが中央の丸い札に縮む
+    OUT(".cap, #a08-owner, #a08-world", 7.3, 0.35);
+    tl.to("#a08-disc", { scale: 1, duration: 0.5, ease: "expo.out" }, 7.3);
+    tl.to("#a08-scene", { scale: 0.4, x: 0, y: 80, transformOrigin: "960px 380px", duration: 0.7, ease: "power3.inOut" }, 7.3);
+
+    window.__timelines["a08"] = tl;
+  </script>
+</template>

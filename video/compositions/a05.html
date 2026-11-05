@@ -1,0 +1,136 @@
+<template>
+  <style>
+  #root { position: absolute; inset: 0; overflow: hidden; font-family: "Noto Sans JP", sans-serif;
+    color: var(--ink); font-variant-numeric: tabular-nums; }
+  .abs { position: absolute; }
+  /* テロップ: 左 120px・下 120px から左寄せ。左から拭うように出し、大事な語にオレンジのマーカーを引く */
+  .cap { position: absolute; left: 120px; bottom: 120px; display: flex; flex-direction: column; align-items: flex-start; gap: 14px; z-index: 20; }
+  .cap p { font-size: 56px; font-weight: 600; line-height: 1.35; white-space: nowrap; }
+  .cap.band p { background: #fff; color: var(--navy); padding: 10px 28px; border-radius: 18px; box-shadow: 0 6px 24px rgb(17 24 39 / 0.16); }
+  .cap.dark p { color: #fff; }
+  .cap em { font-style: normal; background: linear-gradient(transparent 62%, rgb(234 138 0 / 0.42) 62%) no-repeat 0 0 / 0% 100%; }
+  .cap.dark em { background-image: linear-gradient(transparent 62%, rgb(234 138 0 / 0.75) 62%); }
+  .credit { position: absolute; right: 24px; bottom: 16px; font-size: 18px; color: #3a3a3c; z-index: 21;
+    background: rgb(255 255 255 / 0.85); padding: 4px 12px; border-radius: 8px; }
+  .src { position: absolute; right: 40px; bottom: 28px; font-size: 28px; color: var(--muted); z-index: 21; }
+  .src.dark { color: rgb(255 255 255 / 0.75); }
+  /* アプリの「？」のピン（オレンジの丸に白い縁） */
+  .qpin { position: absolute; width: 64px; height: 64px; border-radius: 50%; background: var(--orange); border: 4px solid #fff;
+    color: var(--ink); font-weight: 600; font-size: 34px; line-height: 1; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.25); z-index: 5; }
+  .dot { position: absolute; width: 18px; height: 18px; border-radius: 50%; background: #2563eb; opacity: 0.6; }
+  .chip { position: absolute; display: flex; align-items: center; gap: 10px; padding: 10px 22px; border-radius: 16px; background: #fff; color: var(--navy);
+    font-size: 30px; font-weight: 600; white-space: nowrap; box-shadow: 0 4px 16px rgb(17 24 39 / 0.14); }
+  .bub { position: absolute; font-size: 36px; font-weight: 600; padding: 16px 30px; border-radius: 32px; white-space: nowrap; }
+  .bub.me { background: var(--navy); color: #fff; border-bottom-right-radius: 8px; }
+  .bub.them { background: #fff; color: var(--navy); border: 3px solid var(--navy); border-bottom-left-radius: 8px; }
+  .card { position: absolute; background: #fff; border-radius: 28px; box-shadow: 0 10px 32px rgb(17 24 39 / 0.14);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+  .card b { font-size: 30px; font-weight: 600; color: var(--navy); }
+  .lab { position: absolute; font-size: 30px; font-weight: 600; white-space: nowrap; }
+  /* 「できない」「届かない」の印（アプリのエラーの色 #b91c1c）と、「届く」の印（紺） */
+  .nox, .okv { position: absolute; width: 64px; height: 64px; border-radius: 50%; border: 4px solid #fff;
+    display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgb(0 0 0 / 0.25); z-index: 6; }
+  .nox { background: #b91c1c; }
+  .okv { background: var(--navy); }
+  svg.full { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; }
+  .dash line, .dash path { fill: none; stroke-width: 6; stroke-linecap: round; stroke-dasharray: 0.1 16; }
+
+  #root { background: var(--paper); }
+  #a05-src { left: 180px; top: 320px; width: 240px; height: 240px; border-radius: 50%; background: #fff; border: 4px solid var(--navy);
+    display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 28px rgb(17 24 39 / 0.14); }
+  #a05-me { left: 1540px; top: 340px; }
+  #a05-ring { left: 1540px; top: 380px; width: 120px; height: 120px; position:absolute;border-radius:50%;border:5px solid var(--orange); }
+  .a05-dash .top { stroke: var(--navy); }
+  .a05-dash .bot { stroke: var(--green); }
+  #a05-lt { left: 470px; top: 200px; color: var(--navy); }
+  #a05-lb { left: 470px; top: 622px; color: var(--green); }
+  .a05-m { position: absolute; top: 260px; z-index: 4; }
+  #a05-house { left: 0; top: -4px; width: 88px; height: 88px; border-radius: 50%; background: #fff; border: 3px solid var(--navy);
+    display: flex; align-items: center; justify-content: center; }
+  #a05-off { left: 470px; top: 514px; width: 210px; height: 92px; border-radius: 16px; background: #fff; border: 4px solid var(--green);
+    display: flex; align-items: center; gap: 12px; padding: 0 16px; box-shadow: 0 6px 18px rgb(17 24 39 / 0.12); z-index: 4; }
+  #a05-off span { display: flex; flex-direction: column; gap: 8px; }
+  #a05-off span i { display: block; height: 10px; border-radius: 5px; background: #cfe5d8; }
+  </style>
+  <div id="root" data-composition-id="a05" data-width="1920" data-height="1080">
+    <div id="a05-src" class="abs"><svg width="170" height="153" viewBox="0 0 400 360"><rect x="44" y="110" width="312" height="226" rx="8" fill="#fff" stroke="#1e3a5f" stroke-width="6"/><rect x="76" y="168" width="88" height="70" rx="6" fill="#dbe5f0" stroke="#1e3a5f" stroke-width="5"/><rect x="236" y="168" width="88" height="70" rx="6" fill="#dbe5f0" stroke="#1e3a5f" stroke-width="5"/><rect x="172" y="196" width="56" height="140" rx="4" fill="#dbe5f0" stroke="#1e3a5f" stroke-width="5"/><circle cx="216" cy="268" r="5" fill="#1e3a5f"/><rect x="58" y="14" width="284" height="50" rx="10" fill="#1e3a5f"/><rect x="150" y="32" width="100" height="14" rx="7" fill="#fff" opacity=".85"/><rect x="36" y="64" width="41" height="54" fill="#ea8a00"/><rect x="77" y="64" width="41" height="54" fill="#fff"/><rect x="118" y="64" width="41" height="54" fill="#ea8a00"/><rect x="159" y="64" width="41" height="54" fill="#fff"/><rect x="200" y="64" width="41" height="54" fill="#ea8a00"/><rect x="241" y="64" width="41" height="54" fill="#fff"/><rect x="282" y="64" width="41" height="54" fill="#ea8a00"/><rect x="323" y="64" width="41" height="54" fill="#fff"/><rect x="36" y="64" width="328" height="54" fill="none" stroke="#1e3a5f" stroke-width="6"/><path d="M36 118a20.5 20.5 0 0 0 41 0z" fill="#ea8a00" stroke="#1e3a5f" stroke-width="5" stroke-linejoin="round"/><path d="M77 118a20.5 20.5 0 0 0 41 0z" fill="#fff" stroke="#1e3a5f" stroke-width="5" stroke-linejoin="round"/><path d="M118 118a20.5 20.5 0 0 0 41 0z" fill="#ea8a00" stroke="#1e3a5f" stroke-width="5" stroke-linejoin="round"/><path d="M159 118a20.5 20.5 0 0 0 41 0z" fill="#fff" stroke="#1e3a5f" stroke-width="5" stroke-linejoin="round"/><path d="M200 118a20.5 20.5 0 0 0 41 0z" fill="#ea8a00" stroke="#1e3a5f" stroke-width="5" stroke-linejoin="round"/><path d="M241 118a20.5 20.5 0 0 0 41 0z" fill="#fff" stroke="#1e3a5f" stroke-width="5" stroke-linejoin="round"/><path d="M282 118a20.5 20.5 0 0 0 41 0z" fill="#ea8a00" stroke="#1e3a5f" stroke-width="5" stroke-linejoin="round"/><path d="M323 118a20.5 20.5 0 0 0 41 0z" fill="#fff" stroke="#1e3a5f" stroke-width="5" stroke-linejoin="round"/><line x1="8" y1="338" x2="392" y2="338" stroke="#1e3a5f" stroke-width="6" stroke-linecap="round"/></svg></div>
+    <svg class="full dash a05-dash" viewBox="0 0 1920 1080">
+      <line class="top" id="a05-lt-line" x1="440" y1="300" x2="440" y2="300" />
+      <line class="bot" id="a05-lb-line" x1="440" y1="560" x2="440" y2="560" />
+    </svg>
+    <p class="lab" id="a05-lt"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1e3a5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" /></svg> SNS・お隣さん</p>
+    <p class="lab" id="a05-lb"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#0f7b4f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" x2="21" y1="22" y2="22" />
+  <line x1="6" x2="6" y1="18" y2="11" />
+  <line x1="10" x2="10" y1="18" y2="11" />
+  <line x1="14" x2="14" y1="18" y2="11" />
+  <line x1="18" x2="18" y1="18" y2="11" />
+  <polygon points="12 2 20 7 4 7" /></svg> 公式</p>
+    <p class="bub me a05-m" id="a05-m1">知っていたら教えて</p>
+    <p class="bub them a05-m" id="a05-m2">拡散して</p>
+    <div class="a05-m" id="a05-m3"><div id="a05-house" class="abs"><svg width="52" height="46" viewBox="0 0 200 180"><path d="M100 8 192 86v90H8V86z" fill="#1e3a5f" stroke-linejoin="round"/><rect x="38" y="104" width="44" height="40" rx="4" fill="#fff"/><rect x="118" y="112" width="40" height="64" rx="4" fill="#fff"/></svg></div></div>
+    <div id="a05-off" class="abs"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#0f7b4f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" />
+  <polyline points="12 6 12 12 16 14" /></svg><span><i style="width:110px"></i><i style="width:80px"></i><i style="width:96px"></i></span></div>
+    <div id="a05-ring"></div>
+    <div id="a05-me" class="abs"><svg width="120" height="200" viewBox="0 0 120 200"><circle cx="60" cy="34" r="28" fill="#1e3a5f"/><path d="M14 196V106c0-26 20-42 46-42s46 16 46 42v90z" fill="#1e3a5f"/></svg><div id="a05-got" class="abs" style="left:130px;top:-14px;"><svg width="120" height="70" viewBox="0 0 120 70"><path d="M10 8h100a8 8 0 0 1 8 8v30a8 8 0 0 1-8 8H40l-18 14v-14H10a8 8 0 0 1-8-8V16a8 8 0 0 1 8-8z" fill="#1e3a5f"/><circle cx="38" cy="31" r="6" fill="#fff"/><circle cx="60" cy="31" r="6" fill="#fff"/><circle cx="82" cy="31" r="6" fill="#fff"/></svg></div></div>
+    <div class="cap band"><p>公式に載るのを待つより、</p><p><em>SNS やお隣さん</em>の方が早かった。</p></div>
+
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const IN = (t, at, o = {}) => tl.fromTo(t, { opacity: 0, y: 16, filter: "blur(6px)", ...o.from },
+      { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.5, ease: "expo.out", stagger: o.stagger ?? 0, ...o.to }, at);
+    const OUT = (t, at, d = 0.4) => tl.to(t, { opacity: 0, duration: d, ease: "power2.in" }, at);
+    const POP = (t, at, stagger = 0) => tl.fromTo(t, { scale: 0.2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: "back.out(1.8)", stagger }, at);
+    // テロップ: 左から拭って出し、少し遅れて大事な語にマーカーを引く
+    const CAP = (sel, at) => {
+      tl.fromTo(sel, { clipPath: "inset(0% 100% 0% 0% round 18px)", x: -18 }, { clipPath: "inset(0% 0% 0% 0% round 18px)", x: 0, duration: 0.55, ease: "power3.out" }, at);
+      tl.set(sel, { clipPath: "none" }, at + 0.56);
+      const em = document.querySelector(sel).querySelectorAll("em");
+      if (em.length) tl.to(em, { backgroundSize: "100% 100%", duration: 0.5, ease: "power2.out" }, at + 0.45);
+    };
+    // ✕ の印: 回りながら弾んで出て、小さく震える
+    const NOX = (sel, at) => {
+      tl.fromTo(sel, { scale: 0, rotation: -90, opacity: 0 }, { scale: 1, rotation: 0, opacity: 1, duration: 0.5, ease: "back.out(2.5)" }, at);
+      tl.to(sel, { x: "+=7", duration: 0.05, repeat: 5, yoyo: true, ease: "none" }, at + 0.5);
+    };
+    // 点線を (x1,y1) から (x2,y2) まで伸ばす（長さ 0 の線も丸い端で点が出るので、伸ばし始めるまで隠す）
+    const DRAW = (sel, at, d, x2, y2, ease = "power2.out") => {
+      tl.fromTo(sel, { opacity: 0 }, { opacity: 1, duration: 0.05 }, at);
+      tl.to(sel, { attr: { x2, y2 }, duration: d, ease }, at);
+    };
+    // 輪が広がって消える（届いた・立ったの合図）
+    const RING = (sel, at) => tl.fromTo(sel, { scale: 0.3, opacity: 0.9 }, { scale: 2.4, opacity: 0, duration: 0.8, ease: "power2.out", immediateRender: false }, at);
+
+    gsap.set("#a05-ring", { opacity: 0 });
+    gsap.set("#a05-got", { opacity: 0 });
+    // A04 の店が左の札に収まる。受け取る人が右から入る
+    tl.fromTo("#a05-src", { scale: 0.85, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: "power2.out" }, 0);
+    tl.fromTo("#a05-me", { x: 300, opacity: 0 }, { x: 0, opacity: 1, duration: 0.8, ease: "expo.out" }, 0.2);
+    DRAW("#a05-lt-line", 0.6, 0.6, 1480, 300);
+    DRAW("#a05-lb-line", 0.7, 0.6, 1480, 560);
+    IN("#a05-lt, #a05-lb", 0.7, { stagger: 0.1 });
+    // 上の道: 吹き出しと隣の家が、次々に速く届く
+    // 店のそばに出て読める間だけ止まり、そこから一気に人へ届く
+    [["#a05-m1", 1.2], ["#a05-m2", 1.9], ["#a05-m3", 2.6]].forEach(([s, at]) => {
+      tl.fromTo(s, { x: 450, scale: 0.7, opacity: 0 }, { x: 450, scale: 1, opacity: 1, duration: 0.3, ease: "back.out(2)" }, at);
+      tl.to(s, { x: 1080, duration: 0.7, ease: "power2.in" }, at + 0.6);
+      tl.to(s, { opacity: 0, scale: 0.6, duration: 0.2 }, at + 1.3);
+      RING("#a05-ring", at + 1.3);
+      tl.fromTo("#a05-me", { scale: 1 }, { scale: 1.06, duration: 0.1, yoyo: true, repeat: 1, transformOrigin: "50% 100%" }, at + 1.3);
+    });
+    // 届いた知らせは、人のそばの吹き出しとして残る（A06 に引き継ぐ）
+    tl.fromTo("#a05-got", { scale: 0, opacity: 0, transformOrigin: "20% 100%" }, { scale: 1, opacity: 1, duration: 0.45, ease: "back.out(2.5)", immediateRender: false }, 2.5);
+    // 下の道: 公式の札は、一定の遅い速さで進む（比べた数字ではない）
+    tl.fromTo("#a05-off", { opacity: 0 }, { opacity: 1, duration: 0.4 }, 1.0);
+    tl.to("#a05-off", { x: 300, duration: 6.6, ease: "none" }, 1.2);
+    tl.to("#a05-off svg", { rotation: 360, duration: 6.6, ease: "none", transformOrigin: "50% 50%" }, 1.2);
+    CAP(".cap p:nth-child(1)", 1.0);
+    CAP(".cap p:nth-child(2)", 4.0);
+    // A06 へ: 道と店が消え、人が左へ動いて「SNS をしている人」になる
+    OUT(".cap, .a05-dash, #a05-lt, #a05-lb, #a05-off, #a05-src", 7.6, 0.4);
+    tl.to("#a05-me", { x: 170 - 1540, y: 370 - 340, duration: 1.2, ease: "power3.inOut" }, 7.8);
+
+    window.__timelines["a05"] = tl;
+  </script>
+</template>

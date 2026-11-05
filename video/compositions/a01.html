@@ -1,0 +1,124 @@
+<template>
+  <style>
+  #root { position: absolute; inset: 0; overflow: hidden; font-family: "Noto Sans JP", sans-serif;
+    color: var(--ink); font-variant-numeric: tabular-nums; }
+  .abs { position: absolute; }
+  /* テロップ: 左 120px・下 120px から左寄せ。左から拭うように出し、大事な語にオレンジのマーカーを引く */
+  .cap { position: absolute; left: 120px; bottom: 120px; display: flex; flex-direction: column; align-items: flex-start; gap: 14px; z-index: 20; }
+  .cap p { font-size: 56px; font-weight: 600; line-height: 1.35; white-space: nowrap; }
+  .cap.band p { background: #fff; color: var(--navy); padding: 10px 28px; border-radius: 18px; box-shadow: 0 6px 24px rgb(17 24 39 / 0.16); }
+  .cap.dark p { color: #fff; }
+  .cap em { font-style: normal; background: linear-gradient(transparent 62%, rgb(234 138 0 / 0.42) 62%) no-repeat 0 0 / 0% 100%; }
+  .cap.dark em { background-image: linear-gradient(transparent 62%, rgb(234 138 0 / 0.75) 62%); }
+  .credit { position: absolute; right: 24px; bottom: 16px; font-size: 18px; color: #3a3a3c; z-index: 21;
+    background: rgb(255 255 255 / 0.85); padding: 4px 12px; border-radius: 8px; }
+  .src { position: absolute; right: 40px; bottom: 28px; font-size: 28px; color: var(--muted); z-index: 21; }
+  .src.dark { color: rgb(255 255 255 / 0.75); }
+  /* アプリの「？」のピン（オレンジの丸に白い縁） */
+  .qpin { position: absolute; width: 64px; height: 64px; border-radius: 50%; background: var(--orange); border: 4px solid #fff;
+    color: var(--ink); font-weight: 600; font-size: 34px; line-height: 1; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.25); z-index: 5; }
+  .dot { position: absolute; width: 18px; height: 18px; border-radius: 50%; background: #2563eb; opacity: 0.6; }
+  .chip { position: absolute; display: flex; align-items: center; gap: 10px; padding: 10px 22px; border-radius: 16px; background: #fff; color: var(--navy);
+    font-size: 30px; font-weight: 600; white-space: nowrap; box-shadow: 0 4px 16px rgb(17 24 39 / 0.14); }
+  .bub { position: absolute; font-size: 36px; font-weight: 600; padding: 16px 30px; border-radius: 32px; white-space: nowrap; }
+  .bub.me { background: var(--navy); color: #fff; border-bottom-right-radius: 8px; }
+  .bub.them { background: #fff; color: var(--navy); border: 3px solid var(--navy); border-bottom-left-radius: 8px; }
+  .card { position: absolute; background: #fff; border-radius: 28px; box-shadow: 0 10px 32px rgb(17 24 39 / 0.14);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+  .card b { font-size: 30px; font-weight: 600; color: var(--navy); }
+  .lab { position: absolute; font-size: 30px; font-weight: 600; white-space: nowrap; }
+  /* 「できない」「届かない」の印（アプリのエラーの色 #b91c1c）と、「届く」の印（紺） */
+  .nox, .okv { position: absolute; width: 64px; height: 64px; border-radius: 50%; border: 4px solid #fff;
+    display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgb(0 0 0 / 0.25); z-index: 6; }
+  .nox { background: #b91c1c; }
+  .okv { background: var(--navy); }
+  svg.full { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; }
+  .dash line, .dash path { fill: none; stroke-width: 6; stroke-linecap: round; stroke-dasharray: 0.1 16; }
+
+  #root { background: var(--navy); }
+  #a01-cam { left: -430px; top: -137px; width: 2400px; height: 1350px; }
+  #a01-cam img { display: block; width: 2400px; height: 1350px; }
+  #a01-veil { left: 0; top: 0; width: 2400px; height: 1350px; background: var(--navy); opacity: 0.55; }
+  .a01-ring { position: absolute; border-radius: 50%; border: 2px solid rgb(255 255 255 / 0.75); }
+  #a01-mk { left: 1032px; top: 619px; width: 36px; height: 36px; border-radius: 50%; background: var(--orange); border: 5px solid #fff;
+    box-shadow: 0 0 0 6px rgb(255 255 255 / 0.18); }
+  #a01-pulse { left: 1010px; top: 597px; width: 80px; height: 80px; border-radius: 50%; border: 4px solid #fff; }
+  #a01-place { left: 664px; top: 476px; font-size: 32px; font-weight: 600; color: #fff; white-space: nowrap; }
+  #a01-line { left: 1100px; top: 196px; width: 4px; height: 470px; background: rgb(255 255 255 / 0.35); transform-origin: 50% 0%; }
+  #a01-years { left: 1140px; top: 170px; width: 700px; color: #fff; }
+  .a01-row { position: relative; margin-bottom: 40px; }
+  .a01-row i { position: absolute; left: -50px; top: 30px; width: 24px; height: 24px; border-radius: 50%; background: #fff; border: 5px solid var(--navy);
+    box-shadow: 0 0 0 3px #fff; }
+  .a01-row b { display: block; font-size: 72px; font-weight: 600; line-height: 1.15; }
+  .a01-row span { display: block; font-size: 36px; font-weight: 400; line-height: 1.5; opacity: 0.85; }
+  .a01-row small { font-size: 30px; }
+  </style>
+  <div id="root" data-composition-id="a01" data-width="1920" data-height="1080">
+    <div id="a01-cam" class="abs">
+      <img src="assets/map/yatsushiro.png" alt="">
+      <div id="a01-veil" class="abs"></div>
+      <div class="a01-ring" id="a01-r1" style="left:990px;top:577px;width:120px;height:120px;"></div>
+      <div class="a01-ring" id="a01-r2" style="left:950px;top:537px;width:200px;height:200px;"></div>
+      <div class="a01-ring" id="a01-r3" style="left:910px;top:497px;width:280px;height:280px;"></div>
+      <div id="a01-pulse" class="abs"></div>
+      <div id="a01-mk" class="abs"></div>
+    </div>
+    <p id="a01-place" class="abs">八代市</p>
+    <div id="a01-line" class="abs"></div>
+    <div id="a01-years" class="abs">
+      <div class="a01-row"><i></i><b>2016年</b><span>熊本地震</span></div>
+      <div class="a01-row"><i></i><b>2025年8月</b><span>八代市の豪雨</span></div>
+      <div class="a01-row"><i></i><b>2026年7月</b><span>熊本地震 <small>（実家と友人が被災）</small></span></div>
+    </div>
+    <div class="cap dark"><p>八代市出身。</p><p><em>何度も</em>被災した。</p></div>
+    <div class="credit" data-layout-ignore>地図 © OpenFreeMap © OpenMapTiles © OpenStreetMap ／ 施設 © OpenStreetMap、八代市 CC BY 4.0</div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const IN = (t, at, o = {}) => tl.fromTo(t, { opacity: 0, y: 16, filter: "blur(6px)", ...o.from },
+      { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.5, ease: "expo.out", stagger: o.stagger ?? 0, ...o.to }, at);
+    const OUT = (t, at, d = 0.4) => tl.to(t, { opacity: 0, duration: d, ease: "power2.in" }, at);
+    const POP = (t, at, stagger = 0) => tl.fromTo(t, { scale: 0.2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: "back.out(1.8)", stagger }, at);
+    // テロップ: 左から拭って出し、少し遅れて大事な語にマーカーを引く
+    const CAP = (sel, at) => {
+      tl.fromTo(sel, { clipPath: "inset(0% 100% 0% 0% round 18px)", x: -18 }, { clipPath: "inset(0% 0% 0% 0% round 18px)", x: 0, duration: 0.55, ease: "power3.out" }, at);
+      tl.set(sel, { clipPath: "none" }, at + 0.56);
+      const em = document.querySelector(sel).querySelectorAll("em");
+      if (em.length) tl.to(em, { backgroundSize: "100% 100%", duration: 0.5, ease: "power2.out" }, at + 0.45);
+    };
+    // ✕ の印: 回りながら弾んで出て、小さく震える
+    const NOX = (sel, at) => {
+      tl.fromTo(sel, { scale: 0, rotation: -90, opacity: 0 }, { scale: 1, rotation: 0, opacity: 1, duration: 0.5, ease: "back.out(2.5)" }, at);
+      tl.to(sel, { x: "+=7", duration: 0.05, repeat: 5, yoyo: true, ease: "none" }, at + 0.5);
+    };
+    // 点線を (x1,y1) から (x2,y2) まで伸ばす（長さ 0 の線も丸い端で点が出るので、伸ばし始めるまで隠す）
+    const DRAW = (sel, at, d, x2, y2, ease = "power2.out") => {
+      tl.fromTo(sel, { opacity: 0 }, { opacity: 1, duration: 0.05 }, at);
+      tl.to(sel, { attr: { x2, y2 }, duration: d, ease }, at);
+    };
+    // 輪が広がって消える（届いた・立ったの合図）
+    const RING = (sel, at) => tl.fromTo(sel, { scale: 0.3, opacity: 0.9 }, { scale: 2.4, opacity: 0, duration: 0.8, ease: "power2.out", immediateRender: false }, at);
+
+    const O = "1050px 637px"; // 地図の中の八代市役所
+    tl.fromTo("#a01-cam", { scale: 1.25 }, { scale: 1, duration: 3.0, ease: "power3.out", transformOrigin: O }, 0);
+    tl.fromTo("#a01-mk", { y: -160, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "bounce.out" }, 1.0);
+    tl.fromTo("#a01-pulse", { scale: 0.4, opacity: 1 }, { scale: 2.6, opacity: 0, duration: 0.9, ease: "power2.out" }, 1.45);
+    IN("#a01-place", 1.6, { from: { x: -16, y: 0 }, to: { x: 0 } });
+    tl.fromTo("#a01-line", { scaleY: 0 }, { scaleY: 1, duration: 3.6, ease: "none" }, 2.2);
+    const rows = document.querySelectorAll(".a01-row");
+    [2.4, 4.0, 5.6].forEach((at, i) => {
+      tl.fromTo(rows[i].querySelector("i"), { scale: 0 }, { scale: 1, duration: 0.4, ease: "back.out(3)" }, at);
+      tl.fromTo(rows[i].querySelectorAll("b, span"), { x: 40, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6, ease: "expo.out", stagger: 0.12 }, at + 0.05);
+      tl.fromTo(`#a01-r${i + 1}`, { scale: 0.3, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.8, ease: "expo.out" }, at + 0.1);
+    });
+    CAP(".cap p:nth-child(1)", 0.8);
+    CAP(".cap p:nth-child(2)", 6.6);
+    // A02 へ: 市役所の印へ寄りながら明るくする
+    OUT("#a01-years, #a01-line, #a01-place, .cap", 8.5, 0.5);
+    tl.to("#a01-cam", { scale: 1.9, duration: 1.5, ease: "power2.in", transformOrigin: O }, 8.5);
+    tl.to("#a01-veil", { opacity: 0.12, duration: 1.5, ease: "power1.in" }, 8.5);
+
+    window.__timelines["a01"] = tl;
+  </script>
+</template>

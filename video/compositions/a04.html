@@ -1,0 +1,144 @@
+<template>
+  <style>
+  #root { position: absolute; inset: 0; overflow: hidden; font-family: "Noto Sans JP", sans-serif;
+    color: var(--ink); font-variant-numeric: tabular-nums; }
+  .abs { position: absolute; }
+  /* テロップ: 左 120px・下 120px から左寄せ。左から拭うように出し、大事な語にオレンジのマーカーを引く */
+  .cap { position: absolute; left: 120px; bottom: 120px; display: flex; flex-direction: column; align-items: flex-start; gap: 14px; z-index: 20; }
+  .cap p { font-size: 56px; font-weight: 600; line-height: 1.35; white-space: nowrap; }
+  .cap.band p { background: #fff; color: var(--navy); padding: 10px 28px; border-radius: 18px; box-shadow: 0 6px 24px rgb(17 24 39 / 0.16); }
+  .cap.dark p { color: #fff; }
+  .cap em { font-style: normal; background: linear-gradient(transparent 62%, rgb(234 138 0 / 0.42) 62%) no-repeat 0 0 / 0% 100%; }
+  .cap.dark em { background-image: linear-gradient(transparent 62%, rgb(234 138 0 / 0.75) 62%); }
+  .credit { position: absolute; right: 24px; bottom: 16px; font-size: 18px; color: #3a3a3c; z-index: 21;
+    background: rgb(255 255 255 / 0.85); padding: 4px 12px; border-radius: 8px; }
+  .src { position: absolute; right: 40px; bottom: 28px; font-size: 28px; color: var(--muted); z-index: 21; }
+  .src.dark { color: rgb(255 255 255 / 0.75); }
+  /* アプリの「？」のピン（オレンジの丸に白い縁） */
+  .qpin { position: absolute; width: 64px; height: 64px; border-radius: 50%; background: var(--orange); border: 4px solid #fff;
+    color: var(--ink); font-weight: 600; font-size: 34px; line-height: 1; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.25); z-index: 5; }
+  .dot { position: absolute; width: 18px; height: 18px; border-radius: 50%; background: #2563eb; opacity: 0.6; }
+  .chip { position: absolute; display: flex; align-items: center; gap: 10px; padding: 10px 22px; border-radius: 16px; background: #fff; color: var(--navy);
+    font-size: 30px; font-weight: 600; white-space: nowrap; box-shadow: 0 4px 16px rgb(17 24 39 / 0.14); }
+  .bub { position: absolute; font-size: 36px; font-weight: 600; padding: 16px 30px; border-radius: 32px; white-space: nowrap; }
+  .bub.me { background: var(--navy); color: #fff; border-bottom-right-radius: 8px; }
+  .bub.them { background: #fff; color: var(--navy); border: 3px solid var(--navy); border-bottom-left-radius: 8px; }
+  .card { position: absolute; background: #fff; border-radius: 28px; box-shadow: 0 10px 32px rgb(17 24 39 / 0.14);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+  .card b { font-size: 30px; font-weight: 600; color: var(--navy); }
+  .lab { position: absolute; font-size: 30px; font-weight: 600; white-space: nowrap; }
+  /* 「できない」「届かない」の印（アプリのエラーの色 #b91c1c）と、「届く」の印（紺） */
+  .nox, .okv { position: absolute; width: 64px; height: 64px; border-radius: 50%; border: 4px solid #fff;
+    display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgb(0 0 0 / 0.25); z-index: 6; }
+  .nox { background: #b91c1c; }
+  .okv { background: var(--navy); }
+  svg.full { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; }
+  .dash line, .dash path { fill: none; stroke-width: 6; stroke-linecap: round; stroke-dasharray: 0.1 16; }
+
+  #root { background: var(--paper); }
+  #a04-left { left: 0; top: 0; width: 960px; height: 1080px; background: #e6f1eb; }
+  .a04-h { position: absolute; top: 56px; font-size: 48px; font-weight: 600; }
+  #a04-left .a04-h { left: 120px; color: var(--green); }
+  #a04-hr { left: 1040px; color: var(--navy); }
+  #a04-src { left: 330px; top: 50px; display: flex; gap: 22px; align-items: flex-end; }
+  #a04-list { left: 120px; top: 190px; width: 720px; height: 420px; border-radius: 22px; background: #fff; overflow: hidden;
+    box-shadow: 0 10px 30px rgb(17 24 39 / 0.14); }
+  #a04-list .bar { height: 54px; background: var(--green); color: #fff; font-size: 28px; font-weight: 600; display: flex; align-items: center; gap: 10px; padding: 0 24px; }
+  #a04-list .bar i { width: 12px; height: 12px; border-radius: 50%; background: rgb(255 255 255 / 0.6); }
+  #a04-list .bar span { margin-left: 12px; }
+  #a04-view { height: 366px; overflow: hidden; }
+  #a04-rows { padding: 6px 32px; }
+  .a04-row { height: 72px; display: flex; align-items: center; gap: 18px; border-bottom: 2px solid #eef0f3; }
+  .a04-row .k { width: 46px; height: 46px; border-radius: 22%; background: var(--green); color: #fff; font-size: 28px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; }
+  .a04-row .l { height: 14px; border-radius: 7px; background: #d9dde3; }
+  #a04-shop { left: 960px; top: 0; width: 960px; height: 1080px; }
+  #a04-store { left: 270px; top: 150px; }
+  #a04-stall { left: 230px; top: 470px; }
+  .a04-steam { position: absolute; stroke: #aeb6c2; stroke-width: 4; fill: none; stroke-linecap: round; opacity: 0; }
+  .a04-p { position: absolute; top: 560px; }
+  .a04-arrow line { stroke: var(--orange); }
+  #a04-head { left: 1172px; top: 384px; width: 0; height: 0; border-top: 18px solid transparent; border-bottom: 18px solid transparent;
+    border-right: 28px solid var(--orange); opacity: 0; }
+  </style>
+  <div id="root" data-composition-id="a04" data-width="1920" data-height="1080">
+    <div id="a04-left" class="abs">
+      <p class="a04-h">公式</p>
+      <div id="a04-src" class="abs"><svg width="78" height="66" viewBox="0 0 200 170"><path d="M100 8 188 60H12z" fill="#0f7b4f"/><rect x="20" y="62" width="160" height="10" fill="#0f7b4f"/><rect x="34" y="74" width="18" height="66" fill="#0f7b4f"/><rect x="72" y="74" width="18" height="66" fill="#0f7b4f"/><rect x="110" y="74" width="18" height="66" fill="#0f7b4f"/><rect x="148" y="74" width="18" height="66" fill="#0f7b4f"/><rect x="12" y="142" width="176" height="14" fill="#0f7b4f"/><rect x="4" y="156" width="192" height="10" fill="#0f7b4f"/></svg><svg width="74" height="62" viewBox="0 0 200 170"><path d="M70 8l30 30 30-30" fill="none" stroke="#0f7b4f" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/><rect x="10" y="40" width="180" height="118" rx="16" fill="#0f7b4f"/><rect x="28" y="56" width="144" height="86" rx="8" fill="#fff" opacity=".9"/></svg></div>
+      <div id="a04-list" class="abs" data-layout-ignore>
+        <div class="bar"><i></i><i></i><i></i><span>給水・避難所の一覧</span></div>
+        <div id="a04-view"><div id="a04-rows"><div class="a04-row"><span class="k">水</span><span class="l" style="width:300px"></span></div><div class="a04-row"><span class="k">避</span><span class="l" style="width:220px"></span></div><div class="a04-row"><span class="k">水</span><span class="l" style="width:340px"></span></div><div class="a04-row"><span class="k">避</span><span class="l" style="width:260px"></span></div><div class="a04-row"><span class="k">水</span><span class="l" style="width:310px"></span></div><div class="a04-row"><span class="k">避</span><span class="l" style="width:300px"></span></div><div class="a04-row"><span class="k">水</span><span class="l" style="width:220px"></span></div><div class="a04-row"><span class="k">避</span><span class="l" style="width:340px"></span></div><div class="a04-row"><span class="k">水</span><span class="l" style="width:260px"></span></div><div class="a04-row"><span class="k">避</span><span class="l" style="width:310px"></span></div></div></div>
+      </div>
+    </div>
+    <p id="a04-hr" class="a04-h">非公式</p>
+    <div id="a04-shop" class="abs">
+      <div id="a04-store" class="abs"><svg width="420" height="378" viewBox="0 0 400 360"><rect x="44" y="110" width="312" height="226" rx="8" fill="#fff" stroke="#1e3a5f" stroke-width="6"/><rect x="76" y="168" width="88" height="70" rx="6" fill="#dbe5f0" stroke="#1e3a5f" stroke-width="5"/><rect x="236" y="168" width="88" height="70" rx="6" fill="#dbe5f0" stroke="#1e3a5f" stroke-width="5"/><rect x="172" y="196" width="56" height="140" rx="4" fill="#dbe5f0" stroke="#1e3a5f" stroke-width="5"/><circle cx="216" cy="268" r="5" fill="#1e3a5f"/><rect x="58" y="14" width="284" height="50" rx="10" fill="#1e3a5f"/><rect x="150" y="32" width="100" height="14" rx="7" fill="#fff" opacity=".85"/><rect x="36" y="64" width="41" height="54" fill="#ea8a00"/><rect x="77" y="64" width="41" height="54" fill="#fff"/><rect x="118" y="64" width="41" height="54" fill="#ea8a00"/><rect x="159" y="64" width="41" height="54" fill="#fff"/><rect x="200" y="64" width="41" height="54" fill="#ea8a00"/><rect x="241" y="64" width="41" height="54" fill="#fff"/><rect x="282" y="64" width="41" height="54" fill="#ea8a00"/><rect x="323" y="64" width="41" height="54" fill="#fff"/><rect x="36" y="64" width="328" height="54" fill="none" stroke="#1e3a5f" stroke-width="6"/><path d="M36 118a20.5 20.5 0 0 0 41 0z" fill="#ea8a00" stroke="#1e3a5f" stroke-width="5" stroke-linejoin="round"/><path d="M77 118a20.5 20.5 0 0 0 41 0z" fill="#fff" stroke="#1e3a5f" stroke-width="5" stroke-linejoin="round"/><path d="M118 118a20.5 20.5 0 0 0 41 0z" fill="#ea8a00" stroke="#1e3a5f" stroke-width="5" stroke-linejoin="round"/><path d="M159 118a20.5 20.5 0 0 0 41 0z" fill="#fff" stroke="#1e3a5f" stroke-width="5" stroke-linejoin="round"/><path d="M200 118a20.5 20.5 0 0 0 41 0z" fill="#ea8a00" stroke="#1e3a5f" stroke-width="5" stroke-linejoin="round"/><path d="M241 118a20.5 20.5 0 0 0 41 0z" fill="#fff" stroke="#1e3a5f" stroke-width="5" stroke-linejoin="round"/><path d="M282 118a20.5 20.5 0 0 0 41 0z" fill="#ea8a00" stroke="#1e3a5f" stroke-width="5" stroke-linejoin="round"/><path d="M323 118a20.5 20.5 0 0 0 41 0z" fill="#fff" stroke="#1e3a5f" stroke-width="5" stroke-linejoin="round"/><line x1="8" y1="338" x2="392" y2="338" stroke="#1e3a5f" stroke-width="6" stroke-linecap="round"/></svg></div>
+      <svg class="a04-steam" style="left:330px;top:400px;" width="110" height="90" viewBox="0 0 110 90"><path d="M25 86c-10-14 10-22 0-36s10-22 0-36"/><path d="M55 86c-10-14 10-22 0-36s10-22 0-36"/><path d="M85 86c-10-14 10-22 0-36s10-22 0-36"/></svg>
+      <div id="a04-stall" class="abs"><svg width="500" height="187" viewBox="0 0 400 150"><rect x="72" y="20" width="110" height="56" rx="12" fill="#fff" stroke="#1e3a5f" stroke-width="6"/><line x1="64" y1="22" x2="190" y2="22" stroke="#1e3a5f" stroke-width="6" stroke-linecap="round"/><rect x="114" y="8" width="26" height="12" rx="4" fill="#1e3a5f"/><rect x="224" y="30" width="64" height="46" fill="#fff" stroke="#1e3a5f" stroke-width="5"/><line x1="256" y1="30" x2="256" y2="76" stroke="#ea8a00" stroke-width="5"/><rect x="232" y="-4" width="48" height="34" fill="#fff" stroke="#1e3a5f" stroke-width="5"/><line x1="256" y1="-4" x2="256" y2="30" stroke="#ea8a00" stroke-width="5"/><rect x="304" y="10" width="30" height="66" rx="9" fill="#fff" stroke="#1e3a5f" stroke-width="5"/><rect x="310" y="0" width="18" height="12" rx="3" fill="#1e3a5f"/><rect x="20" y="76" width="360" height="20" rx="5" fill="#1e3a5f"/><rect x="44" y="96" width="14" height="52" fill="#1e3a5f"/><rect x="342" y="96" width="14" height="52" fill="#1e3a5f"/></svg></div>
+      <div class="a04-p" id="a04-p1" style="left:110px;"><svg width="60" height="100" viewBox="0 0 120 200"><circle cx="60" cy="34" r="28" fill="#1e3a5f"/><path d="M14 196V106c0-26 20-42 46-42s46 16 46 42v90z" fill="#1e3a5f"/></svg></div>
+      <div class="a04-p" id="a04-p2" style="left:176px;"><svg width="54" height="90" viewBox="0 0 120 200"><circle cx="60" cy="34" r="28" fill="#1e3a5f"/><path d="M14 196V106c0-26 20-42 46-42s46 16 46 42v90z" fill="#1e3a5f"/></svg></div>
+      <div class="a04-p" id="a04-p3" style="left:744px;"><svg width="58" height="96" viewBox="0 0 120 200"><circle cx="60" cy="34" r="28" fill="#1e3a5f"/><path d="M14 196V106c0-26 20-42 46-42s46 16 46 42v90z" fill="#1e3a5f"/></svg></div>
+      <div class="a04-p" id="a04-p4" style="left:810px;"><svg width="52" height="86" viewBox="0 0 120 200"><circle cx="60" cy="34" r="28" fill="#1e3a5f"/><path d="M14 196V106c0-26 20-42 46-42s46 16 46 42v90z" fill="#1e3a5f"/></svg></div>
+    </div>
+    <svg class="full dash a04-arrow" viewBox="0 0 1920 1080"><line id="a04-ln" x1="1180" y1="402" x2="1180" y2="402" /></svg>
+    <div id="a04-head" class="abs"></div>
+    <div class="nox" id="a04-x" style="left:830px;top:370px;"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+    <div class="cap band"><p>本当に助かった店の前の炊き出しや配布は、</p><p>公式のサイトには<em>載っていない</em>。</p></div>
+
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const IN = (t, at, o = {}) => tl.fromTo(t, { opacity: 0, y: 16, filter: "blur(6px)", ...o.from },
+      { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.5, ease: "expo.out", stagger: o.stagger ?? 0, ...o.to }, at);
+    const OUT = (t, at, d = 0.4) => tl.to(t, { opacity: 0, duration: d, ease: "power2.in" }, at);
+    const POP = (t, at, stagger = 0) => tl.fromTo(t, { scale: 0.2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: "back.out(1.8)", stagger }, at);
+    // テロップ: 左から拭って出し、少し遅れて大事な語にマーカーを引く
+    const CAP = (sel, at) => {
+      tl.fromTo(sel, { clipPath: "inset(0% 100% 0% 0% round 18px)", x: -18 }, { clipPath: "inset(0% 0% 0% 0% round 18px)", x: 0, duration: 0.55, ease: "power3.out" }, at);
+      tl.set(sel, { clipPath: "none" }, at + 0.56);
+      const em = document.querySelector(sel).querySelectorAll("em");
+      if (em.length) tl.to(em, { backgroundSize: "100% 100%", duration: 0.5, ease: "power2.out" }, at + 0.45);
+    };
+    // ✕ の印: 回りながら弾んで出て、小さく震える
+    const NOX = (sel, at) => {
+      tl.fromTo(sel, { scale: 0, rotation: -90, opacity: 0 }, { scale: 1, rotation: 0, opacity: 1, duration: 0.5, ease: "back.out(2.5)" }, at);
+      tl.to(sel, { x: "+=7", duration: 0.05, repeat: 5, yoyo: true, ease: "none" }, at + 0.5);
+    };
+    // 点線を (x1,y1) から (x2,y2) まで伸ばす（長さ 0 の線も丸い端で点が出るので、伸ばし始めるまで隠す）
+    const DRAW = (sel, at, d, x2, y2, ease = "power2.out") => {
+      tl.fromTo(sel, { opacity: 0 }, { opacity: 1, duration: 0.05 }, at);
+      tl.to(sel, { attr: { x2, y2 }, duration: d, ease }, at);
+    };
+    // 輪が広がって消える（届いた・立ったの合図）
+    const RING = (sel, at) => tl.fromTo(sel, { scale: 0.3, opacity: 0.9 }, { scale: 2.4, opacity: 0, duration: 0.8, ease: "power2.out", immediateRender: false }, at);
+
+    // A03 の窓が重なって、1 枚のリストになる。右の店が下から立ち上がる
+    tl.fromTo("#a04-left", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: "power1.out" }, 0);
+    tl.fromTo("#a04-list", { scale: 0.5, opacity: 0.6 }, { scale: 1, opacity: 1, duration: 0.8, ease: "power3.out" }, 0);
+    IN("#a04-left .a04-h", 0.4);
+    tl.fromTo("#a04-src > svg", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "back.out(2)", stagger: 0.12 }, 0.5);
+    tl.fromTo("#a04-rows", { y: 0 }, { y: -360, duration: 9, ease: "none" }, 1.0);
+    IN("#a04-hr", 1.2);
+    tl.fromTo("#a04-store", { y: 160, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease: "back.out(1.4)" }, 1.4);
+    tl.fromTo("#a04-stall", { y: 60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "back.out(1.8)" }, 1.8);
+    tl.fromTo(".a04-steam", { y: 16, opacity: 0 }, { y: -26, opacity: 0.9, duration: 1.4, ease: "none", repeat: 5 }, 2.2);
+    [["#a04-p1", -420], ["#a04-p2", -360], ["#a04-p3", 420], ["#a04-p4", 380]].forEach(([s, dx], i) =>
+      tl.fromTo(s, { x: dx, opacity: 0 }, { x: 0, opacity: 1, duration: 1.2, ease: "power2.out" }, 2.4 + i * 0.15));
+    // 店からリストへ矢印が伸び、リストの手前で止まって ✕
+    tl.set("#a04-head", { opacity: 1 }, 4.0);
+    DRAW("#a04-ln", 4.0, 1.2, 890, 402, "power2.inOut");
+    tl.fromTo("#a04-head", { x: 0 }, { x: -290, duration: 1.2, ease: "power2.inOut" }, 4.0);
+    NOX("#a04-x", 5.2);
+    tl.to("#a04-ln, #a04-head", { opacity: 0.25, duration: 0.6 }, 5.6);
+    CAP(".cap p:nth-child(1)", 2.0);
+    CAP(".cap p:nth-child(2)", 5.8);
+    // A05 へ: 左が抜け、店が左へ縮んで A05 の道の起点になる
+    OUT(".cap, .a04-arrow, #a04-head, #a04-hr, #a04-x", 8.3, 0.4);
+    OUT(".a04-p", 8.5, 0.3);
+    tl.to("#a04-left", { x: -960, duration: 0.8, ease: "power2.in" }, 8.5);
+    tl.to("#a04-shop", { x: -1140, y: 30, scale: 0.4, transformOrigin: "480px 410px", duration: 1.2, ease: "power3.inOut" }, 8.6);
+
+    window.__timelines["a04"] = tl;
+  </script>
+</template>

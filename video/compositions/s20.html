@@ -1,0 +1,70 @@
+<template>
+  <style>
+  #root { position: absolute; inset: 0; overflow: hidden; font-family: "Noto Sans JP", sans-serif;
+    color: var(--ink); font-variant-numeric: tabular-nums; }
+  .abs { position: absolute; }
+  .display { font-size: 96px; font-weight: 600; line-height: 1.3; }
+  .lead { font-size: 64px; font-weight: 600; line-height: 1.4; }
+  .body { font-size: 40px; font-weight: 400; line-height: 1.5; }
+  .note { font-size: 32px; font-weight: 400; line-height: 1.5; color: var(--muted); }
+  .accent { color: var(--orange); }
+  .src { position: absolute; left: 192px; bottom: 64px; font-size: 28px; color: var(--muted); }
+  .credit { position: absolute; right: 24px; bottom: 16px; font-size: 20px; color: #3a3a3c;
+    background: rgb(255 255 255 / 0.85); padding: 4px 12px; border-radius: 8px; }
+  .tag { display: inline-flex; align-items: center; justify-content: center; border-radius: 22%;
+    background: var(--navy); color: #fff; font-weight: 600; }
+  .phone { position: absolute; left: 300px; top: 68px; width: 449px; height: 944px; padding: 12px;
+    border-radius: 60px; background: #0e1726; box-shadow: 0 24px 60px rgb(17 24 39 / 0.28); }
+  .phone video, .phone img { display: block; width: 425px; height: 920px; border-radius: 48px; object-fit: cover; }
+  .clock { font-size: 120px; font-weight: 600; line-height: 1; color: var(--navy); letter-spacing: 0.02em; }
+  .clock small { display: block; font-size: 32px; font-weight: 400; color: var(--muted); margin-bottom: 16px; letter-spacing: 0; }
+
+  #root { background: var(--paper); }
+
+  #s20-text { left: 192px; top: 330px; width: 760px; }
+  #s20-text .display { font-size: 84px; }
+  #s20-text .lead { font-size: 50px; margin-top: 32px; }
+  #s20-key { left: 1060px; top: 940px; font-size: 32px; display: flex; gap: 40px; }
+  #s20-key i { display: inline-block; width: 26px; height: 26px; border-radius: 50%; vertical-align: -3px; margin-right: 10px; }
+
+  </style>
+  <div id="root" data-composition-id="s20" data-width="1920" data-height="1080">
+    <svg class="abs" style="left:0;top:0" width="1920" height="1080" data-layout-ignore><g id="s20-crowd"><circle cx="1376" cy="560" r="11" fill="#b8c2d1"/><circle cx="1339" cy="579" r="11" fill="#b8c2d1"/><circle cx="1363" cy="523" r="11" fill="#b8c2d1"/><circle cx="1387" cy="595" r="11" fill="#b8c2d1"/><circle cx="1311" cy="551" r="11" fill="#b8c2d1"/><circle cx="1406" cy="531" r="11" fill="#b8c2d1"/><circle cx="1345" cy="617" r="11" fill="#b8c2d1"/><circle cx="1424" cy="583" r="11" fill="#b8c2d1"/><circle cx="1294" cy="587" r="11" fill="#b8c2d1"/><circle cx="1392" cy="492" r="11" fill="#b8c2d1"/><circle cx="1384" cy="636" r="11" fill="#b8c2d1"/><circle cx="1289" cy="519" r="11" fill="#b8c2d1"/><circle cx="1444" cy="542" r="11" fill="#b8c2d1"/><circle cx="1309" cy="633" r="11" fill="#b8c2d1"/><circle cx="1348" cy="469" r="11" fill="#b8c2d1"/><circle cx="1432" cy="621" r="11" fill="#b8c2d1"/><circle cx="1262" cy="564" r="11" fill="#b8c2d1"/><circle cx="1431" cy="489" r="11" fill="#b8c2d1"/><circle cx="1355" cy="663" r="11" fill="#b8c2d1"/><circle cx="1292" cy="479" r="11" fill="#b8c2d1"/><circle cx="1467" cy="574" r="11" fill="#b8c2d1"/><circle cx="1269" cy="623" r="11" fill="#b8c2d1"/><circle cx="1385" cy="450" r="11" fill="#b8c2d1"/><circle cx="1417" cy="660" r="11" fill="#b8c2d1"/><circle cx="1248" cy="524" r="11" fill="#b8c2d1"/><circle cx="1469" cy="510" r="11" fill="#b8c2d1"/><circle cx="1318" cy="443" r="11" fill="#b8c2d1"/><circle cx="1472" cy="619" r="11" fill="#b8c2d1"/><circle cx="1235" cy="593" r="11" fill="#b8c2d1"/><circle cx="1431" cy="450" r="11" fill="#b8c2d1"/><circle cx="1383" cy="691" r="11" fill="#b8c2d1"/><circle cx="1253" cy="477" r="11" fill="#b8c2d1"/><circle cx="1497" cy="549" r="11" fill="#b8c2d1"/><circle cx="1266" cy="662" r="11" fill="#b8c2d1"/><circle cx="1361" cy="419" r="11" fill="#b8c2d1"/><circle cx="1456" cy="666" r="11" fill="#b8c2d1"/><circle cx="1216" cy="547" r="11" fill="#b8c2d1"/><circle cx="1477" cy="471" r="11" fill="#b8c2d1"/><circle cx="1333" cy="706" r="11" fill="#b8c2d1"/><circle cx="1280" cy="433" r="11" fill="#b8c2d1"/><circle cx="1507" cy="600" r="11" fill="#b8c2d1"/><circle cx="1223" cy="630" r="11" fill="#b8c2d1"/><circle cx="1414" cy="414" r="11" fill="#b8c2d1"/><circle cx="1419" cy="706" r="11" fill="#b8c2d1"/><circle cx="1216" cy="492" r="11" fill="#b8c2d1"/><circle cx="1278" cy="700" r="11" fill="#b8c2d1"/><circle cx="1326" cy="399" r="11" fill="#b8c2d1"/><circle cx="1495" cy="656" r="11" fill="#b8c2d1"/><circle cx="1194" cy="581" r="11" fill="#b8c2d1"/><circle cx="1470" cy="431" r="11" fill="#b8c2d1"/><circle cx="1366" cy="731" r="11" fill="#b8c2d1"/><circle cx="1239" cy="437" r="11" fill="#b8c2d1"/><circle cx="1534" cy="569" r="11" fill="#b8c2d1"/><circle cx="1225" cy="672" r="11" fill="#b8c2d1"/><circle cx="1384" cy="385" r="11" fill="#b8c2d1"/><circle cx="1461" cy="707" r="11" fill="#b8c2d1"/><circle cx="1185" cy="520" r="11" fill="#b8c2d1"/><circle cx="1518" cy="471" r="11" fill="#b8c2d1"/><circle cx="1304" cy="734" r="11" fill="#b8c2d1"/><circle cx="1283" cy="392" r="11" fill="#b8c2d1"/><circle cx="1531" cy="633" r="11" fill="#b8c2d1"/><circle cx="1183" cy="623" r="11" fill="#b8c2d1"/><circle cx="1449" cy="393" r="11" fill="#b8c2d1"/><circle cx="1408" cy="744" r="11" fill="#b8c2d1"/><circle cx="1550" cy="528" r="11" fill="#b8c2d1"/><circle cx="1240" cy="713" r="11" fill="#b8c2d1"/><circle cx="1345" cy="365" r="11" fill="#b8c2d1"/><circle cx="1504" cy="695" r="11" fill="#b8c2d1"/><circle cx="1161" cy="558" r="11" fill="#b8c2d1"/><circle cx="1509" cy="426" r="11" fill="#b8c2d1"/><circle cx="1340" cy="760" r="11" fill="#b8c2d1"/><circle cx="1238" cy="398" r="11" fill="#b8c2d1"/><circle cx="1561" cy="597" r="11" fill="#b8c2d1"/><circle cx="1186" cy="669" r="11" fill="#b8c2d1"/><circle cx="1416" cy="361" r="11" fill="#b8c2d1"/><circle cx="1454" cy="746" r="11" fill="#b8c2d1"/><circle cx="1164" cy="486" r="11" fill="#b8c2d1"/><circle cx="1555" cy="481" r="11" fill="#b8c2d1"/><circle cx="1268" cy="751" r="11" fill="#b8c2d1"/><circle cx="1298" cy="356" r="11" fill="#b8c2d1"/><circle cx="1545" cy="669" r="11" fill="#b8c2d1"/><circle cx="1149" cy="604" r="11" fill="#b8c2d1"/><circle cx="1486" cy="384" r="11" fill="#b8c2d1"/><circle cx="1193" cy="417" r="11" fill="#b8c2d1"/><circle cx="1581" cy="553" r="11" fill="#b8c2d1"/><circle cx="1201" cy="715" r="11" fill="#b8c2d1"/><circle cx="1372" cy="337" r="11" fill="#b8c2d1"/><circle cx="1502" cy="734" r="11" fill="#b8c2d1"/><circle cx="1137" cy="528" r="11" fill="#b8c2d1"/><circle cx="1547" cy="432" r="11" fill="#b8c2d1"/><circle cx="1308" cy="782" r="11" fill="#b8c2d1"/><circle cx="1248" cy="360" r="11" fill="#b8c2d1"/><circle cx="1579" cy="632" r="11" fill="#b8c2d1"/><circle cx="1149" cy="655" r="11" fill="#b8c2d1"/><circle cx="1452" cy="346" r="11" fill="#b8c2d1"/><circle cx="1437" cy="781" r="11" fill="#b8c2d1"/><circle cx="1153" cy="449" r="11" fill="#b8c2d1"/><circle cx="1589" cy="502" r="11" fill="#b8c2d1"/><circle cx="1230" cy="758" r="11" fill="#b8c2d1"/><circle cx="1322" cy="325" r="11" fill="#b8c2d1"/><circle cx="1548" cy="709" r="11" fill="#b8c2d1"/><circle cx="1120" cy="578" r="11" fill="#b8c2d1"/><circle cx="1357" cy="803" r="11" fill="#b8c2d1"/><circle cx="1198" cy="378" r="11" fill="#b8c2d1"/><circle cx="1604" cy="585" r="11" fill="#b8c2d1"/><circle cx="1162" cy="707" r="11" fill="#b8c2d1"/><circle cx="1407" cy="317" r="11" fill="#b8c2d1"/><circle cx="1490" cy="772" r="11" fill="#b8c2d1"/><circle cx="1120" cy="492" r="11" fill="#b8c2d1"/><circle cx="1584" cy="448" r="11" fill="#b8c2d1"/><circle cx="1270" cy="795" r="11" fill="#b8c2d1"/><circle cx="1267" cy="325" r="11" fill="#b8c2d1"/><circle cx="1589" cy="671" r="11" fill="#b8c2d1"/><circle cx="1116" cy="633" r="11" fill="#b8c2d1"/><circle cx="1492" cy="340" r="11" fill="#b8c2d1"/><circle cx="1412" cy="812" r="11" fill="#b8c2d1"/><circle cx="1151" cy="408" r="11" fill="#b8c2d1"/><circle cx="1618" cy="530" r="11" fill="#b8c2d1"/><circle cx="1189" cy="757" r="11" fill="#b8c2d1"/><circle cx="1353" cy="299" r="11" fill="#b8c2d1"/><circle cx="1542" cy="749" r="11" fill="#b8c2d1"/><circle cx="1565" cy="393" r="11" fill="#b8c2d1"/><circle cx="1321" cy="823" r="11" fill="#b8c2d1"/><circle cx="1211" cy="339" r="11" fill="#b8c2d1"/><circle cx="1620" cy="622" r="11" fill="#b8c2d1"/><circle cx="1125" cy="690" r="11" fill="#b8c2d1"/><circle cx="1446" cy="304" r="11" fill="#b8c2d1"/><circle cx="1470" cy="807" r="11" fill="#b8c2d1"/><circle cx="1111" cy="452" r="11" fill="#b8c2d1"/><circle cx="1618" cy="471" r="11" fill="#b8c2d1"/><circle cx="1229" cy="800" r="11" fill="#b8c2d1"/><circle cx="1294" cy="293" r="11" fill="#b8c2d1"/><circle cx="1590" cy="712" r="11" fill="#b8c2d1"/><circle cx="1087" cy="603" r="11" fill="#b8c2d1"/><circle cx="1533" cy="343" r="11" fill="#b8c2d1"/><circle cx="1379" cy="838" r="11" fill="#b8c2d1"/><circle cx="1158" cy="367" r="11" fill="#b8c2d1"/><circle cx="1640" cy="565" r="11" fill="#b8c2d1"/><circle cx="1149" cy="746" r="11" fill="#b8c2d1"/><circle cx="1390" cy="279" r="11" fill="#b8c2d1"/><circle cx="1081" cy="505" r="11" fill="#b8c2d1"/><circle cx="1604" cy="411" r="11" fill="#b8c2d1"/><circle cx="1280" cy="835" r="11" fill="#b8c2d1"/><circle cx="1232" cy="303" r="11" fill="#b8c2d1"/><circle cx="1629" cy="664" r="11" fill="#b8c2d1"/><circle cx="1091" cy="665" r="11" fill="#b8c2d1"/><circle cx="1488" cy="300" r="11" fill="#b8c2d1"/><circle cx="1442" cy="839" r="11" fill="#b8c2d1"/><circle cx="1110" cy="409" r="11" fill="#b8c2d1"/><circle cx="1647" cy="503" r="11" fill="#b8c2d1"/><circle cx="1187" cy="797" r="11" fill="#b8c2d1"/><circle cx="1328" cy="267" r="11" fill="#b8c2d1"/><circle cx="1582" cy="755" r="11" fill="#b8c2d1"/><circle cx="1064" cy="567" r="11" fill="#b8c2d1"/><circle cx="1575" cy="354" r="11" fill="#b8c2d1"/><circle cx="1341" cy="858" r="11" fill="#b8c2d1"/><circle cx="1173" cy="327" r="11" fill="#b8c2d1"/><circle cx="1657" cy="606" r="11" fill="#b8c2d1"/><circle cx="1110" cy="727" r="11" fill="#b8c2d1"/><circle cx="1506" cy="826" r="11" fill="#b8c2d1"/><circle cx="1072" cy="462" r="11" fill="#b8c2d1"/><circle cx="1639" cy="437" r="11" fill="#b8c2d1"/><circle cx="1237" cy="840" r="11" fill="#b8c2d1"/><circle cx="1262" cy="270" r="11" fill="#b8c2d1"/><circle cx="1629" cy="708" r="11" fill="#b8c2d1"/><circle cx="1061" cy="633" r="11" fill="#b8c2d1"/><circle cx="1532" cy="303" r="11" fill="#b8c2d1"/><circle cx="1407" cy="866" r="11" fill="#b8c2d1"/><circle cx="1118" cy="365" r="11" fill="#b8c2d1"/><circle cx="1671" cy="540" r="11" fill="#b8c2d1"/><circle cx="1143" cy="785" r="11" fill="#b8c2d1"/><circle cx="1367" cy="247" r="11" fill="#b8c2d1"/><circle cx="1567" cy="797" r="11" fill="#b8c2d1"/><circle cx="1047" cy="525" r="11" fill="#b8c2d1"/><circle cx="1615" cy="374" r="11" fill="#b8c2d1"/><circle cx="1297" cy="871" r="11" fill="#b8c2d1"/><circle cx="1196" cy="288" r="11" fill="#b8c2d1"/><circle cx="1666" cy="650" r="11" fill="#b8c2d1"/><circle cx="1477" cy="262" r="11" fill="#b8c2d1"/><circle cx="1475" cy="860" r="11" fill="#b8c2d1"/><circle cx="1072" cy="417" r="11" fill="#b8c2d1"/><circle cx="1670" cy="471" r="11" fill="#b8c2d1"/><circle cx="1191" cy="836" r="11" fill="#b8c2d1"/><circle cx="1298" cy="241" r="11" fill="#b8c2d1"/><circle cx="1622" cy="753" r="11" fill="#b8c2d1"/><circle cx="1036" cy="594" r="11" fill="#b8c2d1"/><circle cx="1577" cy="315" r="11" fill="#b8c2d1"/><circle cx="1366" cy="888" r="11" fill="#b8c2d1"/><circle cx="1134" cy="322" r="11" fill="#b8c2d1"/><circle cx="1689" cy="583" r="11" fill="#b8c2d1"/></g><g id="s20-users"><circle cx="1331" cy="503" r="16" fill="#1e3a5f"/><circle cx="1313" cy="673" r="16" fill="#1e3a5f"/><circle cx="1514" cy="513" r="16" fill="#1e3a5f"/><circle cx="1199" cy="456" r="16" fill="#1e3a5f"/><circle cx="1386" cy="777" r="16" fill="#1e3a5f"/><circle cx="1526" cy="384" r="16" fill="#1e3a5f"/><circle cx="1097" cy="544" r="16" fill="#1e3a5f"/><circle cx="1528" cy="788" r="16" fill="#1e3a5f"/><circle cx="1432" cy="267" r="16" fill="#1e3a5f"/><circle cx="1073" cy="700" r="16" fill="#1e3a5f"/></g></svg>
+    <div id="s20-text" class="abs">
+      <p class="display">全員でなくていい。</p>
+      <p class="lead">参加率5%なら、<br><span style="color:var(--navy)">10人</span>で約200人規模。</p>
+    </div>
+    <p id="s20-key" class="abs"><span><i style="background:#1e3a5f"></i>アプリ利用者 10人</span><span><i style="background:#b8c2d1"></i>集まり 約200人</span></p>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+
+    const IN = (t, at, o = {}) => tl.fromTo(t, { opacity: 0, filter: "blur(8px)", ...o.from },
+      { opacity: 1, filter: "blur(0px)", duration: 0.5, ease: "expo.out", stagger: o.stagger ?? 0, ...o.to }, at);
+    const POP = (t, at, stagger = 0) => tl.fromTo(t, { scale: 0.2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: "back.out(1.6)", stagger }, at);
+    // デモの時刻（分）を [秒, 分] の折れ線から出して時計に書く（scripts/capture-demo.js の keys と同じ）
+    const CLOCK = (sel, keys, dur) => {
+      const el = document.querySelector(sel);
+      const at = (s) => {
+        for (let i = 1; i < keys.length; i++) {
+          const [s0, t0] = keys[i - 1], [s1, t1] = keys[i];
+          if (s <= s1) return t0 + ((t1 - t0) * (s - s0)) / (s1 - s0);
+        }
+        return keys[keys.length - 1][1];
+      };
+      const o = { s: 0 };
+      tl.fromTo(o, { s: 0 }, { s: dur, duration: dur, ease: "none", onUpdate: () => {
+        const m = Math.floor(at(o.s));
+        el.textContent = `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
+      } }, 0);
+    };
+
+    IN("#s20-text .display", 0.3);
+    IN("#s20-crowd", 0.6, { to: { duration: 1.0 } });
+    IN("#s20-text .lead", 2.6);
+    POP("#s20-users circle", 3.0, 0.08);
+    IN("#s20-key", 4.0);
+
+    window.__timelines["s20"] = tl;
+  </script>
+</template>
