@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/logo.png" alt="あるばい — 人の動きが、いちばん速い災害情報になる" width="320"></p>
+
 # あるばい — 行動の記入フォーム（`survey` ブランチ）
 
 > **このブランチは記入フォームの置き場です。** アプリ本体（API・検知・画面）と、その説明（背景・システム構成・アーキテクチャ・動かし方）は [`main` ブランチの README](https://github.com/l4p1s/Built-with-Claude-Japan-2026_Lapis/blob/main/README.md) を見てください。

@@ -193,7 +193,7 @@ web/index.html
 web/app.js
 web/style.css
 web/manifest.webmanifest
-web/icon.svg, web/icon-180.png, web/icon-192.png, web/icon-512.png   # PNG は iPhone のホーム画面・PWA 用
+web/favicon.png, web/icon-180.png, web/icon-192.png, web/icon-512.png   # PNG は iPhone のホーム画面・PWA 用
 web/demo/timeline.json, web/demo/people.bin   # デモ再生の素材（§5。scripts/make_demo_assets.py が作る）
 web/places.geojson                            # 地図の背景の施設（§1.7。scripts/make_places.py が作る）
 scripts/import_bodik.py
