@@ -195,7 +195,7 @@ web/index.html
 web/app.js
 web/style.css
 web/manifest.webmanifest
-web/icon.svg, web/icon-180.png, web/icon-192.png, web/icon-512.png   # PNG は iPhone のホーム画面・PWA 用
+web/favicon.png, web/icon-180.png, web/icon-192.png, web/icon-512.png   # PNG は iPhone のホーム画面・PWA 用
 web/places.geojson                            # 地図の背景の施設（§1.7。scripts/make_places.py が作る）
 scripts/import_bodik.py
 scripts/check/ui-check.js, scripts/check/e2e-check.js     # 画面と通しの自動確認（Playwright）
