@@ -20,10 +20,7 @@ const START = { center: [130.6016, 32.5072], zoom: 13 }; // 八代市役所
 // 地図の中心を自分の位置にする。at=lat,lon で最初の場所、from=HH:MM で最初の時刻を決められる
 const PARAMS = new URLSearchParams(location.search);
 // サーバーを DEMO=1 で起動していないと web/demo/ が 404 になり、?demo=1 でもふだんの画面になる
-// デモになる条件: デモの素材（web/demo/）が配られていて、?demo=1 があるか、API のない静的な配信（Cloudflare Pages など。/healthz が返らない）
-const demoAssets = await fetch("demo/timeline.json", { method: "HEAD" }).then((r) => r.ok, () => false);
-const apiAlive = demoAssets && !PARAMS.has("demo") ? await fetch("/healthz").then((r) => r.ok, () => false) : true;
-const DEMO = demoAssets && (PARAMS.has("demo") || !apiAlive);
+const DEMO = PARAMS.has("demo") && (await fetch("demo/timeline.json", { method: "HEAD" }).then((r) => r.ok, () => false));
 const AT = PARAMS.get("at")?.split(",").map(Number);
 if (AT?.length === 2 && AT.every(Number.isFinite)) START.center = [AT[1], AT[0]];
 if (Number(PARAMS.get("zoom"))) START.zoom = Number(PARAMS.get("zoom")); // 動画を撮るときの拡大（at と一緒に使う）
