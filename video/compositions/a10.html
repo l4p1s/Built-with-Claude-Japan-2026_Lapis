@@ -44,10 +44,11 @@
   #a10-title span { display: inline-block; }
   #a10-bar { left: 760px; top: 538px; width: 400px; height: 6px; border-radius: 3px; background: var(--orange); transform-origin: 50% 50%; }
   #a10-sub { left: 0; top: 572px; width: 1920px; text-align: center; color: rgb(255 255 255 / 0.85); font-size: 36px; }
-  /* アプリ名: 白の札に紺の字。横に熊本弁の意味を添える */
-  #a10-app { left: 0; top: 700px; width: 1920px; display: flex; justify-content: center; align-items: center; gap: 24px; }
-  #a10-app b { background: #fff; color: var(--navy); font-size: 60px; font-weight: 700; padding: 8px 36px; border-radius: 20px; }
-  #a10-app span { color: rgb(255 255 255 / 0.85); font-size: 32px; }
+  /* アプリ名: アイコン（web/icon-512.png の写し。地が白なので角を丸めてアプリのアイコンの形にする）と白の字。横に熊本弁の意味を添える */
+  #a10-app { left: 0; top: 680px; width: 1920px; display: flex; justify-content: center; align-items: center; gap: 28px; }
+  #a10-app img { width: 128px; height: 128px; border-radius: 30px; box-shadow: 0 8px 28px rgb(0 0 0 / 0.3); }
+  #a10-app b { color: #fff; font-size: 72px; font-weight: 700; }
+  #a10-app span { color: rgb(255 255 255 / 0.85); font-size: 32px; margin-left: 8px; }
   </style>
   <div id="root" data-composition-id="a10" data-width="1920" data-height="1080">
     <div id="a10-map" class="abs"><img src="assets/map/M2.png" alt=""></div>
@@ -55,7 +56,8 @@
     <p id="a10-title" class="abs"><span>人の動きが、</span><span>いちばん速い災害情報になる</span></p>
     <div id="a10-bar" class="abs"></div>
     <p id="a10-sub" class="abs">GPS で、災害時の非公式な支援拠点を見つける</p>
-    <div id="a10-app" class="abs"><b>あるばい</b><span>熊本弁で「あるよ」</span></div>
+    <div id="a10-app" class="abs"><img src="assets/logo/arubai.png" alt=""><b>あるばい</b><span>熊本弁で「あるよ」</span></div>
+    <div class="credit" data-layout-ignore style="bottom: 58px;">音楽 Dosi &amp; Aisake - Cruising [NCS Release]　Music provided by NoCopyrightSounds</div>
     <div class="credit" data-layout-ignore>地図 © OpenFreeMap © OpenMapTiles © OpenStreetMap ／ 施設 © OpenStreetMap、八代市 CC BY 4.0</div>
   </div>
   <script>
@@ -89,7 +91,8 @@
     tl.fromTo("#a10-title span", { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "expo.out", stagger: 0.35 }, 1.4);
     tl.fromTo("#a10-bar", { scaleX: 0 }, { scaleX: 1, duration: 0.6, ease: "expo.out" }, 2.3);
     IN("#a10-sub", 2.6);
-    POP("#a10-app b", 3.3);
+    POP("#a10-app img", 3.2);
+    IN("#a10-app b", 3.45);
     IN("#a10-app span", 3.7);
     tl.to("#a10-veil", { opacity: 1, duration: 0.6 }, 5.4);
     OUT("#a10-title, #a10-bar, #a10-sub, #a10-app, .credit", 5.4, 0.6);

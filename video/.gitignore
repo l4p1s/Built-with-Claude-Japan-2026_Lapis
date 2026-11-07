@@ -6,3 +6,4 @@ boards/
 .hyperframes/
 node_modules/
 *.mp4
+assets/bgm/

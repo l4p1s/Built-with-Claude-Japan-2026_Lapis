@@ -73,6 +73,18 @@
 - 効果音は「？」が立つ瞬間と、ピンが紺に変わる瞬間だけ。小さく短い音にする
 - 曲と効果音は、ライセンスを記録できるものだけを使う（出典と条件を残す）
 
+使っている曲と効果音（2026-11-05 に決定）:
+
+| 本 | 曲 | クレジット（動画の最後の右下と、動画を載せる場所の説明欄に書く） |
+|---|---|---|
+| 1本目 | Dosi & Aisake - Cruising（Lofi、83 BPM） | Song: Dosi & Aisake - Cruising [NCS Release] / Music provided by NoCopyrightSounds / Free Download/Stream: http://ncs.io/Cruising / Watch: http://ncs.lnk.to/CruisingAT/youtube |
+| 2本目 | Syn Cole - Need Ya の Instrumental 版（House、123 BPM） | Song: Syn Cole - Need Ya [NCS Release] / Music provided by NoCopyrightSounds / Free Download/Stream: http://NCS.io/NeedYa / Watch: https://www.youtube.com/watch?v=QGsxW6m5Dec |
+
+- 条件: NCS の利用規約（https://ncs.io/usage-policy ）。個人の制作物は無料で、クレジットが必要。企業や商品の宣伝に使うときはライセンスが要るので、事業にするときは見直す
+- 曲のファイルは ncs.io から落として `video/assets/bgm/` に置く（Git に入れない）
+- 効果音は `video/mix-audio.sh` の中で ffmpeg の式から作る（外部の素材なし）
+- 曲の頭出しは拍の解析で決めた。1本目は、曲のドラムが戻るところが A07 の頭に来て、A02〜A06（課題）は曲の静かなところになる。2本目は、曲が1拍止まって戻るところが、B03 でピンが紺になる瞬間に乗る
+
 ### 作るときの進め方
 
 1. 各シーンの最後の1コマを静止画で並べ、テロップと配置を確かめてから動きを付ける
