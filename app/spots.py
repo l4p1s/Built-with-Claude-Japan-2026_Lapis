@@ -160,8 +160,11 @@ def unofficial_features(conn: psycopg.Connection, bbox: Bbox | None) -> list[dic
               AND (SELECT count(*) FROM flags f WHERE f.answer_id = a.id) < %(hide_flags)s
         ) n ON true
         WHERE {ALIVE} {where}
+        ORDER BY c.last_activity_at DESC
+        LIMIT %(cap)s
         """,
         {
+            "cap": rules.MAX_SPOTS,
             "fade": rules.FADE_AFTER,
             "hide": rules.HIDE_AFTER,
             "kinds": list(rules.KINDS),

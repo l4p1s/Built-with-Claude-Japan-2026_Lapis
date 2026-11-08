@@ -523,7 +523,7 @@ async function checkQuestions() {
   if (!here) return;
   let list;
   try {
-    list = await api(`/questions?lat=${here.lat}&lon=${here.lon}`);
+    list = await api("/questions", { method: "POST", body: { lat: here.lat, lon: here.lon } });
   } catch {
     return;
   }

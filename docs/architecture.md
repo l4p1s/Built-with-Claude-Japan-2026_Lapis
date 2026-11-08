@@ -67,7 +67,7 @@ DB 接続は **psycopg 3 + 生 SQL**（PostGIS の関数は SQL で書く方が�
 | POST | /v1/sessions | 同意 `{"consent": true}` を受けてセッション発行 → `{token, expires_at}` |
 | DELETE | /v1/sessions/me | 自分のデータを全削除（参加の取り消し）。自分の回答と、自分の報告だけでできたピンも消える |
 | POST | /v1/locations | 位置の一括送信 `{points:[{lat,lon,accuracy_m,recorded_at}]}` → 202。ネイティブのバックグラウンド送信にもそのまま使える |
-| GET | /v1/questions?lat=&lon= | 近く（ST_DWithin）の未確認候補 =「ここに何がある？」 |
+| POST | /v1/questions `{lat, lon}` | 近く（ST_DWithin）の未確認候補 =「ここに何がある？」。位置は URL に入れない |
 | POST | /v1/candidates/{id}/answers | `{kind, note}` で回答（note は任意、100文字まで） |
 | POST | /v1/reports | 自分の位置で拠点を報告。近くに表示中の候補があればそこへ合流 |
 | POST | /v1/answers/{id}/flags | 備考を不適切として通報 |

@@ -10,3 +10,9 @@ data/out
 data/demo
 data/estat
 web/demo
+# Git に入れないもの（.gitignore と揃える）。友人の記入フォームの回答はイメージにも入れない
+.env
+.superpowers
+video
+web/video
+data/survey-answers*.json

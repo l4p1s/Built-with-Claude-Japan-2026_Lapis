@@ -18,6 +18,7 @@ HIDE_AFTER = timedelta(hours=6)  # 最後の確認からこの時間で地図か
 CONFIRM_ANSWERS = {"detected": 1, "report": 2}  # 確認済みになるのに必要な種類の回答の人数
 NOTE_MAX_LEN = 100
 NOTE_HIDE_FLAGS = 2  # この件数の通報で備考を出さなくする
+MAX_SPOTS = 500  # 1 回の地図の読み込みで返す非公式の拠点の上限（新しく確認された順）
 
 
 def area() -> tuple[float, float, float] | None:

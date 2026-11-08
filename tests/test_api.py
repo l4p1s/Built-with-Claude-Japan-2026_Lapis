@@ -70,7 +70,7 @@ def spot(h, cid):
 
 
 def question_ids(h, lat=LAT, lon=LON):
-    r = client.get("/v1/questions", params={"lat": lat, "lon": lon}, headers=h)
+    r = client.post("/v1/questions", json={"lat": lat, "lon": lon}, headers=h)
     return [q["candidate_id"] for q in r.json()]
 
 
@@ -115,7 +115,7 @@ def test_detected_candidate_confirmed_by_one_answer():
     h = new_session()
     cid = add_candidate()
     assert cid in question_ids(h)
-    q = client.get("/v1/questions", params={"lat": LAT, "lon": LON}, headers=h).json()
+    q = client.post("/v1/questions", json={"lat": LAT, "lon": LON}, headers=h).json()
     assert [x["source"] for x in q if x["candidate_id"] == cid] == ["detected"]
     assert cid not in question_ids(h, lat=LAT + 0.1)  # 約11km 先
     p = spot(h, cid)
@@ -221,7 +221,7 @@ def test_report_needs_second_person():
     assert [n["note"] for n in p["notes"]] == ["12時まで"]
     assert cid not in question_ids(h1)  # 報告した本人には聞かない
     assert cid in question_ids(h2)
-    q = client.get("/v1/questions", params={"lat": LAT, "lon": LON}, headers=h2).json()
+    q = client.post("/v1/questions", json={"lat": LAT, "lon": LON}, headers=h2).json()
     assert [x["source"] for x in q if x["candidate_id"] == cid] == ["report"]
 
     # 約50m 先からの報告は、同じ候補にまとまる
@@ -387,3 +387,58 @@ def test_limiter_window():
     assert lim.allow("a", now=100) and lim.allow("a", now=101) and not lim.allow("a", now=102)
     assert lim.allow("b", now=102)  # 別のキーは別に数える
     assert lim.allow("a", now=111)  # 10 秒たつと空く
+
+
+def test_rate_limit_ignores_client_forwarded_for(monkeypatch):
+    """端末が書いた X-Forwarded-For で参加の回数制限をすり抜けられない"""
+    from app import main, ratelimit
+
+    monkeypatch.setenv("RATE_LIMIT", "on")
+    monkeypatch.setitem(ratelimit.LIMITS, "sessions", ratelimit.Limiter(2, 60))
+    codes = [
+        client.post(
+            "/v1/sessions", json={"consent": True}, headers={"X-Forwarded-For": f"203.0.113.{i}"}
+        ).status_code
+        for i in range(3)
+    ]
+    assert codes == [201, 201, 429]
+    # 前段を信頼するときは、前段が付け足した末尾を使う（先頭を書き換えても同じ端末として数える）
+    monkeypatch.setattr(main, "TRUST_PROXY", True)
+    monkeypatch.setitem(ratelimit.LIMITS, "sessions", ratelimit.Limiter(2, 60))
+    codes = [
+        client.post(
+            "/v1/sessions",
+            json={"consent": True},
+            headers={"X-Forwarded-For": f"198.51.100.{i}, 203.0.113.9"},
+        ).status_code
+        for i in range(3)
+    ]
+    assert codes == [201, 201, 429]
+
+
+def test_hidden_candidate_cannot_be_revived_by_answer():
+    h = new_session()
+    cid = add_candidate()
+    sql("UPDATE candidates SET last_activity_at = now() - interval '7 hours' WHERE id = %s", (cid,))
+    assert answer(h, cid, "water").status_code == 404
+    assert sql("SELECT status FROM candidates WHERE id = %s", (cid,))[0][0] == "pending"
+    assert spot(h, cid) is None
+
+
+def test_spots_rejects_non_finite_bbox_and_limits_reads(monkeypatch):
+    from app import ratelimit
+
+    h = new_session()
+    assert client.get("/v1/spots", params={"bbox": "nan,nan,nan,nan"}, headers=h).status_code == 422
+    monkeypatch.setenv("RATE_LIMIT", "on")
+    monkeypatch.setitem(ratelimit.LIMITS, "reads", ratelimit.Limiter(2, 60))
+    codes = [client.get("/v1/spots", params={"bbox": BBOX}, headers=h).status_code for _ in range(3)]
+    assert codes == [200, 200, 429]
+
+
+def test_questions_take_position_in_body_not_url():
+    """位置は URL に入れない（URL はログや前段の記録に残る）"""
+    h = new_session()
+    # GET は受け付けない（API にない道は / の静的配信が受けて 404）
+    assert client.get("/v1/questions", params={"lat": LAT, "lon": LON}, headers=h).status_code == 404
+    assert client.post("/v1/questions", json={"lat": 200, "lon": LON}, headers=h).status_code == 422

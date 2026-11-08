@@ -1,3 +1,4 @@
+import math
 import mimetypes
 import os
 import threading
@@ -69,6 +70,11 @@ class Question(BaseModel):
     source: Literal["detected", "report"]
 
 
+class Position(BaseModel):
+    lat: Lat
+    lon: Lon
+
+
 class AnswerIn(BaseModel):
     kind: AnswerKind  # none = わからない、ended = もう終わっていた
     note: Note = None
@@ -94,6 +100,8 @@ def parse_bbox(bbox: str | None) -> spots.Bbox | None:
         w, s, e, n = map(float, bbox.split(","))
     except ValueError:
         raise HTTPException(422, "bbox must be minLon,minLat,maxLon,maxLat")
+    if not all(map(math.isfinite, (w, s, e, n))):
+        raise HTTPException(422, "bbox must be finite numbers")
     return w, s, e, n
 
 
@@ -103,10 +111,17 @@ def healthz(conn: Conn) -> dict:
     return {"ok": True}
 
 
+# 前段（リバースプロキシ）を通して公開するときだけ 1。前段が X-Forwarded-For の末尾に付け足した値を端末の IP とする。
+# 先頭は端末が自由に書けるので使わない（書き換えるだけで参加の回数制限をすり抜けられる）
+TRUST_PROXY = os.environ.get("TRUST_PROXY") == "1"
+
+
 def client_ip(request: Request) -> str:
-    # ngrok などの前段がいるときは X-Forwarded-For の先頭が端末
+    peer = request.client.host if request.client else "?"
     fwd = request.headers.get("x-forwarded-for")
-    return fwd.split(",")[0].strip() if fwd else (request.client.host if request.client else "?")
+    if TRUST_PROXY and fwd:
+        return fwd.split(",")[-1].strip() or peer
+    return peer
 
 
 @app.post("/v1/sessions", status_code=status.HTTP_201_CREATED)
@@ -150,23 +165,21 @@ def post_locations(body: LocationBatch, conn: Conn, sid: Session) -> Accepted:
     return Accepted(accepted=len(points))
 
 
-@app.get("/v1/questions")
-def get_questions(
-    lat: Annotated[float, Query(ge=-90, le=90)],
-    lon: Annotated[float, Query(ge=-180, le=180)],
-    conn: Conn,
-    sid: Session,
-) -> list[Question]:
-    rows = spots.questions(conn, sid, lat, lon)
+@app.post("/v1/questions")
+def post_questions(body: Position, conn: Conn, sid: Session) -> list[Question]:
+    """今いる場所の近くの「ここに何がある？」。位置は URL に入れず本文で受け取る（URL はログや前段の記録に残るため）"""
+    rows = spots.questions(conn, sid, body.lat, body.lon)
     return [Question(candidate_id=cid, lat=la, lon=lo, source=src) for cid, la, lo, src in rows]
 
 
 @app.post("/v1/candidates/{candidate_id}/answers", status_code=status.HTTP_201_CREATED)
 def post_answer(candidate_id: int, body: AnswerIn, conn: Conn, sid: Session) -> AnswerIn:
     ratelimit.check("writes", str(sid))
+    # 地図から消えた候補（最後の確認から HIDE_AFTER より前）には答えられない。ID を指定した 1 回の回答で復活させない
     row = conn.execute(
-        "SELECT ST_Y(center::geometry), ST_X(center::geometry) FROM candidates WHERE id = %s",
-        (candidate_id,),
+        "SELECT ST_Y(center::geometry), ST_X(center::geometry) FROM candidates"
+        " WHERE id = %s AND last_activity_at > now() - %s",
+        (candidate_id, rules.HIDE_AFTER),
     ).fetchone()
     if row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "candidate not found")
@@ -212,6 +225,7 @@ def get_spots(
     at: Annotated[AwareDatetime | None, Query(description="公式拠点をこの時点で絞る")] = None,
 ) -> dict:
     """非公式の拠点（確認済み・未確認）と公式の拠点を、1つの GeoJSON で返す。"""
+    ratelimit.check("reads", str(sid))
     box = parse_bbox(bbox)
     return {
         "type": "FeatureCollection",
