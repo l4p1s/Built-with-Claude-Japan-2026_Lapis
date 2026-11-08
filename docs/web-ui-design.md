@@ -201,7 +201,7 @@ scripts/import_bodik.py
 scripts/check/ui-check.js, scripts/check/e2e-check.js     # 画面と通しの自動確認（Playwright）
 ```
 
-- FastAPI が `/` で `web/` を配信する（API のルートより後に登録する）。API と同じサーバーなので CORS の設定は要らず、`ngrok http 18080` 1本で公開できる
+- FastAPI が `/` で `web/` を配信する（API のルートより後に登録する）。API と同じサーバーなので CORS の設定は要らず、TLS の前段 1 つで公開できる
 - MapLibre GL は CDN から読み込む
 
 ### 3.2 PWA

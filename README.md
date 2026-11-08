@@ -125,12 +125,8 @@
  | smartphone / browser    |   Web 画面（web/）: 素の HTML/JS + MapLibre GL 6
  |  web/index.html, app.js |   地図のタイル: OpenFreeMap（CDN）
  +-----------+-------------+
-             |  HTTPS（公開するとき。スマホで GPS を取るには HTTPS が必要）
-             v
- +-----------+-------------+
- | ngrok                   |   ngrok http 18080（開発は localhost のまま）
- +-----------+-------------+
-             |  http://localhost:18080
+             |  開発: http://localhost:18080
+             |  公開: HTTPS（スマホで GPS を取るには HTTPS が必要。TLS の前段は使う人の環境で用意）
              v
  +--------------------------------- docker compose ---------------------------------+
  |                                                                                  |
@@ -147,7 +143,7 @@
    - Actions（.github/workflows/ci.yml）: PostGIS を立てて ruff と pytest
 ```
 
-- 画面は API と同じオリジンから配るので、CORS の設定は要りません。公開は `ngrok http 18080` の 1 本です
+- 画面は API と同じオリジンから配るので、CORS の設定は要りません。公開するときは TLS の前段（リバースプロキシなど）を 1 つ置くだけです
 - 検知は API のプロセスの中のスレッドで回します。キューやスケジューラーは入れていません（ワーカーは 1 つで動かす前提）
 - 選定の理由（Python + FastAPI、PostGIS、Bearer トークン など）は [docs/architecture.md](docs/architecture.md)
 
@@ -360,7 +356,7 @@ docker compose exec api pytest -q       # テスト 61 件（実 DB を使う）
 docker compose exec api ruff check .
 ```
 
-- Web 画面: http://localhost:18080 。スマホ実機で GPS を使うには HTTPS が要るので `ngrok http 18080` で公開します
+- Web 画面: http://localhost:18080 。スマホ実機で GPS を使うには HTTPS で公開する必要があります（公開の方法は使う人の環境に合わせてください）
 - 参加は対象地域（既定は八代市役所から 25km）の中からだけです。ほかの場所で試すなら `AREA` を変えるか空にします
 - DB を初期化し直す: `docker compose down -v`（取り込んだデータも消えます）
 - CI: push と pull request で `.github/workflows/ci.yml` が ruff と pytest を回します

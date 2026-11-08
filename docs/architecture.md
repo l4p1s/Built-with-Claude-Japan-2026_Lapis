@@ -9,7 +9,7 @@
 今は Web アプリ、将来ネイティブ / LINE ミニアプリへ移るため、**REST API を唯一の契約**にし、Web はその1クライアントに過ぎない形にする。
 アカウントは作らず、匿名のセッション ID で読み書きを管理する。
 
-確定済み（ユーザー回答）: DB = PostgreSQL + PostGIS / 実行はまず localhost、公開時は ngrok をユーザーが用意 / 言語は OSS 前提で厳密に選ぶ。
+確定済み（ユーザー回答）: DB = PostgreSQL + PostGIS / 実行はまず localhost、公開時の HTTPS の前段は使う人が用意 / 言語は OSS 前提で厳密に選ぶ。
 
 ---
 
@@ -40,8 +40,8 @@ DB 接続は **psycopg 3 + 生 SQL**（PostGIS の関数は SQL で書く方が�
 
 - **Docker Compose** で `db`（公式 `postgis/postgis` イメージ）と `api`（python-slim + uv）の2コンテナ。`docker compose up` 1発で起動し、審査員・OSS 利用者も同じ手順で再現できる
 - 開発は localhost:18080。`api` はソースをマウントして自動リロード（ホスト側は 18080。8000 は同じマシンの別サーバーが使っているため。コンテナ内は 8000）
-- Web 画面は API と同じオリジンから配信 → CORS 設定不要、`ngrok http 18080` 1本で公開できる
-- 注意（先に伝える制約）: スマホで GPS を取るには HTTPS が必須。localhost では PC ブラウザでしか位置が取れないので、スマホ実機は ngrok 公開時に確認する。発表のデモは `demo` ブランチの再生機能で見せる
+- Web 画面は API と同じオリジンから配信 → CORS 設定不要、TLS の前段 1 つで公開できる
+- 注意（先に伝える制約）: スマホで GPS を取るには HTTPS が必須。localhost では PC ブラウザでしか位置が取れないので、スマホ実機は HTTPS で公開したときに確認する。発表のデモは `demo` ブランチの再生機能で見せる
 - 環境変数（compose.yaml）: `DATABASE_URL`、`AREA`（対象地域 `lat,lon,半径m`。既定は八代市役所から 25km、空で制限なし）、`DETECT_EVERY_S`（検知の間隔。既定 300 秒、0 で止める。テストでは 0）、`RATE_LIMIT=off`（回数制限を止める。テスト用）
 - Web アプリは画面を閉じると位置が取れない（CLAUDE.md §3 のとおり）。これはネイティブ化で解決する前提
 
