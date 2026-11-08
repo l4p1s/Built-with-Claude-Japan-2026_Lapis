@@ -198,7 +198,7 @@ DB 接続は **psycopg 3 + 生 SQL**（PostGIS の関数は SQL で書く方が�
 │   └── check/               Playwright の自動確認（ui-check.js、e2e-check.js。使い方はファイルの冒頭）
 ├── tests/                   pytest（API、ルール、取り込み、検知、定期処理、合成データ）
 ├── data/                    入力データ（BODIK、OSM、小字、公式拠点の CSV のひな型）。out/ demo/ estat/ はコミットしない
-├── docs/                    設計の文書、紹介動画 promo.mp4 と README 冒頭の GIF
+├── docs/                    設計の文書、README 冒頭の GIF
 ├── .github/workflows/ci.yml CI（PostGIS を立てて ruff と pytest）
 ├── compose.yaml, Dockerfile, pyproject.toml, uv.lock
 ├── CLAUDE.md                企画の芯、検証の数字、出典
