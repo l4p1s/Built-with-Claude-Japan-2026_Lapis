@@ -142,7 +142,6 @@
 
  GitHub
    - Actions（.github/workflows/ci.yml）: PostGIS を立てて ruff と pytest
-   - Pages: survey ブランチの /docs から記入フォームを配信（本体とは別）
 ```
 
 - 画面は API と同じオリジンから配るので、CORS の設定は要りません。公開は `ngrok http 18080` の 1 本です
@@ -454,12 +453,10 @@ python scripts/synth/make_heatmap.py && python3 -m http.server 18091 -d data/out
 main   ──●────●────●────●──────────▶  OSS の本体（アプリ・検知・文書）。このブランチ
                          ╲  main を直したら demo で git merge main
 demo                      ●────●───▶  main + デモ（発表用の早回し再生・紹介動画の素材・撮影スクリプト・シナリオ）
-
-survey ──●────●────────────────────▶  友人の行動の記入フォーム（GitHub Pages はこのブランチの /docs から配信）
 ```
 
 - 発表・審査・動画用のデモは、OSS として使う人には要らないので main に入れていません。`demo` ブランチの README を見てください
-- 記入フォームは、検知を実際の行動で確かめるためのデータ集めです。`survey` ブランチの README を見てください
+- 友人の行動の記入フォーム（`survey` ブランチ）は、回答を集め終えて 2026-11-08 に閉じました。回答は公開せず、行動の型だけを `scripts/synth/survey_templates.py` で合成データに使っています（[docs/algorithm.md](docs/algorithm.md) §4.4）
 
 ## 11. 限界と今後
 
@@ -475,7 +472,7 @@ survey ──●────●────────────────�
 
 今後:
 
-- 友人の記入フォーム（`survey` ブランチ）の回答で、実際の行動に近いデータを作り直して確かめる
+- 記入フォームの回答が 30〜50 件になったら、行動の型を作り直して確かめる（今は 15 件・型は 12 人分。[docs/algorithm.md](docs/algorithm.md) §4.4）
 - 場所チャンネル（「ここに何がある？」）の試作と、友人との実地実験
 - LINE ミニアプリ・ネイティブアプリ化（画面を閉じても位置が取れるように）
 - 端末内で判定し、集計だけ送る形

@@ -1,7 +1,7 @@
 # システム構成（実行基盤・言語・DB・API・セッション）
 
 > 画面と API・DB の詳細は [web-ui-design.md](web-ui-design.md)、検知の中身は [algorithm.md](algorithm.md)、合成データは [demo-data-design.md](demo-data-design.md) が最新。この文書は全体の構成と選定理由をまとめる。
-> 2026-11-05 時点で、ここに書いた構成はすべて実装済み（API・画面・検知の定期処理・CI）。発表用のデモ再生と記入フォームは `demo` / `survey` ブランチに分けている。
+> 2026-11-05 時点で、ここに書いた構成はすべて実装済み（API・画面・検知の定期処理・CI）。発表用のデモ再生は `demo` ブランチに分けている（友人の記入フォームは回答を集め終えて閉じた）。
 
 ## Context（この文書を書いた時点）
 リポジトリにはまだ CLAUDE.md と README.md しかなかった。ハッカソン提出（GitHub 必須）かつ OSS として公開する前提で、

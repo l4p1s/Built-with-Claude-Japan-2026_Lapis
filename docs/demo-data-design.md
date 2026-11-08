@@ -48,7 +48,7 @@
 
 ### 回答の型から作る（`--templates`、`scripts/synth/survey_templates.py`）
 
-上の平日・休日・地震後の「割合」は仮定なので、友人の記入フォーム（`survey` ブランチ docs/survey-design.md）の回答が集まったら、その回答の形に置き換える。回答そのものは公開しないので、回答から**型**だけを取り出し、家と行き先を公開データから選び直す（設計書の段階 3「水増し」）。
+上の平日・休日・地震後の「割合」は仮定なので、友人の記入フォームの回答（2026-11-06 時点で 15 件）の形に置き換える。回答そのものは公開しないので、回答から**型**だけを取り出し、家と行き先を公開データから選び直す（設計書の段階 3「水増し」）。
 
 ```sh
 python scripts/synth/survey_templates.py data/survey-answers-2026-11-06.json --out data/out/survey_templates.json

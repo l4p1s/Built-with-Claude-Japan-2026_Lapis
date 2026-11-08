@@ -67,7 +67,7 @@
 - **公開は HTTPS で**（`ngrok http 18080` か TLS 付きのリバースプロキシ）。`AREA` を対象地域に合わせ、`RATE_LIMIT` は切らない
 - **ワーカーは 1 つ**（`uvicorn` の `--workers` を増やさない）。検知の定期処理と回数制限がプロセス内で動いているため
 - **DB の中身を公開しない**。`location_points` は 14 日で消えるが、それまでは位置の点列が残る。バックアップを取るなら同じ扱いで
-- **秘密は Git に入れない**。DB のパスワードは `compose.yaml` の開発用（`app/app`）だけ。公開運用では環境変数で差し替える。記入フォームの回答（`survey-answers*.json`）と合言葉もコミットしない（`data/.gitignore`、`survey` ブランチ）
+- **秘密は Git に入れない**。DB のパスワードは `compose.yaml` の開発用（`app/app`）だけ。公開運用では環境変数で差し替える。記入フォームの回答（`survey-answers*.json`）もコミットしない（`data/.gitignore`）
 - **発表のデモは位置を取らない**（`demo` ブランチ）。本番の画面と混ぜない
 - 依存パッケージは `uv.lock` で固定。更新は `uv lock --upgrade` → テスト → コミット
 
