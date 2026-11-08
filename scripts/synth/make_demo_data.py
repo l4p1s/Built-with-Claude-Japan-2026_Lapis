@@ -69,6 +69,75 @@ def hm(s):
     return int(h) * 60 + int(m)
 
 
+# ---------- 回答の型（--templates、scripts/synth/survey_templates.py の出力） ----------
+BANDS = (300, 2000)  # 家からの距離の段階（survey_templates.py と同じ）
+TPL_POOL = {  # 型の場所の種類 → 置き直すときに選ぶ施設の種類
+    "shop": ("super", "mall", "conv", "shop"),
+    "other": ("park", "community", "shop", "mall", "bussan"),
+}
+
+
+def band_of(d):
+    return sum(d >= b for b in BANDS)
+
+
+def pick_in_band(pool, home, band, rng):
+    """家からの距離の段階が同じ場所から無作為に。無ければ段階が一番近い 20 か所から"""
+    c = [q for q in pool if band_of(dist_m(*home, q["lat"], q["lon"])) == band]
+    if not c:
+        c = sorted(pool, key=lambda q: abs(band_of(dist_m(*home, q["lat"], q["lon"])) - band))[:20]
+    return c[rng.integers(len(c))]
+
+
+def tpl_days(t, kind, rng):
+    """型のその日の滞在。災害後の日は答えた日から 1 日を無作為に"""
+    days = t["days"]
+    if kind.startswith("D") and kind != "D0":
+        return days["after"][rng.integers(len(days["after"]))] if days["after"] else []
+    return days.get(kind) or days["weekday"]
+
+
+def tpl_visits(p, kind, rng, by, scen, event_visits=()):
+    """型の滞在を場所に置き直す。職場は決めてある場所、ふだんも行く店は人ごとに固定、それ以外は毎回選ぶ。
+    知人の家は他の人の家から、支援拠点（water/food/goods/shelter）と車中泊は台本の集まりと避難の処理に任せる"""
+    stays = tpl_days(p["tpl"], kind, rng)
+    # 同じ型を写した人が同じ時刻に重ならないよう、その日の予定を丸ごと ±60 分ずらす（1 人の回答 ≠ 90 人が同時刻）
+    shift = int(rng.integers(-60, 61))
+    # 台本の集まりに行く時間と重なる滞在は外す（残すと、仕事のあとに集まりへ行く形に押し出され、終わった後の集まりに人が残る）
+    busy = [(a, a + dur) for _, _, a, dur, _ in event_visits]
+    H = (p["lat"], p["lon"])
+    V = []
+    for s in stays:
+        if s["type"] == "work":
+            q = p["work"]
+        elif s["type"] in TPL_POOL:
+            pool = [x for k in TPL_POOL[s["type"]] for x in by[k]]
+            # ふだんも行く店は (種類, 距離の段階) ごとに 1 か所に固定。災害後の日の「ふだんの店」も同じ店になる
+            q = p["tpl_place"].get((s["type"], s["band"])) or pick_in_band(pool, H, s["band"], rng)
+        elif s["type"] == "friend":
+            c = [
+                h
+                for h in scen["homes"]
+                if 50 < dist_m(*H, *h) and band_of(dist_m(*H, *h)) == s["band"]
+            ]
+            h = c[rng.integers(len(c))] if c else None
+            q = h and {"lat": h[0], "lon": h[1], "name": "relative"}
+        else:
+            continue
+        f, t = s["from"] + shift, s["to"] + shift
+        if q and not any(f < b1 and b0 < t for b0, b1 in busy):
+            V.append(
+                (
+                    q["lat"],
+                    q["lon"],
+                    f,
+                    t - f,
+                    q["name"],
+                )
+            )
+    return V
+
+
 # ---------- 入力 ----------
 def load_places(data):
     """施設の一覧。kind: super/mall/conv/shop/park/community/bussan/school/work/shelter"""
@@ -195,7 +264,7 @@ def load_home_weights(data):
 
 
 # ---------- 人 ----------
-def make_people(n, rng, places, cells):
+def make_people(n, rng, places, cells, tpl=None):
     by = defaultdict(list)
     for p in places:
         by[p["kind"]].append(p)
@@ -224,23 +293,51 @@ def make_people(n, rng, places, cells):
         usual = [
             shops[j] for j in rng.choice(len(shops), size=rng.integers(1, 4), replace=False, p=pw)
         ]
-        people.append(
-            {
-                "uid": f"u{i + 1:04d}",
-                "lat": lat,
-                "lon": lon,
-                "role": role,
-                "work": work,
-                "usual": usual,
-                "car": rng.random() < PARAMS["car"],
-                "explorer": rng.random() < PARAMS["explorer"],
-                "work_start": 8 * 60 + 30 + rng.integers(-30, 31),
-                "work_len": 9 * 60 + rng.integers(-60, 61),
-                "shelter": None,
-                "car_spot": None,
-                "sleep": None,  # 地震後の状態
-            }
-        )
+        person = {
+            "uid": f"u{i + 1:04d}",
+            "lat": lat,
+            "lon": lon,
+            "role": role,
+            "work": work,
+            "usual": usual,
+            "car": rng.random() < PARAMS["car"],
+            "explorer": rng.random() < PARAMS["explorer"],
+            "work_start": 8 * 60 + 30 + rng.integers(-30, 31),
+            "work_len": 9 * 60 + rng.integers(-60, 61),
+            "shelter": None,
+            "car_spot": None,
+            "sleep": None,  # 地震後の状態
+        }
+        if tpl:
+            # 回答の型を 1 人分引き、役割・職場・ふだんの店をそれに合わせる。探索は型の usual=false の滞在が担うので切る
+            t = tpl["people"][rng.integers(len(tpl["people"]))]
+            ws = next((x for x in t["days"]["weekday"] if x["type"] == "work"), None)
+            pool = by["work"] + by["super"] + by["mall"] + by["school"] + by["community"]
+            person.update(
+                tpl=t,
+                tpl_place={},
+                role="worker" if ws else "home",
+                work=pick_in_band(pool, (lat, lon), ws["band"], rng) if ws else None,
+                car=t["car"] or person["car"],
+                explorer=False,
+                usual=[],
+            )
+            if ws:
+                person.update(work_start=ws["from"], work_len=ws["to"] - ws["from"])
+            for d in [d for k, d in t["days"].items() if k != "after"] + t["days"]["after"]:
+                for x in d:
+                    key = (x["type"], x["band"])
+                    if x["usual"] and x["type"] in TPL_POOL and key not in person["tpl_place"]:
+                        q = pick_in_band(
+                            [y for k in TPL_POOL[x["type"]] for y in by[k]],
+                            (lat, lon),
+                            x["band"],
+                            rng,
+                        )
+                        person["tpl_place"][key] = q
+                        if x["type"] == "shop":
+                            person["usual"].append(q)
+        people.append(person)
     return people, by
 
 
@@ -302,7 +399,9 @@ def plan_day(p, kind, quake_min, rng, by, scen, day_tag, event_visits):
         s = pool[rng.integers(len(pool))]
         V.append((*pos(s), rng.integers(lo, hi), rng.integers(40, 91), s["name"]))
 
-    if kind in ("weekday", "D0"):
+    if "tpl" in p:
+        V += tpl_visits(p, kind, rng, by, scen, event_visits)
+    elif kind in ("weekday", "D0"):
         end_work = p["work_start"] + p["work_len"]
         if p["role"] in ("worker", "student"):
             ws = p["work_start"] if p["role"] == "worker" else 8 * 60 + rng.integers(-15, 16)
@@ -363,7 +462,7 @@ def plan_day(p, kind, quake_min, rng, by, scen, day_tag, event_visits):
             )
             sleep = pos(p["car_spot"])
     elif kind in ("D1", "D2"):
-        if not p["shelter"] and rng.random() < PARAMS["visit_relative"][kind]:
+        if not p["shelter"] and "tpl" not in p and rng.random() < PARAMS["visit_relative"][kind]:
             # 親戚・知人の家。他の人の家から 5km 以内のものを引く
             for _ in range(10):
                 h = scen["homes"][rng.integers(len(scen["homes"]))]
@@ -405,7 +504,7 @@ def plan_day(p, kind, quake_min, rng, by, scen, day_tag, event_visits):
         if (
             kind == "D2" and not event_visits
         ):  # 集まりに行く人は、その日は他の予定を入れない（時間がぶつかるので）
-            if p["role"] == "worker" and rng.random() < PARAMS["work_D2"]:
+            if p["role"] == "worker" and "tpl" not in p and rng.random() < PARAMS["work_D2"]:
                 V.append(
                     (*pos(p["work"]), p["work_start"] + 60, p["work_len"] - 120, p["work"]["name"])
                 )
@@ -458,6 +557,10 @@ def main():
         help="集まりの台本（例: scripts/demo_scenario_video.json）",
     )
     ap.add_argument(
+        "--templates",
+        help="回答の型（scripts/synth/survey_templates.py の出力）。あれば PARAMS の確率でなく型から 1 日の予定を作る",
+    )
+    ap.add_argument(
         "--bbox",
         help="家を置く範囲 lat0,lat1,lon0,lon1（省略すると台本の bbox、なければ市全体）",
     )
@@ -475,7 +578,8 @@ def main():
         lat0, lat1, lon0, lon1 = bbox
         cells = [c for c in cells if lat0 <= c[0] <= lat1 and lon0 <= c[1] <= lon1]
         home_source += f"、家は {bbox} の範囲だけ"
-    people, by = make_people(a.people, rng, places, cells)
+    tpl = json.load(open(a.templates, encoding="utf-8")) if a.templates else None
+    people, by = make_people(a.people, rng, places, cells, tpl)
     byname = {p["name"]: p for p in places}
     missing = [
         n
@@ -532,10 +636,16 @@ def main():
                 busy[i].append((hm(e["start"]), hm(e["end"])))
             e.setdefault("chosen", {})[d] = len(chosen)
             for i in chosen:
-                arrive = rng.integers(hm(e["start"]), hm(e["end"]) - e["stay_min"][0])
-                ev_visits[i].append(
-                    (e["lat"], e["lon"], int(arrive), int(rng.integers(*e["stay_min"])), e["place"])
+                # 滞在の長さは台本の範囲から。回答の型があれば、回答にあった支援拠点での滞在の長さから引く
+                dur = (
+                    int(rng.choice(tpl["aid_stay_min"]))
+                    if tpl
+                    else int(rng.integers(*e["stay_min"]))
                 )
+                # 回答の滞在（最長 120 分）が集まりより長いことがある
+                dur = min(dur, hm(e["end"]) - hm(e["start"]) - 1)
+                arrive = rng.integers(hm(e["start"]), hm(e["end"]) - dur)
+                ev_visits[i].append((e["lat"], e["lon"], int(arrive), dur, e["place"]))
         times = [f"{d.isoformat()}T{m // 60:02d}:{m % 60:02d}+09:00" for m in range(MINUTES)]
         after = kind.startswith("D")
         day_stays = []
@@ -616,6 +726,7 @@ def main():
                 "car",
                 "explorer",
                 "water_out",
+                "template",
             ]
         )
         for p in people:
@@ -630,6 +741,7 @@ def main():
                     int(p["car"]),
                     int(p["explorer"]),
                     int(p["water_out"]),
+                    p["tpl"]["id"] if "tpl" in p else "",
                 ]
             )
     with open(f"{a.out}/places.csv", "w", newline="", encoding="utf-8") as f:
@@ -710,6 +822,10 @@ def main():
         f.write(
             f"# 合成データのまとめ\n\n人数 {a.people} / 日数 {len(days)} / 地震 {a.quake_at} / seed {a.seed}\n\n家の重み: {home_source}\n\n"
         )
+        if tpl:
+            f.write(
+                f"行動の型: {tpl['source']}（{len(tpl['people'])} 人の回答。{a.templates}）\n\n"
+            )
         f.write("## 日ごとの、家以外での10分以上の滞在が多い場所（上位8）\n\n")
         for (d, kind), c in per_day.items():
             f.write(f"- {d} {kind}: " + ", ".join(f"{n} {k}" for n, k in c.most_common(8)) + "\n")

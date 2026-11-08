@@ -167,3 +167,231 @@ def test_evacuation_rate_and_water_zone(out):
     assert water
     for e in water:
         assert dist_m(float(e["lat"]), float(e["lon"]), *CENTER) <= PARAMS["water_radius_m"] + 1500
+
+
+# ---------- 回答の型（scripts/synth/survey_templates.py、--templates） ----------
+ANSWERS = [
+    {
+        "answer": {
+            "name": "A",
+            "home": [32.52, 130.58],
+            "days": [
+                {
+                    "label": "いつもの平日",
+                    "date": None,
+                    "stays": [
+                        {
+                            "lat": 32.52,
+                            "lon": 130.58,
+                            "from": "00:00",
+                            "to": "07:30",
+                            "type": "home",
+                            "usual": True,
+                        },
+                        # 既定の「15分」を直し忘れた職場 → 帰宅の 15 分前まで延びる
+                        {
+                            "lat": 32.53,
+                            "lon": 130.55,
+                            "from": "07:45",
+                            "to": "08:00",
+                            "type": "work",
+                            "usual": True,
+                            "mode": "car",
+                        },
+                        {
+                            "lat": 32.52,
+                            "lon": 130.58,
+                            "from": "17:00",
+                            "to": "00:00",
+                            "type": "home",
+                            "usual": True,
+                        },
+                    ],
+                },
+                {"label": "いつもの休日", "date": None, "stays": []},
+                {
+                    "label": "地震の日",
+                    "date": "2026-07-28",
+                    "copied_from": "いつもの平日",
+                    "stays": [],
+                },
+                {
+                    "label": "地震の後の日",
+                    "date": "2026-07-30",
+                    "stays": [
+                        # 重なり: 友達の家 13:00–14:00 のあと家が 13:30 から → 13:30 で詰める
+                        {
+                            "lat": 32.5245,
+                            "lon": 130.5833,
+                            "from": "13:00",
+                            "to": "14:00",
+                            "type": "friend",
+                            "usual": False,
+                        },
+                        {
+                            "lat": 32.52,
+                            "lon": 130.58,
+                            "from": "13:30",
+                            "to": "00:00",
+                            "type": "home",
+                            "usual": True,
+                        },
+                        {
+                            "lat": 32.53,
+                            "lon": 130.60,
+                            "from": "17:00",
+                            "to": "17:15",
+                            "type": "water",
+                            "usual": False,
+                        },
+                    ],
+                },
+            ],
+        }
+    },
+    {"answer": {"name": "動作確認（消してください）", "home": [32.52, 130.58], "days": []}},
+    {
+        "answer": {"name": "B", "home": [32.507, 130.602], "days": []}
+    },  # 地図の初期位置のまま → 家が分からない
+]
+
+
+def test_survey_templates_cleaning():
+    from datetime import date
+
+    from survey_templates import templates_from_answers
+
+    t = templates_from_answers(ANSWERS, date(2026, 7, 28))
+    assert [p["id"] for p in t["people"]] == ["s01"]  # 動作確認と初期位置の家は除く
+    p = t["people"][0]
+    assert p["car"]
+    assert p["days"]["weekday"] == [
+        {"type": "work", "from": 465, "to": 1005, "usual": True, "band": 2, "mode": "car"}
+    ]
+    assert p["days"]["D0"] == []  # 写しただけで中身が空なら空のまま（生成側で平日に戻す）
+    (after,) = p["days"]["after"]
+    assert [(s["type"], s["from"], s["to"], s["band"]) for s in after] == [
+        ("friend", 780, 810, 1),
+        ("water", 1020, 1035, 2),
+    ]
+    assert t["aid_stay_min"] == [15]
+
+
+@pytest.fixture(scope="module")
+def out_tpl(tmp_path_factory):
+    import json
+
+    d = tmp_path_factory.mktemp("out_tpl")
+    tpl = d / "templates.json"
+    tpl.write_text(
+        json.dumps(
+            {
+                "source": "test",
+                "quake_date": "2026-07-28",
+                # 120 は台本の 90 分の集まりより長い（集まりの長さに収める）
+                "aid_stay_min": [15, 120],
+                "people": [
+                    {
+                        "id": "s01",
+                        "car": True,
+                        "days": {
+                            "weekday": [
+                                {
+                                    "type": "work",
+                                    "from": 480,
+                                    "to": 1020,
+                                    "usual": True,
+                                    "band": 2,
+                                    "mode": None,
+                                }
+                            ],
+                            "weekend": [
+                                {
+                                    "type": "shop",
+                                    "from": 600,
+                                    "to": 660,
+                                    "usual": True,
+                                    "band": 1,
+                                    "mode": None,
+                                }
+                            ],
+                            "D0": [
+                                {
+                                    "type": "work",
+                                    "from": 480,
+                                    "to": 1020,
+                                    "usual": True,
+                                    "band": 2,
+                                    "mode": None,
+                                }
+                            ],
+                            "after": [
+                                [
+                                    {
+                                        "type": "friend",
+                                        "from": 780,
+                                        "to": 840,
+                                        "usual": False,
+                                        "band": 1,
+                                        "mode": None,
+                                    }
+                                ]
+                            ],
+                        },
+                    },
+                    {
+                        "id": "s02",
+                        "car": False,
+                        "days": {"weekday": [], "weekend": [], "D0": [], "after": [[]]},
+                    },
+                ],
+            }
+        )
+    )
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/synth/make_demo_data.py",
+            "--people",
+            "100",
+            "--normal-days",
+            "2",
+            "--seed",
+            "5",
+            "--templates",
+            str(tpl),
+            "--out",
+            str(d),
+        ],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+    )
+    return d
+
+
+def test_templates_mode_follows_templates(out_tpl):
+    """型どおり: 職場のある型の人は worker で 9 時間いる、ない型の人は家にいる。集まりは台本どおり埋め込まれる"""
+    people = list(csv.DictReader(open(out_tpl / "people.csv", encoding="utf-8")))
+    assert {p["role"] for p in people} == {"worker", "home"} and all(
+        p["explorer"] == "0" for p in people
+    )
+    places = {
+        r["place_id"]: r for r in csv.DictReader(open(out_tpl / "places.csv", encoding="utf-8"))
+    }
+    pts = read_points(weekday_file(out_tpl))
+    for p in people:
+        rows = pts[p["uid"]]
+        if p["work"]:
+            w = places[p["work"]]
+            at_work = sum(
+                dist_m(la, lo, float(w["lat"]), float(w["lon"])) < 100 for _, la, lo in rows
+            )
+            assert 480 <= at_work <= 600, (p["uid"], at_work)  # 8:00–17:00、予定ごと ±60 分のずらし
+        else:
+            assert all(
+                dist_m(la, lo, float(p["home_lat"]), float(p["home_lon"])) < 100
+                for _, la, lo in rows
+            )
+    events = list(csv.DictReader(open(out_tpl / "events.csv", encoding="utf-8")))
+    assert any(int(e["visitors"]) >= 5 for e in events)

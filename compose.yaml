@@ -8,6 +8,8 @@ services:
     volumes:
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
       - dbdata:/var/lib/postgresql/data
+    mem_limit: 1g
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "app", "-h", "127.0.0.1"]  # 初回の初期化中は TCP を受けないので、TCP で確認する
       interval: 2s
@@ -15,15 +17,22 @@ services:
 
   api:
     build: .
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --no-access-log  # 位置が URL に入るのでアクセスログを出さない
     volumes:
       - .:/app
     environment:
       DATABASE_URL: postgresql://app:app@db:5432/app
       DEMO: ${DEMO:-}  # DEMO=1 docker compose up -d で、デモ（/?demo=1）を動かす
       AREA: ${AREA:-32.5072,130.6016,25000}  # 対象地域（lat,lon,半径 m）。既定は八代市役所から 25km。空にすると制限なし
+      # ポートは 127.0.0.1 だけなので、外からは同じマシンの前段（自分のドメインのリバースプロキシ）を通る。
+      # その前段が X-Forwarded-For の末尾に付け足した値を端末の IP とする。前段を置かずに公開するなら空にする
+      TRUST_PROXY: ${TRUST_PROXY:-1}
     ports:
       - "127.0.0.1:18080:8000"
+    # メモリの上限。大きな送信や大量の位置で API と検知（同じプロセス）がマシンを道連れにしないようにし、
+    # 上限で止まったら自動で立ち上げ直す。利用者が増えたら検知の読み込み（1 点あたり約 1 KB）に合わせて上げる
+    mem_limit: 1g
+    restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy

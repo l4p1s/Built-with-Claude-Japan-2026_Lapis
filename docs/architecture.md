@@ -1,7 +1,7 @@
 # システム構成（実行基盤・言語・DB・API・セッション）
 
 > 画面と API・DB の詳細は [web-ui-design.md](web-ui-design.md)、検知の中身は [algorithm.md](algorithm.md)、合成データは [demo-data-design.md](demo-data-design.md) が最新。この文書は全体の構成と選定理由をまとめる。
-> 2026-11-05 時点で、ここに書いた構成はすべて実装済み（API・画面・検知の定期処理・CI）。発表用のデモ再生と記入フォームは `demo` / `survey` ブランチに分けている。
+> 2026-11-05 時点で、ここに書いた構成はすべて実装済み（API・画面・検知の定期処理・CI）。発表用のデモ再生は `demo` ブランチに分けている（友人の記入フォームは回答を集め終えて閉じた）。
 
 ## Context（この文書を書いた時点）
 リポジトリにはまだ CLAUDE.md と README.md しかなかった。ハッカソン提出（GitHub 必須）かつ OSS として公開する前提で、
@@ -67,7 +67,7 @@ DB 接続は **psycopg 3 + 生 SQL**（PostGIS の関数は SQL で書く方が�
 | POST | /v1/sessions | 同意 `{"consent": true}` を受けてセッション発行 → `{token, expires_at}` |
 | DELETE | /v1/sessions/me | 自分のデータを全削除（参加の取り消し）。自分の回答と、自分の報告だけでできたピンも消える |
 | POST | /v1/locations | 位置の一括送信 `{points:[{lat,lon,accuracy_m,recorded_at}]}` → 202。ネイティブのバックグラウンド送信にもそのまま使える |
-| GET | /v1/questions?lat=&lon= | 近く（ST_DWithin）の未確認候補 =「ここに何がある？」 |
+| POST | /v1/questions `{lat, lon}` | 近く（ST_DWithin）の未確認候補 =「ここに何がある？」。位置は URL に入れない |
 | POST | /v1/candidates/{id}/answers | `{kind, note}` で回答（note は任意、100文字まで） |
 | POST | /v1/reports | 自分の位置で拠点を報告。近くに表示中の候補があればそこへ合流 |
 | POST | /v1/answers/{id}/flags | 備考を不適切として通報 |

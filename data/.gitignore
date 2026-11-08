@@ -3,3 +3,5 @@ out/
 estat/
 demo/
 survey-answers*.json
+# 手元の録音（音声ファイル）
+*.mp3

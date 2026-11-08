@@ -123,3 +123,26 @@ def test_gathering_at_open_official_spot_is_not_a_candidate():
     )
     written = detect_job.run_once(NOW)
     assert len(written) == 1 and written[0][1] is True
+
+
+def test_one_session_cannot_hide_a_gathering_with_backdated_stays():
+    """1 人が過去の日付で同じマスの滞在を大量に送っても、その人は 1 日 1 マス 1 回しか数えない"""
+    home = lambda i: (LAT + 0.02 * (i % 4), LON + 0.02 * (i // 4))  # noqa: E731
+    spot = (LAT + 0.1, LON + 0.1)
+    elsewhere = (LAT + 0.15, LON + 0.15)
+    for i in range(10):  # test_gathering_becomes_candidate_and_updates と同じ集まり
+        track = []
+        for d in (3, 2, 1):
+            track += minutes(NOW - timedelta(days=d) - timedelta(hours=10), 24 * 60, *home(i))
+        track += minutes(NOW - timedelta(hours=3), 120, *home(i))
+        track += minutes(NOW - timedelta(hours=1), 40, *spot)
+        add_person(i, track)
+    # 6 日前から、集まりのマスと別のマスに交互に 10 分の滞在（2 点）を 300 回
+    t0, track = NOW - timedelta(days=6), []
+    for k in range(300):
+        place = spot if k % 2 == 0 else elsewhere
+        start = t0 + timedelta(minutes=20 * k)
+        track += [(start, *place), (start + timedelta(minutes=9), *place)]
+    add_person(39, track)
+    written = detect_job.run_once(NOW)
+    assert len(written) == 1 and written[0][1] is True

@@ -10,6 +10,9 @@
 - 企画の芯・検証の数字・出典は [CLAUDE.md](CLAUDE.md)。この README の数字はそこから引いています
 - ライセンス: MIT（データは各出典の条件に従います）
 
+<p align="center"><a href="docs/promo.mp4"><img src="docs/promo-teaser.gif" alt="紹介動画の一部: 人が集まると「？」が立ち、近くの人に聞いて、地図に載る" width="640"></a></p>
+<p align="center">▶ <a href="docs/promo.mp4">紹介動画（3 分、mp4 33MB）</a>　／　<a href="https://built-with-claude-japan-2026-lapis.pages.dev/?demo=1&amp;from=08:00&amp;speed=5">デモを開く</a>（地震の翌日を合成データで早回し再生。位置は取りません）</p>
+
 > **このブランチは `demo`**: main に、発表・審査・動画用のデモ（合成データの 1 日を画面で早回し再生する機能、動画の素材、撮影スクリプト、紹介動画のシナリオ）を足したものです。デモの動かし方は [8.8](#88-デモこのブランチだけ)。アプリ本体の説明は main と同じです。
 
 ## 目次
@@ -104,7 +107,7 @@
       │
       ▼
 ⑤ 候補「？」── candidates（status = pending）
-      │  GET /v1/questions（候補から 500m 以内の人だけ）
+      │  POST /v1/questions（候補から 500m 以内の人だけ）
       ▼
 ⑥ 現地の人に質問 ──「ここに何がある？」→ 給水・食べ物・物資・車中泊・避難・その他 / わからない / もう終わっていた
       │  POST /v1/candidates/{id}/answers
@@ -144,7 +147,6 @@
 
  GitHub
    - Actions（.github/workflows/ci.yml）: PostGIS を立てて ruff と pytest
-   - Pages: survey ブランチの /docs から記入フォームを配信（本体とは別）
 ```
 
 - 画面は API と同じオリジンから配るので、CORS の設定は要りません。公開は `ngrok http 18080` の 1 本です
@@ -177,7 +179,7 @@
 | POST | `/v1/sessions` | 同意と今の位置を受けてセッションを発行 → `{token, expires_at}`。対象地域の外なら 403 |
 | DELETE | `/v1/sessions/me` | 参加をやめる。位置・回答・通報・自分だけが知らせたピンを消す |
 | POST | `/v1/locations` | 位置をまとめて送る（1〜1000 点）→ 202 |
-| GET | `/v1/questions?lat=&lon=` | 近くの未確認の候補 =「ここに何がある？」 |
+| POST | `/v1/questions` `{lat, lon}` | 近くの未確認の候補 =「ここに何がある？」。位置は URL に入れず本文で送る |
 | POST | `/v1/candidates/{id}/answers` | 回答（種類 + 備考 100 文字まで）。今の位置が要り、500m より遠いと 403 |
 | POST | `/v1/reports` | 自分の位置で拠点を知らせる。近くに候補があれば合流 |
 | POST | `/v1/answers/{id}/flags` | 備考を不適切として通報 |
@@ -306,7 +308,7 @@ candidates（150m 以内に生きている候補があれば更新。報告の�
 |---|---|
 | 位置と移動を外に出さない | アカウントなし・トークンはハッシュだけ / 位置は 14 日で消す / 外に出るのはマス × 時間帯 × 人数だけ / 自宅の周り 200m は数えない / 5 人未満は候補にしない / 学習結果はメモリに 24 時間だけ / 参加をやめると自分のデータが消える |
 | 嘘の拠点を載せさせない | 候補から 500m 以内の人だけ回答 / 1 人 1 候補 1 票 / 自分の報告は自分で確かめられない / 終了は多数決 / 備考は URL・電話番号不可、通報 2 件で非表示 / 6 時間で消える |
-| サーバーを止めさせない | 回数制限（参加 20 回/時/IP、位置 10 回/分、回答・報告・通報 60 回/時）/ 位置は 1 回 1000 点まで / 入力の検査 / SQL はすべてパラメータ |
+| サーバーを止めさせない | 回数制限（参加 20 回/時/IP、位置 10 回/分、回答・報告・通報 60 回/時、地図の読み込み 60 回/分）/ 位置は 1 回 1000 点まで / 入力の検査 / SQL はすべてパラメータ |
 | 対象地域の外から荒らさせない | `AREA` の中の人だけ参加でき、外の位置・報告は受け付けない |
 
 守れていないこと（GPS の偽装、複数端末での多重参加、回数制限がプロセス内であること など）と運用での注意は [docs/security.md](docs/security.md)。
@@ -376,6 +378,7 @@ docker compose exec api ruff check .
 | `DETECT_EVERY_S` | `300` | 検知の間隔（秒）。`0` で止める（テスト） |
 | `RATE_LIMIT` | （有効） | `off` で書き込みの回数制限を止める（テスト・開発） |
 | `DEMO` | （空） | `1` で `web/demo/` を配信し、`/?demo=1` のデモ再生が動く（このブランチだけ） |
+| `TRUST_PROXY` | compose は `1` | `1` のとき、前段（リバースプロキシ）が `X-Forwarded-For` の末尾に付けた IP で参加の回数制限を数える。前段なしで公開するなら空にする |
 
 例: `AREA= docker compose up -d`（制限なし）、`AREA=32.80,130.71,20000 docker compose up -d`（別の地域）。
 
@@ -503,7 +506,7 @@ python scripts/synth/make_demo_assets.py --out data/demo --scenario scripts/synt
 │   └── check/               Playwright の自動確認・デモの撮影（capture-demo.js）
 ├── tests/                   pytest（API・ルール・取り込み・検知・定期処理・合成データ）
 ├── data/                    入力データ（BODIK・OSM・小字・公式拠点の CSV のひな型）。out/ demo/ estat/ はコミットしない
-├── docs/                    設計の文書（下の「文書」）
+├── docs/                    設計の文書（下の「文書」）、紹介動画 promo.mp4 と冒頭の GIF
 ├── .github/workflows/ci.yml CI
 ├── compose.yaml, Dockerfile, pyproject.toml, uv.lock
 ├── CLAUDE.md                企画の芯・検証の数字・出典
@@ -516,12 +519,10 @@ python scripts/synth/make_demo_assets.py --out data/demo --scenario scripts/synt
 main   ──●────●────●────●──────────▶  OSS の本体（アプリ・検知・文書）
                          ╲  main を直したら demo で git merge main
 demo                      ●────●───▶  main + デモ（発表用の早回し再生・紹介動画の素材・撮影スクリプト・シナリオ）。このブランチ
-
-survey ──●────●────────────────────▶  友人の行動の記入フォーム（GitHub Pages はこのブランチの /docs から配信）
 ```
 
 - 発表・審査・動画用のデモは、OSS として使う人には要らないので main に入れず、このブランチに置いています（8.8）
-- 記入フォームは、検知を実際の行動で確かめるためのデータ集めです。`survey` ブランチの README を見てください
+- 友人の行動の記入フォーム（`survey` ブランチ）は、回答を集め終えて 2026-11-08 に閉じました。回答は公開せず、行動の型だけを `scripts/synth/survey_templates.py` で合成データに使っています（[docs/algorithm.md](docs/algorithm.md) §4.4）
 
 ## 11. 限界と今後
 
@@ -537,7 +538,7 @@ survey ──●────●────────────────�
 
 今後:
 
-- 友人の記入フォーム（`survey` ブランチ）の回答で、実際の行動に近いデータを作り直して確かめる
+- 記入フォームの回答が 30〜50 件になったら、行動の型を作り直して確かめる（今は 15 件・型は 12 人分。[docs/algorithm.md](docs/algorithm.md) §4.4）
 - 場所チャンネル（「ここに何がある？」）の試作と、友人との実地実験
 - LINE ミニアプリ・ネイティブアプリ化（画面を閉じても位置が取れるように）
 - 端末内で判定し、集計だけ送る形

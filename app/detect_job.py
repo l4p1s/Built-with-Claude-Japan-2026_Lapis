@@ -74,8 +74,9 @@ def learn(conn, now):
         for d, idx in day_idx.items():
             st = _stays([ts[i] for i in idx], [la[i] for i in idx], [lo[i] for i in idx], since)
             by_day[sid][d] = st
-            for s in st:
-                cells[mesh_code(s.lat, s.lon)] += 1
+            # 1 人は 1 日 1 マス 1 回まで数える。過去の日付で滞在を大量に送り、マスの「いつもの量」を水増しして本物の集まりを隠させない
+            for c in {mesh_code(s.lat, s.lon) for s in st}:
+                cells[c] += 1
     people = {sid: learn_person(list(by_day[sid].values()), nights.get(sid, [])) for sid in by_day}
     return people, baseline_share(cells), nights
 

@@ -761,7 +761,7 @@ async function checkQuestions() {
     list = demoQuestions();
   } else {
     try {
-      list = await api(`/questions?lat=${here.lat}&lon=${here.lon}`);
+      list = await api("/questions", { method: "POST", body: { lat: here.lat, lon: here.lon } });
     } catch {
       return;
     }

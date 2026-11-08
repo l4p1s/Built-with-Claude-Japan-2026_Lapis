@@ -12,4 +12,5 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen
 COPY . .
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# アクセスログは出さない。GET /v1/questions?lat=&lon= などで利用者の位置が URL に入り、ログに残ると削除できないため
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
