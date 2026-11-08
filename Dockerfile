@@ -12,5 +12,5 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen
 COPY . .
 
-# アクセスログは出さない。GET /v1/questions?lat=&lon= などで利用者の位置が URL に入り、ログに残ると削除できないため
+# アクセスログは出さない。利用者の位置を含む要求がログに残ると、あとから消せないため
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]

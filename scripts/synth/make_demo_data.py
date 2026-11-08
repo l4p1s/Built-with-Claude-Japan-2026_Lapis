@@ -554,7 +554,7 @@ def main():
     ap.add_argument(
         "--scenario",
         default=os.path.join(os.path.dirname(__file__), "demo_scenario.json"),
-        help="集まりの台本（例: scripts/demo_scenario_video.json）",
+        help="集まりの台本（既定は同じフォルダの demo_scenario.json）",
     )
     ap.add_argument(
         "--templates",

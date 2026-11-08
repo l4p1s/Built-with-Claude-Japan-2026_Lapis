@@ -131,7 +131,7 @@ API の定期処理（`app/detect_job.py` の `_at_official`、`OFFICIAL_M` = 15
 
 ### 4.1 平常期のデータは要るのか（「当日だけ」版との比較）
 
-CLAUDE.md §9 の「当日のデータだけで把握できる方が望ましい」を確かめるため、平常期を使わない版を同じデータで動かした（`scripts/synth/detect_demo.py --no-baseline`）。
+平常期のデータがどれだけ要るかを確かめるため、平常期を使わない版を同じデータで動かした（`scripts/synth/detect_demo.py --no-baseline`）。
 
 | | 平常期あり（本線） | 当日だけ |
 |---|---|---|
@@ -196,11 +196,9 @@ CLAUDE.md §9 の「当日のデータだけで把握できる方が望ましい
 - 間引くと誤報も減る（5〜20% で 0 件）。人が少ないと、偶然 5 人が同じマスに集まることがないため
 - これは CLAUDE.md §3 の見立て（参加率 5% なら 200 人規模から）と合う。実データでの数字（CLAUDE.md §4）とは別に扱う
 
-発表での言い方: 「アプリを入れた人の割合が 5% なら 100 人規模、20% なら 25 人規模の集まりが見える。小さな炊き出しまで拾うには、防災アプリへの組み込みなどで参加率を上げる必要がある」。
-
 ### 4.4 回答の型で作ったデータ（`--templates`）
 
-友人の記入フォーム（回答は公開しない。フォームは 2026-11-08 に閉じた）の回答 15 件（2026-11-06 時点。型になるのは 12 人）から行動の型を取り出し、PARAMS の確率の代わりに型から 1 日の予定を作った（docs/demo-data-design.md §3「回答の型から作る」）。集まりの規模・場所・時間帯は同じ台本で、変わるのは背景の動き（通勤・買い物・知人の家）と、集まりでの滞在の長さ（回答の 15〜120 分。集まりより長ければ集まりの長さに収める）。
+友人の記入フォーム（回答は公開しない）の回答 15 件（型になるのは 12 人）から行動の型を取り出し、PARAMS の確率の代わりに型から 1 日の予定を作った（docs/demo-data-design.md §3「回答の型から作る」）。集まりの規模・場所・時間帯は同じ台本で、変わるのは背景の動き（通勤・買い物・知人の家）と、集まりでの滞在の長さ（回答の 15〜120 分。集まりより長ければ集まりの長さに収める）。
 
 | | PARAMS 版（§4.2） | 回答の型版 |
 |---|---|---|
@@ -215,7 +213,7 @@ CLAUDE.md §9 の「当日のデータだけで把握できる方が望ましい
 - 数字は合成データ（縮図）での値。実データの数字（CLAUDE.md §4）とは別に扱う
 
 ```sh
-python scripts/synth/survey_templates.py data/survey-answers-2026-11-06.json --out data/out/survey_templates.json
+python scripts/synth/survey_templates.py data/survey-answers-2026-11-06.json --out data/out/survey_templates.json   # 回答のファイルは非公開
 for s in 1 2 3 4; do
   python scripts/synth/make_demo_data.py --seed $s --templates data/out/survey_templates.json --out data/out/survey/s$s
   python scripts/synth/detect_demo.py --out data/out/survey/s$s

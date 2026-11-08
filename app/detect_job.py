@@ -231,5 +231,5 @@ if __name__ == "__main__":
     t0 = time.time()
     written = run_once(at)
     new = sum(1 for _, is_new in written)
-    print(f"候補 {len(written)} 件（新規 {new}）{time.time() - t0:.1f} 秒")
+    print(f"候補 {len(written)} 件（新規 {new}）{time.time() - t0:.1f} 秒", flush=True)  # os._exit はバッファを流さない
     os._exit(0)

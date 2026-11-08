@@ -1,7 +1,7 @@
 # システム構成（実行基盤・言語・DB・API・セッション）
 
 > 画面と API・DB の詳細は [web-ui-design.md](web-ui-design.md)、検知の中身は [algorithm.md](algorithm.md)、合成データは [demo-data-design.md](demo-data-design.md) が最新。この文書は全体の構成と選定理由をまとめる。
-> ここに書いた構成は実装済み（API、画面、検知の定期処理、CI）。発表用のデモ再生は `demo` ブランチに分けている。
+> ここに書いた構成は実装済み（API、画面、検知の定期処理、CI）。デモ再生（画面での早回し）は `demo` ブランチに分けている。
 
 ## 前提
 ハッカソンへの提出と OSS としての公開を前提に、「GPS → いつもと違う滞在を数える → ポアソンで候補検知 → 近くの人に質問 → 地図に掲載」を動かす土台を決める。
@@ -41,7 +41,7 @@ DB 接続は **psycopg 3 + 生 SQL**（PostGIS の関数は SQL で書く方が�
 - 手元ではポート 18080 で動く（コンテナ内は 8000）。`api` はソースをマウントして自動リロードする
 - Web 画面は API と同じオリジンから配信 → CORS 設定不要、TLS の前段 1 つで公開できる
 - 注意（先に伝える制約）: スマホで GPS を取るには HTTPS が必須。HTTP のままでは PC のブラウザでしか位置が取れないので、スマホ実機は HTTPS で公開したときに確認する。発表のデモは `demo` ブランチの再生機能で見せる
-- 環境変数（compose.yaml）: `DATABASE_URL`、`AREA`（対象地域 `lat,lon,半径m`。既定は八代市役所から 25km、空で制限なし）、`DETECT_EVERY_S`（検知の間隔。既定 300 秒、0 で止める。テストでは 0）、`RATE_LIMIT=off`（回数制限を止める。テスト用）、`DEMO`（1 で `web/demo/` を配信し `/?demo=1` が動く。`demo` ブランチだけ）
+- 環境変数（compose.yaml）: `DATABASE_URL`、`AREA`（対象地域 `lat,lon,半径m`。既定は八代市役所から 25km、空で制限なし）、`DETECT_EVERY_S`（検知の間隔。既定 300 秒、0 で止める。テストでは 0）、`RATE_LIMIT=off`（回数制限を止める。テスト用）、`TRUST_PROXY`（1 のとき、前段が付けた X-Forwarded-For の末尾の IP で参加の回数制限を数える。前段なしで公開するなら空）、`DEMO`（1 で `web/demo/` を配信し `/?demo=1` が動く。`demo` ブランチだけ）
 - Web アプリは画面を閉じると位置が取れない（CLAUDE.md §3 のとおり）。これはネイティブ化で解決する前提
 
 ## 3. DB（PostgreSQL + PostGIS）
@@ -115,7 +115,7 @@ DB 接続は **psycopg 3 + 生 SQL**（PostGIS の関数は SQL で書く方が�
 | 集計 | `app/detect_job.py` が 5 分ごとに直近 3 時間を読み、500m メッシュ × 30 分で「いつもと違う滞在」を数える（docs/algorithm.md）。個人の軌跡は外に出さず、候補（マス・時間帯・人数）だけが `candidates` に残る |
 
 ネイティブアプリや LINE ミニアプリも同じ `POST /v1/locations` を使う（画面を閉じても位置が取れるのがネイティブ化の目的）。間隔は端末側で変えてよい（例: 動いていないときは送らない）。
-合成データの CSV（`scripts/synth/`）は実験用で、本番の経路はこの API だけ。発表用のデモ（`demo` ブランチ）は位置を取らず送らない。
+合成データの CSV（`scripts/synth/`）は実験用で、本番の経路はこの API だけ。デモ（`demo` ブランチ）は位置を取らず送らない。
 
 ### 4.2 候補の状態
 
@@ -199,7 +199,7 @@ DB 接続は **psycopg 3 + 生 SQL**（PostGIS の関数は SQL で書く方が�
 │   └── check/               Playwright の自動確認（ui-check.js、e2e-check.js）とデモの撮影（capture-demo.js、demo ブランチだけ）。使い方はファイルの冒頭
 ├── tests/                   pytest（API、ルール、取り込み、検知、定期処理、合成データ）
 ├── data/                    入力データ（BODIK、OSM、小字、公式拠点の CSV のひな型）。out/ demo/ estat/ はコミットしない
-├── docs/                    設計の文書、README 冒頭の GIF、紹介動画のシナリオ scenario.md（demo ブランチだけ）
+├── docs/                    設計の文書、ロゴ、README 冒頭の GIF、紹介動画のシナリオ scenario.md（demo ブランチだけ）
 ├── video/                   紹介動画の HyperFrames の元ファイル（demo ブランチだけ）
 ├── .github/workflows/ci.yml CI（PostGIS を立てて ruff と pytest）
 ├── compose.yaml, Dockerfile, pyproject.toml, uv.lock
@@ -221,4 +221,4 @@ ORM・移行ツール・キュー/スケジューラー（検知は api の中�
 3'. `python scripts/synth/simulate.py` → `docker compose exec api python -m app.detect_job` → `/v1/spots` に `source: detected` の候補が出る → 近くで `/v1/questions` に出て、回答すると `confirmed`
 4. ブラウザで画面を開き、地図にピンが出ること
 5. `DELETE /v1/sessions/me` で location_points・回答・自分だけの報告のピンが消えること
-6. `docker compose run --rm api pytest -q`（API・ルール・取り込み・検知・定期処理・合成データ）と GitHub Actions（`.github/workflows/ci.yml`）が通ること
+6. `docker compose exec api pytest -q`（API・ルール・取り込み・検知・定期処理・合成データ）と GitHub Actions（`.github/workflows/ci.yml`）が通ること
