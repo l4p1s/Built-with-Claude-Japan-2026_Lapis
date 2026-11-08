@@ -10,6 +10,9 @@
 - 企画の芯・検証の数字・出典は [CLAUDE.md](CLAUDE.md)。この README の数字はそこから引いています
 - ライセンス: MIT（データは各出典の条件に従います）
 
+<p align="center"><a href="docs/promo.mp4"><img src="docs/promo-teaser.gif" alt="紹介動画の一部: 人が集まると「？」が立ち、近くの人に聞いて、地図に載る" width="640"></a></p>
+<p align="center">▶ <a href="docs/promo.mp4">紹介動画（3 分、mp4 33MB）</a>　／　<a href="https://built-with-claude-japan-2026-lapis.pages.dev/?demo=1&amp;from=08:00&amp;speed=5">デモを開く</a>（地震の翌日を合成データで早回し再生。位置は取りません）</p>
+
 ## 目次
 
 1. [背景](#1-背景)
@@ -440,7 +443,7 @@ python scripts/synth/make_heatmap.py && python3 -m http.server 18091 -d data/out
 │   └── check/               Playwright の自動確認
 ├── tests/                   pytest（API・ルール・取り込み・検知・定期処理・合成データ）
 ├── data/                    入力データ（BODIK・OSM・小字・公式拠点の CSV のひな型）。out/ demo/ estat/ はコミットしない
-├── docs/                    設計の文書（下の「文書」）
+├── docs/                    設計の文書（下の「文書」）、紹介動画 promo.mp4 と冒頭の GIF
 ├── .github/workflows/ci.yml CI
 ├── compose.yaml, Dockerfile, pyproject.toml, uv.lock
 ├── CLAUDE.md                企画の芯・検証の数字・出典

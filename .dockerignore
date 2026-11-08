@@ -16,3 +16,6 @@ web/demo
 video
 web/video
 data/survey-answers*.json
+# 紹介動画（大きい。イメージに入れない）
+docs/*.mp4
+docs/*.gif
