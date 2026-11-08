@@ -199,7 +199,7 @@ DB 接続は **psycopg 3 + 生 SQL**（PostGIS の関数は SQL で書く方が�
 │   └── check/               Playwright の自動確認（ui-check.js、e2e-check.js）とデモの撮影（capture-demo.js、demo ブランチだけ）。使い方はファイルの冒頭
 ├── tests/                   pytest（API、ルール、取り込み、検知、定期処理、合成データ）
 ├── data/                    入力データ（BODIK、OSM、小字、公式拠点の CSV のひな型）。out/ demo/ estat/ はコミットしない
-├── docs/                    設計の文書、紹介動画 promo.mp4 と README 冒頭の GIF、紹介動画のシナリオ scenario.md（demo ブランチだけ）
+├── docs/                    設計の文書、README 冒頭の GIF、紹介動画のシナリオ scenario.md（demo ブランチだけ）
 ├── video/                   紹介動画の HyperFrames の元ファイル（demo ブランチだけ）
 ├── .github/workflows/ci.yml CI（PostGIS を立てて ruff と pytest）
 ├── compose.yaml, Dockerfile, pyproject.toml, uv.lock
