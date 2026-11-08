@@ -1,6 +1,6 @@
 """参加率（アプリを入れている人の割合）を変えて、何人の集まりまで見つかるかを測る。
 
-    python scripts/synth/participation.py --out data/out <scratchpad>/seed2 ... --rates 0.05 0.1 0.2 0.5 1
+    python scripts/synth/participation.py --out data/out <seed2 の置き場> ... --rates 0.05 0.1 0.2 0.5 1
 
 合成データは 1000 人 = 市民の縮図（集まりの人数は実際の規模）。参加率 p では、集まりに来る人のうち p だけがアプリ利用者になる。
 人を間引いて scripts/synth/detect_demo.py を回し（平常期の学習も間引いた人だけで行う）、集まりの大きさ × 参加率 ごとの検知率を表にする。

@@ -1,6 +1,6 @@
 """OSM 由来の POI データベース（別プロジェクトの places.db）から八代市中心部の施設を抜き出す。1回だけ実行する。
 
-    python scripts/synth/extract_osm_poi.py [/path/to/places.db]
+    python scripts/synth/extract_osm_poi.py <places.db>
 
 出力 data/osm/poi_yatsushiro.csv は © OpenStreetMap contributors（ODbL）。
 """
@@ -9,7 +9,9 @@ import csv
 import sqlite3
 import sys
 
-DB = sys.argv[1] if len(sys.argv) > 1 else "/home/lapis/TempGPS/data/places.db"
+if len(sys.argv) < 2:
+    sys.exit("usage: python scripts/synth/extract_osm_poi.py <places.db>")
+DB = sys.argv[1]
 OUT = "data/osm/poi_yatsushiro.csv"
 BBOX = (32.42, 32.62, 130.52, 130.72)  # 八代市の平野部（南北 32.42–32.62、東西 130.52–130.72）
 KINDS = (

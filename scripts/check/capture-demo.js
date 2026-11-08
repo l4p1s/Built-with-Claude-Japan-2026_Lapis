@@ -2,6 +2,7 @@
 // 画面録画だと GPU のない機械では点の動きがカクつくので、時刻を window.demoSeek で直接指定して1コマずつ撮る。
 //   DEMO=1 docker compose up -d のうえで
 //   NODE_PATH=<playwright-core の場所> node scripts/check/capture-demo.js <D1|D2|D3|M1|M2> <出力の mp4>
+//   URL= で撮る画面のサーバー（既定は http://localhost:18080/）、CHROME= でブラウザの実行ファイルを指定できる
 // 時刻は keys（[動画の秒, デモの分] の折れ線）で決める。CSS のアニメーション（ピンが弾む、シートが上がる）も1コマ分ずつ進める。
 // 画面はスマホの幅 390×844 を 3 倍の密度（1170×2532）で撮る。view があるショットは横長で撮り、地図の上のボタンや帯を消す。ffmpeg が要る
 // 構図を確かめるだけなら STILLS=5,6.5 のように秒を渡すと、その秒の静止画（<出力>-<秒>.png）だけを撮る
@@ -47,12 +48,12 @@ function minuteAt(keys, s) {
   const [name, out] = process.argv.slice(2);
   const shot = SHOTS[name];
   if (!shot || !out) throw new Error("使い方: node scripts/check/capture-demo.js <D1|D2|D3|M1|M2> <出力の mp4>");
-  const browser = await chromium.launch({ executablePath: process.env.HOME + "/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome" });
+  const browser = await chromium.launch({ executablePath: process.env.CHROME || undefined });
   const [width, height, dpr] = shot.view ?? [390, 844, 3];
   const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: dpr, locale: "ja-JP" });
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.goto(`http://localhost:18080/?demo=1&paused=1&${shot.query}`);
+  await page.goto(`${process.env.URL ?? "http://localhost:18080/"}?demo=1&paused=1&${shot.query}`);
   await page.locator("#consent-ok").click();
   await page.locator(".me").waitFor();
   if (shot.hideQuestion) await page.addStyleTag({ content: "#question { display: none !important; }" });

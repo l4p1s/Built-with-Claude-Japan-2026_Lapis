@@ -1,14 +1,14 @@
 // 検知 → 地図 → 質問 → 回答 → 確認済み を通して確かめる（画面の確認は scripts/check/ui-check.js と同じ動かし方）。
 // 先に scripts/synth/simulate.py で投入し、docker compose exec api python -m app.detect_job で候補を作っておく。
 //   NODE_PATH=<playwright-core の場所> node scripts/check/e2e-check.js <候補の lat> <候補の lon> <スクリーンショットの置き場>
-//   URL=http://localhost:18082/ のように、確かめるサーバーを変えられる
+//   URL= で確かめるサーバー、CHROME= でブラウザの実行ファイルを指定できる
 //   DEMO=1 を付けると、位置を使わないデモ（/?demo=1&at=lat,lon）で同じことを確かめる（サーバーも DEMO=1 で起動しておく）
 // 候補の場所: docker compose exec db psql -U app -c "select ST_Y(center::geometry), ST_X(center::geometry) from candidates where source='detected' and status='pending'"
 const { chromium } = require("playwright-core");
 const [lat, lon, shots] = [Number(process.argv[2]), Number(process.argv[3]), process.argv[4]];
 const URL = process.env.URL ?? "http://localhost:18080/";
 (async () => {
-  const browser = await chromium.launch({ executablePath: process.env.HOME + "/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome" });
+  const browser = await chromium.launch({ executablePath: process.env.CHROME || undefined });
   const demo = Boolean(process.env.DEMO);
   const ctx = await browser.newContext({
     viewport: { width: 390, height: 844 }, locale: "ja-JP",

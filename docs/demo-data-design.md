@@ -152,7 +152,7 @@ python scripts/synth/make_demo_data.py --templates data/out/survey_templates.jso
 
 ```
 python scripts/synth/make_heatmap.py --out data/out     # 5 分おきに間引いて data/out/heatmap/ と heatmap.html を作る（約 1 分）
-python3 -m http.server 18091 -d data/out          # → http://localhost:18091/heatmap.html
+python3 -m http.server 18091 -d data/out          # → ブラウザでポート 18091 の heatmap.html を開く
 ```
 
 日を選び、スライダーか「再生」で時刻を動かす（速さは 1 日 2 分 / 43 秒 / 17 秒）。「家の周り 200m を薄く」（既定でオン）は、検知と同じく自宅の周りを対象外にした見え方。「点も出す」で一人ひとりの位置も見える。

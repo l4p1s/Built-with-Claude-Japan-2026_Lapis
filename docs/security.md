@@ -59,7 +59,7 @@
 | GPS の偽装 | 端末が送る位置を信じるしかない | 候補は現地の人の回答で確定する。偽の集まりを 1 人で作るには近くに複数の端末が要る。確定後も 6 時間で消える |
 | 複数の端末・ブラウザでの多重参加 | アカウントがない | 回数制限と「近くの人だけ」で手間を増やす。実地実験で問題が出たら、電話番号なしの端末ごとの署名（App Attest / Play Integrity）を検討 |
 | 回数制限はプロセス内 | ワーカーを 1 つで動かす前提 | ワーカーを増やすときは Redis 等に移す（`docs/architecture.md` §8） |
-| 通信の暗号化 | localhost は HTTP | 公開は必ず HTTPS（TLS のある前段を置く）。スマホの位置取得も HTTPS が条件 |
+| 通信の暗号化 | 手元では HTTP | 公開は必ず HTTPS（TLS のある前段を置く）。スマホの位置取得も HTTPS が条件 |
 | 前段のログ | 位置は URL に入れず本文で送る（`POST /v1/questions`）。uvicorn のアクセスログも止めている（`--no-access-log`）。地図の表示範囲（`GET /v1/spots?bbox=`）は URL に入るので、前段の記録には残る | 前段の記録の保存期間を決めて消す |
 
 ## 4. 運用で守ること
@@ -79,5 +79,5 @@ GitHub の Issue に書いてください（位置情報に関わるものは、
 
 ```sh
 docker compose exec api pytest -q tests/test_api.py   # 地域外の参加 403・位置なし 422、外の点を捨てる、遠くからの回答 403、回数制限 429 など
-curl -s -X POST localhost:18080/v1/sessions -H "Content-Type: application/json" -d '{"consent":true,"lat":35,"lon":139}'   # → 対象地域の外では参加できません
+curl -s -X POST "$BASE/v1/sessions" -H "Content-Type: application/json" -d '{"consent":true,"lat":35,"lon":139}'   # $BASE は起動したサーバーの URL。→ 対象地域の外では参加できません
 ```
