@@ -45,9 +45,9 @@
     box-shadow: 0 0 0 6px rgb(255 255 255 / 0.18); }
   #a01-pulse { left: 1010px; top: 597px; width: 80px; height: 80px; border-radius: 50%; border: 4px solid #fff; }
   #a01-place { left: 664px; top: 476px; font-size: 32px; font-weight: 600; color: #fff; white-space: nowrap; }
-  #a01-line { left: 1100px; top: 196px; width: 4px; height: 470px; background: rgb(255 255 255 / 0.35); transform-origin: 50% 0%; }
-  #a01-years { left: 1140px; top: 170px; width: 700px; color: #fff; }
-  .a01-row { position: relative; margin-bottom: 40px; }
+  #a01-line { left: 1100px; top: 190px; width: 4px; height: 510px; background: rgb(255 255 255 / 0.35); transform-origin: 50% 0%; }
+  #a01-years { left: 1140px; top: 150px; width: 700px; color: #fff; }
+  .a01-row { position: relative; margin-bottom: 30px; }
   .a01-row i { position: absolute; left: -50px; top: 30px; width: 24px; height: 24px; border-radius: 50%; background: #fff; border: 5px solid var(--navy);
     box-shadow: 0 0 0 3px #fff; }
   .a01-row b { display: block; font-size: 72px; font-weight: 600; line-height: 1.15; }
@@ -61,6 +61,7 @@
       <div class="a01-ring" id="a01-r1" style="left:990px;top:577px;width:120px;height:120px;"></div>
       <div class="a01-ring" id="a01-r2" style="left:950px;top:537px;width:200px;height:200px;"></div>
       <div class="a01-ring" id="a01-r3" style="left:910px;top:497px;width:280px;height:280px;"></div>
+      <div class="a01-ring" id="a01-r4" style="left:870px;top:457px;width:360px;height:360px;"></div>
       <div id="a01-pulse" class="abs"></div>
       <div id="a01-mk" class="abs"></div>
     </div>
@@ -68,10 +69,11 @@
     <div id="a01-line" class="abs"></div>
     <div id="a01-years" class="abs">
       <div class="a01-row"><i></i><b>2016年</b><span>熊本地震</span></div>
+      <div class="a01-row"><i></i><b>2020年7月</b><span>八代市坂本町の豪雨</span></div>
       <div class="a01-row"><i></i><b>2025年8月</b><span>八代市の豪雨</span></div>
       <div class="a01-row"><i></i><b>2026年7月</b><span>熊本地震 <small>（実家と友人が被災）</small></span></div>
     </div>
-    <div class="cap dark"><p>八代市出身。</p><p><em>何度も</em>被災した。</p></div>
+    <div class="cap dark"><p>八代市出身。</p><p><em>何度も</em>被災した。</p><p data-hold>自治体も、<em>被災しながら</em>避難所と支援を続けていた。</p></div>
     <div class="credit" data-layout-ignore>地図 © OpenFreeMap © OpenMapTiles © OpenStreetMap ／ 施設 © OpenStreetMap、八代市 CC BY 4.0</div>
   </div>
   <script>
@@ -105,19 +107,23 @@
     tl.fromTo("#a01-mk", { y: -160, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "bounce.out" }, 1.0);
     tl.fromTo("#a01-pulse", { scale: 0.4, opacity: 1 }, { scale: 2.6, opacity: 0, duration: 0.9, ease: "power2.out" }, 1.45);
     IN("#a01-place", 1.6, { from: { x: -16, y: 0 }, to: { x: 0 } });
-    tl.fromTo("#a01-line", { scaleY: 0 }, { scaleY: 1, duration: 3.6, ease: "none" }, 2.2);
+    tl.fromTo("#a01-line", { scaleY: 0 }, { scaleY: 1, duration: 3.8, ease: "none" }, 2.0);
     const rows = document.querySelectorAll(".a01-row");
-    [2.4, 4.0, 5.6].forEach((at, i) => {
+    // 2020年7月の豪雨を足して4行（2026-11-08 発案者の指示）
+    [2.2, 3.4, 4.6, 5.8].forEach((at, i) => {
       tl.fromTo(rows[i].querySelector("i"), { scale: 0 }, { scale: 1, duration: 0.4, ease: "back.out(3)" }, at);
       tl.fromTo(rows[i].querySelectorAll("b, span"), { x: 40, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6, ease: "expo.out", stagger: 0.12 }, at + 0.05);
       tl.fromTo(`#a01-r${i + 1}`, { scale: 0.3, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.8, ease: "expo.out" }, at + 0.1);
     });
     CAP(".cap p:nth-child(1)", 0.8);
     CAP(".cap p:nth-child(2)", 6.6);
+    // 3行目（2026-11-08 発案者「自治体も被災している、と入れてほしい」）。横に長いので、年表と線を先に消してから出す
+    OUT("#a01-years, #a01-line, #a01-place, #a01-mk, .a01-ring", 7.7, 0.4);
+    CAP(".cap p:nth-child(3)", 8.1);
     // A02 へ: 市役所の印へ寄りながら明るくする
-    OUT("#a01-years, #a01-line, #a01-place, .cap", 8.5, 0.5);
-    tl.to("#a01-cam", { scale: 1.9, duration: 1.5, ease: "power2.in", transformOrigin: O }, 8.5);
-    tl.to("#a01-veil", { opacity: 0.12, duration: 1.5, ease: "power1.in" }, 8.5);
+    OUT(".cap", 11.6, 0.35);
+    tl.to("#a01-cam", { scale: 1.9, duration: 1.5, ease: "power2.in", transformOrigin: O }, 10.5);
+    tl.to("#a01-veil", { opacity: 0.12, duration: 1.5, ease: "power1.in" }, 10.5);
 
     window.__timelines["a01"] = tl;
   </script>

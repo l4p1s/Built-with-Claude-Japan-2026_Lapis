@@ -84,7 +84,7 @@
     <svg class="full dash a04-arrow" viewBox="0 0 1920 1080"><line id="a04-ln" x1="1180" y1="402" x2="1180" y2="402" /></svg>
     <div id="a04-head" class="abs"></div>
     <div class="nox" id="a04-x" style="left:830px;top:370px;"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
-    <div class="cap band"><p>本当に助かった店の前の炊き出しや配布は、</p><p>公式のサイトには<em>載っていない</em>。</p></div>
+    <div class="cap band"><p>店の前の炊き出しや配布にも、<em>助けられた</em>。</p><p>でも、公式のサイトには<em>載っていない</em>。</p><p data-hold>知られず、<em>がらがら</em>の炊き出しもあった。</p></div>
 
   </div>
   <script>
@@ -118,7 +118,7 @@
     tl.fromTo("#a04-list", { scale: 0.5, opacity: 0.6 }, { scale: 1, opacity: 1, duration: 0.8, ease: "power3.out" }, 0);
     IN("#a04-left .a04-h", 0.4);
     tl.fromTo("#a04-src > svg", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "back.out(2)", stagger: 0.12 }, 0.5);
-    tl.fromTo("#a04-rows", { y: 0 }, { y: -360, duration: 9, ease: "none" }, 1.0);
+    tl.fromTo("#a04-rows", { y: 0 }, { y: -400, duration: 10, ease: "none" }, 1.0);
     IN("#a04-hr", 1.2);
     tl.fromTo("#a04-store", { y: 160, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease: "back.out(1.4)" }, 1.4);
     tl.fromTo("#a04-stall", { y: 60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "back.out(1.8)" }, 1.8);
@@ -133,11 +133,13 @@
     tl.to("#a04-ln, #a04-head", { opacity: 0.25, duration: 0.6 }, 5.6);
     CAP(".cap p:nth-child(1)", 2.0);
     CAP(".cap p:nth-child(2)", 5.8);
+    // 知られず、がらがら（2026-11-08 発案者の指示）: 店のまわりの人が1人ずつ消え、店と湯気だけが残る
+    ["#a04-p4", "#a04-p1", "#a04-p3", "#a04-p2"].forEach((s, i) => tl.to(s, { opacity: 0, y: 12, duration: 0.35, ease: "power1.in" }, 6.3 + i * 0.2));
+    CAP(".cap p:nth-child(3)", 6.9);
     // A05 へ: 左が抜け、店が左へ縮んで A05 の道の起点になる
-    OUT(".cap, .a04-arrow, #a04-head, #a04-hr, #a04-x", 8.3, 0.4);
-    OUT(".a04-p", 8.5, 0.3);
-    tl.to("#a04-left", { x: -960, duration: 0.8, ease: "power2.in" }, 8.5);
-    tl.to("#a04-shop", { x: -1140, y: 30, scale: 0.4, transformOrigin: "480px 410px", duration: 1.2, ease: "power3.inOut" }, 8.6);
+    OUT(".cap, .a04-arrow, #a04-head, #a04-hr, #a04-x", 9.8, 0.4);
+    tl.to("#a04-left", { x: -960, duration: 0.8, ease: "power2.in" }, 10.0);
+    tl.to("#a04-shop", { x: -1140, y: 30, scale: 0.4, transformOrigin: "480px 410px", duration: 1.0, ease: "power3.inOut" }, 10.0);
 
     window.__timelines["a04"] = tl;
   </script>

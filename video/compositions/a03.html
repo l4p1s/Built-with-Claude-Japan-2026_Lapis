@@ -49,7 +49,7 @@
   .a03-win .bar i { width: 9px; height: 9px; border-radius: 50%; background: #c4cad3; }
   .a03-win .bar em { height: 10px; border-radius: 5px; background: #8b94a3; margin-left: 10px; }
   .a03-win .ln { height: 12px; border-radius: 6px; background: #eef0f3; margin: 18px 0 0 18px; }
-  #a03-sites { left: 900px; top: 640px; font-size: 40px; font-weight: 600; white-space: nowrap; }
+  #a03-sites { left: 1200px; top: 640px;  /* 字幕が3行になったので、1行目と重ならないよう右へ（2026-11-07）*/ font-size: 40px; font-weight: 600; white-space: nowrap; }
   #a03-sites b { font-size: 76px; color: var(--orange); margin-right: 6px; }
   #a03-names { left: 1330px; top: 412px; font-size: 44px; font-weight: 600; color: var(--navy); background: #fff;
     border: 5px solid var(--orange); border-radius: 20px; padding: 6px 30px; white-space: nowrap; z-index: 5; }
@@ -69,7 +69,7 @@
     <div class="a03-win" style="left:1560px;top:414px;"><div class="bar" style="background:#dfe8ef"><i></i><i></i><i></i><em style="width:120px"></em></div><div class="ln" style="width:150px"></div><div class="ln" style="width:150px"></div><div class="ln" style="width:90px"></div></div>
     <p id="a03-sites" class="abs"><b>8</b>つの自治体サイト</p>
     <p id="a03-names" class="abs">呼び方 <b>11</b>通り</p>
-    <div class="cap dark"><p>公式の給水拠点79か所の情報は、</p><p><em>8つの自治体サイト</em>に分散。呼び方は<em>11通り</em>。</p></div>
+    <div class="cap dark"><p>公式の給水拠点79か所の情報は、</p><p><em>8つの自治体サイト</em>に分散。呼び方は<em>11通り</em>。</p><p data-hold>情報が<em>一元化されず</em>、どこを見ればいいか<em>迷う</em>。</p></div>
     <p class="src dark">出典: 名古屋大学 応急給水拠点マップ（防災科研 bosaiXview）</p>
 
   </div>
@@ -139,11 +139,12 @@
     tl.fromTo("#a03-names b", { scale: 0.4 }, { scale: 1, duration: 0.5, ease: "back.out(3)", transformOrigin: "50% 70%" }, 7.4);
     CAP(".cap p:nth-child(1)", 1.0);
     CAP(".cap p:nth-child(2)", 5.6);
+    CAP(".cap p:nth-child(3)", 7.8);  // 分散していると何が困るか（2026-11-07 発案者の指示）。「わからない」より「迷う」の方が優しい（2026-11-08）
     // A04 へ: 窓が左に寄って重なり、1 枚のリストになる
-    OUT("#a03-label, #a03-num, #a03-sites, #a03-names, .cap, .src", 9.2, 0.4);
+    OUT("#a03-label, #a03-num, #a03-sites, #a03-names, .cap, .src", 12.2, 0.4);
     wins.forEach((w, i) => {
       const r = Math.floor(i / 4), c = i % 4;
-      tl.to(w, { x: 480 - (900 + c * 220 + 100) + i * 4, y: 495 - (210 + r * 204 + 90) + i * 4, scale: 1.3, duration: 0.8, ease: "power3.inOut" }, 9.0 + i * 0.02);
+      tl.to(w, { x: 480 - (900 + c * 220 + 100) + i * 4, y: 495 - (210 + r * 204 + 90) + i * 4, scale: 1.3, duration: 0.8, ease: "power3.inOut" }, 12.0 + i * 0.02);
     });
 
     window.__timelines["a03"] = tl;

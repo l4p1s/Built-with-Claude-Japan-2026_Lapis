@@ -46,6 +46,16 @@
   #a06-msg { left: 300px; top: 356px; }
   #a06-msg b { position: absolute; height: 40px; border-radius: 20px; background: var(--navy); }
   #a06-ring { left: 170px; top: 400px; width: 120px; height: 120px; position:absolute;border-radius:50%;border:5px solid var(--orange); }
+  /* 後半のまとめ: 2 つの原因 → 情報格差 */
+  .a06-why { position: absolute; left: 200px; width: 860px; padding: 26px 36px; background: #fff; border-radius: 24px;
+    box-shadow: 0 8px 28px rgb(17 24 39 / 0.12); border-left: 10px solid var(--navy); }
+  .a06-why b { display: block; font-size: 50px; font-weight: 700; color: var(--navy); white-space: nowrap; }
+  .a06-why small { display: block; margin-top: 10px; font-size: 32px; color: var(--muted); white-space: nowrap; }
+  #a06-w1 { top: 250px; }
+  #a06-w2 { top: 500px; }
+  .a06-join path { fill: none; stroke: var(--navy); stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; }
+  #a06-gap { left: 1290px; top: 370px; width: 520px; text-align: center; font-size: 120px; font-weight: 700; color: var(--navy); white-space: nowrap; }
+  #a06-gap span { background: linear-gradient(transparent 62%, rgb(234 138 0 / 0.42) 62%); }
   #a06-note { left: 0; top: 64px; width: 1920px; text-align: center; font-size: 32px; color: var(--ink); }
   #a06-note span { background: #fff; padding: 8px 22px; border-radius: 12px; box-shadow: 0 4px 16px rgb(17 24 39 / 0.1); }
   #a06-hole { left: 0; top: 0; width: 1920px; height: 1080px; clip-path: circle(0px at 960px 440px); z-index: 10; }
@@ -65,8 +75,12 @@
     <p class="lab a06-lab" style="left:1600px;">SNS をしていない</p>
     <div id="a06-pr" class="abs"><svg width="120" height="200" viewBox="0 0 120 200"><circle cx="60" cy="34" r="28" fill="#1e3a5f"/><path d="M14 196V106c0-26 20-42 46-42s46 16 46 42v90z" fill="#1e3a5f"/></svg></div>
     <div class="nox" id="a06-x" style="left:1418px;top:398px;"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+    <div class="a06-why" id="a06-w1"><b>① 情報が一元化されていない</b><small>公式は8つのサイトに分散。非公式は載らない</small></div>
+    <div class="a06-why" id="a06-w2"><b>② つながりがないと届かない</b><small>早いのは SNS とお隣さん。でも、つながり頼み</small></div>
+    <svg class="full a06-join" viewBox="0 0 1920 1080"><path id="a06-j1" d="M1080 335 H1160 V455 H1260" /><path id="a06-j2" d="M1080 585 H1160 V455" /></svg>
+    <p id="a06-gap" class="abs"><span>情報格差</span></p>
     <div id="a06-hole" class="abs"><img src="assets/demo/D1-first.png" alt=""></div>
-    <div class="cap band"><p>でも、<em>つながりがないと</em>届かない。</p><p>情報に、<em>格差</em>が生まれる。</p></div>
+    <div class="cap band"><p>でも、<em>つながりがないと</em>届かない。</p><p data-hold>この2つで、情報に<em>格差</em>が生まれる。</p></div>
     <p class="src">出典: 金沢大学 × LINEヤフー（能登半島地震の調査）</p>
 
   </div>
@@ -107,14 +121,19 @@
     RING("#a06-ring", 1.8);
     NOX("#a06-x", 2.0);
     tl.fromTo("#a06-pr", { rotation: 0 }, { rotation: -4, duration: 0.3, yoyo: true, repeat: 1, transformOrigin: "50% 100%" }, 2.3);
-    tl.fromTo("#a06-note", { y: -20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "expo.out" }, 2.2);
-    IN(".src", 2.2);
     CAP(".cap p:nth-child(1)", 0.8);
-    CAP(".cap p:nth-child(2)", 3.0);
-    // A07 へ: 札と点線が薄くなり、中央から地図が丸く広がる
-    tl.to("#a06-src, .a06-dash, #a06-x", { opacity: 0.25, duration: 0.6 }, 5.6);
-    OUT(".cap, #a06-note, .src", 6.2, 0.4);
-    tl.to("#a06-hole", { clipPath: "circle(260px at 960px 440px)", duration: 1.2, ease: "power2.inOut" }, 5.8);
+    // 後半（2026-11-07 発案者の指示）: 2 つの原因（一元化されていない、つながりがないと届かない）が並び、情報格差につながる
+    OUT("#a06-src, .a06-dash, #a06-x, #a06-ring, .a06-lab, #a06-pl, #a06-pr, #a06-msg, .cap p:nth-child(1)", 4.0, 0.5);
+    tl.fromTo(".a06-why", { x: -60, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6, ease: "expo.out", stagger: 0.9 }, 4.5);
+    tl.fromTo(".a06-join path", { strokeDasharray: 400, strokeDashoffset: 400 }, { strokeDashoffset: 0, duration: 0.6, ease: "power2.out" }, 6.3);
+    tl.fromTo("#a06-gap", { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: "back.out(1.8)" }, 6.8);
+    tl.fromTo("#a06-note", { y: -20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "expo.out" }, 6.3);
+    IN(".src", 6.8);
+    CAP(".cap p:nth-child(2)", 7.3);
+    // A07 へ: まとめが薄くなり、中央から地図が丸く広がる
+    tl.to(".a06-why, .a06-join, #a06-gap", { opacity: 0.25, duration: 0.6 }, 11.6);
+    OUT(".cap, #a06-note, .src", 12.6, 0.4);
+    tl.to("#a06-hole", { clipPath: "circle(260px at 960px 440px)", duration: 1.2, ease: "power2.inOut" }, 11.8);
 
     window.__timelines["a06"] = tl;
   </script>
