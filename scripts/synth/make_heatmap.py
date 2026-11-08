@@ -1,7 +1,7 @@
 """合成データ（data/out/points_*.csv.gz）を 5 分おきに間引いて、時刻を動かせるヒートマップ用のデータと画面を作る。
 
     python scripts/synth/make_heatmap.py --out data/out
-    python3 -m http.server 18091 -d data/out   # → http://localhost:18091/heatmap.html
+    python3 -m http.server 18091 -d data/out   # → ブラウザでポート 18091 の heatmap.html を開く
 
 出力: data/out/heatmap/<日付>.bin（int16 の格子座標。1 日 288 コマ × 人数 × (lat, lon)）、index.json、heatmap.html
 """

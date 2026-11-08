@@ -14,7 +14,7 @@
 
 ## 前提
 
-- すべてのコマンドはリポジトリのルート（`/home/lapis/ClaudeCodeHackason2026`）で実行する
+- すべてのコマンドはリポジトリのルートで実行する
 - `docker compose up -d --build --wait` で API（ホスト側 `127.0.0.1:18080`）と DB が起動していること。`api` コンテナはソースをマウントしているので、Python と `web/` の変更はビルドし直さなくても反映される
 - テストは `docker compose run --rm api pytest ...` で実行する（実 DB を使う）
 - DB の表を変えたら `docker compose down -v && docker compose up -d --wait` で作り直す。開発中の DB に入っているのはテストのデータだけなので消えてよい
@@ -2069,7 +2069,7 @@ else showConsent();
 
 - [ ] **Step 2: ブラウザで動かして確かめる**
 
-Chrome で `http://localhost:18080` を開き、DevTools のデバイスモード（スマホの幅、例: iPhone 14）と、Sensors の Location を `32.5072, 130.6016`（八代市役所）にする。
+Chrome で起動したサーバーの画面を開き、DevTools のデバイスモード（スマホの幅、例: iPhone 14）と、Sensors の Location を `32.5072, 130.6016`（八代市役所）にする。
 
 確認すること（すべて満たすまで直す）:
 1. 同意の画面が出る。Esc で閉じない。「同意して始める」で閉じ、位置の許可を求められる
@@ -2110,8 +2110,8 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 `README.md` の「## 起動方法」のコードブロックの下にある箇条書きを、次の内容で置き換える:
 
 ```markdown
-- Web 画面: http://localhost:18080 （スマホ実機は HTTPS が必要なので、TLS の前段を置いて公開する）
-- API 仕様書: http://localhost:18080/docs （OpenAPI: `/openapi.json`）
+- Web 画面: 起動したサーバーのポート 18080（スマホ実機は HTTPS が必要なので、TLS の前段を置いて公開する）
+- API 仕様書: 同じサーバーの `/docs`（OpenAPI: `/openapi.json`）
 - 公式の避難所データ（BODIK 令和8年熊本地震）の取り込み: `docker compose run --rm api python scripts/import_bodik.py`
 - 構成と設計の理由: [docs/architecture.md](architecture.md) / 画面: [docs/web-ui-design.md](web-ui-design.md)
 - DB を初期化し直す: `docker compose down -v`（取り込んだデータも消えるので、取り込みをやり直す）

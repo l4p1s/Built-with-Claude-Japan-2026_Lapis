@@ -1,4 +1,4 @@
-// 手順書 Task 7 Step 2 の確認項目をヘッドレス Chromium で確かめる
+// 画面の確認項目をヘッドレス Chromium で確かめる。URL= で確かめるサーバー、CHROME= でブラウザの実行ファイルを指定できる
 const { chromium } = require("playwright-core");
 const assert = require("assert/strict");
 
@@ -34,9 +34,7 @@ async function nudgeMap(page) {
 }
 
 (async () => {
-  const browser = await chromium.launch({
-    executablePath: process.env.HOME + "/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome",
-  });
+  const browser = await chromium.launch({ executablePath: process.env.CHROME || undefined });
   require("fs").mkdirSync(SHOTS, { recursive: true });
 
   // 1. 同意

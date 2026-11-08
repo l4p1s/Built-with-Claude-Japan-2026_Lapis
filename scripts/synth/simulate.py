@@ -1,10 +1,10 @@
 """合成データ（data/out/points_*.csv.gz）を REST API 経由で投入し、検知〜地図までを通して動かす。
 
-    python scripts/synth/simulate.py --api http://localhost:18080 --people 300 --days 8 --stride 2
+    python scripts/synth/simulate.py --people 300 --days 8 --stride 2   # 送り先は --api で変えられる
 
 日付は「地震の翌日（D1）= 今日」になるようにずらす（--no-shift でそのまま）。
 今日の分も丸 1 日ぶん入れるので、時間が進むにつれて検知が「今」の集まりを見つける（再生になる）。
-投入後: docker compose exec api python -m app.detect_job → http://localhost:18080 で候補が出る。
+投入後: docker compose exec api python -m app.detect_job → 画面に候補が出る。
 """
 
 import argparse
