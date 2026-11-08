@@ -202,7 +202,7 @@ scripts/import_bodik.py
 scripts/check/ui-check.js, scripts/check/e2e-check.js     # 画面と通しの自動確認（Playwright）
 ```
 
-- FastAPI が `/` で `web/` を配信する（API のルートより後に登録する）。API と同じサーバーなので CORS の設定は要らず、`ngrok http 18080` 1本で公開できる
+- FastAPI が `/` で `web/` を配信する（API のルートより後に登録する）。API と同じサーバーなので CORS の設定は要らず、TLS の前段 1 つで公開できる
 - MapLibre GL は CDN から読み込む
 
 ### 3.2 PWA
@@ -268,5 +268,5 @@ API（実 DB に対して。`tests/test_api.py` と同じ方式）:
 - URL の指定: `at=lat,lon`（最初の場所）、`zoom=`、`from=HH:MM`（最初の時刻）、`speed=1|5|15`、`paused=1`（止めた状態で始める）、`controls=1`（再生バーを出す）。例 `/?demo=1&from=08:00&speed=5`
 - 動画を 1 コマずつ撮るときは `window.demoSeek(分)` で時刻を直接指定できる（`scripts/check/capture-demo.js`）
 - 集まりが終わったピンは薄くなり、2 時間後に消える。「最後の確認」などの時刻も再生中の時刻が基準
-- 公開は `DEMO=1 docker compose up -d` のうえで `ngrok http 18080`（DB は使わない）
+- 公開は Cloudflare Pages が demo ブランチの web/ を静的に配信（API も DB も使わない）。手元で見るときは `DEMO=1 docker compose up -d`
 - 確認: `DEMO=1 node scripts/check/e2e-check.js <lat> <lon> <置き場>`（8:00 にピンがないこと → 再生 → 質問 → 回答）
