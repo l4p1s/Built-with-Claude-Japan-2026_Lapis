@@ -23,11 +23,11 @@ from app.mesh import mesh_code
 
 LOOKBACK = timedelta(hours=3)  # この幅の時間帯を調べる（続いている集まりは候補を更新する）
 WARMUP = timedelta(hours=2)  # 調べ始めより前から続く滞在を拾うため、点はこれだけ前から読む
-LEARN_DAYS = 7  # 平常の学習に使う日数（docs/algorithm.md §4.1: 平日 2 日を含む 5 日で十分）
+LEARN_DAYS = 7  # 分析に使う平常期の日数（docs/algorithm.md §4.1: 平日 2 日を含む 5 日で十分）
 LEARN_EVERY = timedelta(
     hours=24
-)  # 学習（自宅・いつもの場所・マスの割合）を回し直す間隔。それまでは覚えたものを使う
-RETENTION = timedelta(days=14)  # 位置を残す期間（学習に使う分より長く）
+)  # 平常の分析（自宅・いつもの場所・マスの割合）をやり直す間隔。それまでは覚えたものを使う
+RETENTION = timedelta(days=14)  # 位置を残す期間（分析に使う分より長く）
 MERGE_M = 150  # この距離にある候補（検知・報告）にまとめる
 OFFICIAL_M = 150  # 開設中の公式の拠点からこの距離の集まりは候補にしない（公式のピンがもう出ているので聞く必要がない）
 JST = timezone(timedelta(hours=9))
@@ -81,11 +81,11 @@ def learn(conn, now):
     return people, baseline_share(cells), nights
 
 
-_learned = {"at": None, "value": None}  # プロセス内に覚えた学習結果（定期処理が使う）
+_learned = {"at": None, "value": None}  # プロセス内に覚えた分析の結果（定期処理が使う）
 
 
 def learn_cached(conn, now):
-    """LEARN_EVERY に 1 回だけ learn() を回し、あとは覚えたものを返す。新しい人は次の学習まで「当日だけ」版で扱う"""
+    """LEARN_EVERY に 1 回だけ learn() を回し、あとは覚えたものを返す。新しい人は次の分析まで「当日だけ」版で扱う"""
     if _learned["at"] is None or now - _learned["at"] >= LEARN_EVERY:
         _learned.update(at=now, value=learn(conn, now))
     return _learned["value"]

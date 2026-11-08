@@ -26,7 +26,7 @@
 | **Python + FastAPI** | ◎ 研究コードと同じ言語 | ◎ numpy / scipy / shapely / geopandas | ◎ GIS・研究・Code for Japan 系に多い | ◎ 型定義から自動生成 | ○ 型ヒント＋静的検査で補う。速度は本用途で十分 |
 | TypeScript (Node) | △ 統計・地理が薄い | △ turf.js 程度 | ◎ Web 開発者に多い | ○ 追加ライブラリで可 | ○ フロントと同言語 |
 | Go | △ | △ | ○ | ○ | ◎ 単一バイナリ |
-| Rust / Kotlin | △ | △ | △ | ○ | ○ 学習コスト高 |
+| Rust / Kotlin | △ | △ | △ | ○ | ○ 習得に時間がかかる |
 
 **結論: Python 3.12+ / FastAPI。**
 決め手は「検証と本番の検知コードを同じ言語・同じ関数で共有できる」こと。検知精度（97〜98% など）の数字を OSS の利用者が自分で再現できる。
@@ -157,7 +157,7 @@ DB 接続は **psycopg 3 + 生 SQL**（PostGIS の関数は SQL で書く方が�
 | 認証 | アカウントなしの匿名セッション。Bearer トークン、DB には SHA-256 だけ | `app/auth.py` |
 | ルール | 確定、終了、表示の数値、備考の検査、対象地域 | `app/rules.py` |
 | 回数制限 | プロセス内のスライディングウィンドウ | `app/ratelimit.py` |
-| 検知 | 純関数（滞在、学習、集計、ポアソン） | `app/detect.py`、`app/mesh.py`（地域メッシュの番号） |
+| 検知 | 純関数（滞在、平常の分析、集計、ポアソン） | `app/detect.py`、`app/mesh.py`（地域メッシュの番号） |
 | 定期処理 | DB から読んで検知し `candidates` に書く。古いデータを消す | `app/detect_job.py` |
 | DB | PostgreSQL 17 + PostGIS 3.5 | `db/init.sql` |
 | 画面 | 素の HTML/CSS/JS（ビルドなし）+ MapLibre GL 6 + OpenFreeMap。PWA | `web/` |
@@ -166,7 +166,7 @@ DB 接続は **psycopg 3 + 生 SQL**（PostGIS の関数は SQL で書く方が�
 
 - 検知: 純関数は `app/detect.py`（滞在 → いつもの場所 → 500m メッシュ × 30 分 → ポアソン。説明は docs/algorithm.md）。DB との出し入れは `app/detect_job.py`
   - `api` の起動時に別スレッドで `DETECT_EVERY_S` 秒ごと（既定 300、0 で止める）に回る。手動は `docker compose exec api python -m app.detect_job [--at 時刻]`
-  - 直近 7 日で人ごとの自宅・いつもの場所・マス別の滞在の割合を学習し（24 時間に 1 回。あいだは覚えたものを使う）、直近 3 時間を調べる。開設中の公式の拠点（`official_spots`）から 150m 以内の集まりは候補にしない（公式のピンがもう出ている）。近く（150m）に生きている候補があれば更新、報告の候補に重なれば 1 人ぶんの裏付けとして確認済みにする
+  - 直近 7 日で人ごとの自宅・いつもの場所・マス別の滞在の割合を求め（24 時間に 1 回。あいだは覚えたものを使う）、直近 3 時間を調べる。開設中の公式の拠点（`official_spots`）から 150m 以内の集まりは候補にしない（公式のピンがもう出ている）。近く（150m）に生きている候補があれば更新、報告の候補に重なれば 1 人ぶんの裏付けとして確認済みにする
   - 同じ処理で、14 日より古い位置と 30 日使われていないセッションを消す
   - 合成データでの答え合わせ（CSV）は `scripts/synth/detect_demo.py`（docs/demo-data-design.md §7）
   - 点 → 10分以上の滞在 → その人のいつもの場所（自宅周り200mは対象外）か判定 → マス・時間帯ごとに件数 → その日の街全体の量から期待値 → ポアソンで大きく超えたら候補
@@ -185,7 +185,7 @@ DB 接続は **psycopg 3 + 生 SQL**（PostGIS の関数は SQL で書く方が�
 │   ├── rules.py             確定、終了、表示の数値、備考の検査、対象地域
 │   ├── ratelimit.py         書き込みの回数制限
 │   ├── spots.py             候補、回答、公式拠点の読み書き
-│   ├── detect.py            検知の純関数（滞在、学習、集計、ポアソン）
+│   ├── detect.py            検知の純関数（滞在、平常の分析、集計、ポアソン）
 │   ├── detect_job.py        定期処理（DB → 検知 → candidates、古いデータの削除）
 │   └── mesh.py              地域メッシュの番号
 ├── web/                     Web 画面（index.html, app.js, style.css, places.geojson, manifest, アイコン）
