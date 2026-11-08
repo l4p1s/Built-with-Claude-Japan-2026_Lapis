@@ -58,7 +58,7 @@ def main():
     )
     ap.add_argument("--data", default="data")
     ap.add_argument(
-        "--learn-days", type=int, default=0, help="平常期のうち直近の何日で学習するか（0 = 全部）"
+        "--learn-days", type=int, default=0, help="平常期のうち直近の何日を分析に使うか（0 = 全部）"
     )
     ap.add_argument(
         "--quake-at", default="16:27", help="地震の時刻。誤報は地震より後のものだけ数える"
@@ -71,7 +71,7 @@ def main():
     )
     ap.add_argument("--sample-seed", type=int, default=1)
     a = ap.parse_args()
-    tag = "当日だけ" if a.no_baseline else f"平常期で学習（{a.learn_days or '全'}日）"
+    tag = "当日だけ" if a.no_baseline else f"平常期あり（{a.learn_days or '全'}日）"
     if a.sample < 1:
         import random
 
@@ -218,7 +218,7 @@ def main():
     with open(f"{a.out}/detect_result{suffix}.md", "w", encoding="utf-8") as f:
         f.write(f"# 検知の答え合わせ（合成データ、{tag}）\n\n")
         f.write(
-            f"人数 {len(people) or len(after and read_day(after[0]))} / 平常 {len(normal) if not a.no_baseline else 0} 日で学習 / 探索型と判定 {explorers} 人 / 地震後 {len(after)} 日に検知\n\n"
+            f"人数 {len(people) or len(after and read_day(after[0]))} / 平常 {len(normal) if not a.no_baseline else 0} 日を分析 / 探索型と判定 {explorers} 人 / 地震後 {len(after)} 日に検知\n\n"
         )
         f.write(
             f"**検知率 {hit}/{len(targets)}**（公式の {len(official_ev)} 件は除外）、誤報 {len(false_alarms)} 件、公式の拠点に当たった候補 {len(official_cands)} 件\n\n"
