@@ -10,6 +10,6 @@
 | `osm/poi_yatsushiro.csv` | 八代市中心部の店・職場（スーパー・コンビニ・飲食店・工場など 509件）。`scripts/synth/extract_osm_poi.py` で抽出 | © OpenStreetMap contributors, [ODbL](https://www.openstreetmap.org/copyright) |
 | `addresses/yatsushiro.json` | 八代市の小字の代表点。e-Stat のメッシュ人口が無いときに家を置く代用 | デジタル庁 アドレス・ベース・レジストリ由来（別プロジェクトで整形したもの） |
 | `estat/tblT0011*.txt`（例 `tblT001102Q4830.txt`）（**各自で取得・コミットしない**） | 国勢調査2020 250m メッシュ人口（1次メッシュ 4830）。家の重みに使う | [e-Stat 統計地理情報システム](https://www.e-stat.go.jp/gis) → 統計データダウンロード → 国勢調査 2020年 → 5次メッシュ（250m）→ 人口及び世帯（JGD2000）→ 第1次地域区画 4830 |
-| `survey-answers-*.json`（**コミットしない・公開しない**） | 友人の記入フォーム（2026-11-08 に閉じた）の回答。`scripts/synth/survey_templates.py` で型にしてから使う | 回答者の同意の範囲でのみ使う |
+| `survey-answers-*.json`（**コミットしない・公開しない**） | 友人の記入フォーム（公開は終了）の回答。`scripts/synth/survey_templates.py` で型にしてから使う | 回答者の同意の範囲でのみ使う |
 | `out/`（**コミットしない**） | 生成した人流データ（実験用の台本）。`out/survey_templates.json` は回答の型、`out/survey/s*/` は型から作ったデータ | — |
 | `demo/`（**コミットしない**） | デモ動画用の台本（`demo` ブランチの scripts/synth/demo_scenario_video.json）で生成した人流データ | — |

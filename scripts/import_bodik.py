@@ -7,6 +7,7 @@
 
 import json
 import os
+import urllib.error
 import urllib.request
 
 import psycopg
@@ -50,8 +51,11 @@ def rows(geojson: dict) -> list[tuple]:
 
 # ponytail: 取り込み元から消えた行は消さない。取り下げられた避難所が残るようなら、取り込みのたびに source の行を入れ替える
 def main() -> None:
-    with urllib.request.urlopen(URL, timeout=60) as res:
-        data = rows(json.load(res))
+    try:
+        with urllib.request.urlopen(URL, timeout=60) as res:
+            data = rows(json.load(res))
+    except urllib.error.URLError as e:
+        raise SystemExit(f"避難所データを取得できません（{URL}）: {e.reason}。ネットワークと URL を確認してください") from e
     with psycopg.connect(os.environ["DATABASE_URL"]) as conn, conn.cursor() as cur:
         cur.executemany(
             """
