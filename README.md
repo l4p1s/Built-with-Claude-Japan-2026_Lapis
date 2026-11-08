@@ -8,8 +8,8 @@
 店や個人の炊き出し、物資の配布、ボランティアの給水、車中泊の集まりが対象です。
 集まりの正体は、その場にいる利用者に「ここに何がある？」と聞いて確かめます。
 
-<p align="center"><a href="https://youtu.be/qI7Ice_mGl8"><img src="docs/promo-teaser.gif" alt="紹介動画の一部。人が集まると「？」のピンが立ち、近くの人に聞いて、地図に載る" width="640"></a></p>
-<p align="center">▶ <a href="https://youtu.be/qI7Ice_mGl8">紹介動画（YouTube、3 分）</a>　／　<a href="https://built-with-claude-japan-2026-lapis.pages.dev/?demo=1&amp;from=08:00&amp;speed=5">デモを開く</a>（地震の翌日を合成データで早回し再生します。位置は取りません）</p>
+<p align="center"><a href="https://youtu.be/xDCVE76HEzk"><img src="docs/promo-teaser.gif" alt="紹介動画の一部。人が集まると「？」のピンが立ち、近くの人に聞いて、地図に載る" width="640"></a></p>
+<p align="center">▶ <a href="https://youtu.be/xDCVE76HEzk">紹介動画（YouTube、3 分）</a>　／　<a href="https://built-with-claude-japan-2026-lapis.pages.dev/?demo=1&amp;from=08:00&amp;speed=5">デモを開く</a>（地震の翌日を合成データで早回し再生します。位置は取りません）</p>
 
 - 動かすのに必要なものは Docker だけです（[5. 動かし方](#5-動かし方)）
 - ライセンスは MIT です。地図と公開データは、それぞれの提供元の条件に従います
